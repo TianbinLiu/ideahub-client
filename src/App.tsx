@@ -9,6 +9,8 @@ import NewIdeaPage from "./pages/NewIdeaPage";
 import IdeaDetailPage from "./pages/IdeaDetailPage";
 import MePage from "./pages/MePage";
 import CompanyPage from "./pages/CompanyPage";
+import NotificationsPage from "./pages/NotificationsPage";
+
 
 export default function App() {
   return (
@@ -47,6 +49,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
