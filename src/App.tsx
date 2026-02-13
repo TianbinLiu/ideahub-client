@@ -12,6 +12,8 @@ import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import EditIdeaPage from "./pages/EditIdeaPage";
+import PhoneLoginPage from "./pages/PhoneLoginPage";
+import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 
 
@@ -33,6 +35,8 @@ export default function App() {
 
 
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/login/phone" element={<PhoneLoginPage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
         <Route
