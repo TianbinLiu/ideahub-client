@@ -4,7 +4,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
-import { API_BASE } from "../config"; // ✅ 用你已有的后端 base（避免 import.meta.env）
+import OAuthButtons from "../components/OAuthButtons";
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -16,10 +16,6 @@ export default function LoginPage() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ 预留：等 B3 做好后端 OAuth，再把 routes 接通即可
-  const googleOAuthUrl = `${API_BASE}/api/auth/oauth/google`;
-  const githubOAuthUrl = `${API_BASE}/api/auth/oauth/github`;
-
   async function submit() {
     try {
       setErr("");
@@ -29,20 +25,15 @@ export default function LoginPage() {
         body: JSON.stringify({ emailOrUsername, password }),
       });
       await loginWithToken(res.token);
-      toast.success("Logged in!");
+      toast.success("Welcome back!");
       nav("/");
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
-      setErr(msg); // 可选
+      setErr(msg);
     } finally {
       setLoading(false);
     }
-  }
-
-  function openOAuth(url: string) {
-    // OAuth 必须整页跳转
-    window.location.href = url;
   }
 
   return (
@@ -52,69 +43,48 @@ export default function LoginPage() {
         New here? <Link className="underline" to="/register">Create an account</Link>
       </p>
 
-      {/* ✅ 新增：多渠道登录入口（占位，不影响现有登录） */}
-      <div className="mt-4 grid gap-2">
-        <button
-          type="button"
-          onClick={() => openOAuth(googleOAuthUrl)}
-          className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-900"
-        >
-          Continue with Google (coming soon)
-        </button>
-
-        <button
-          type="button"
-          onClick={() => openOAuth(githubOAuthUrl)}
-          className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-900"
-        >
-          Continue with GitHub (coming soon)
-        </button>
-
-        <Link
-          to="/login/phone"
-          className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-900 text-center"
-        >
-          Login with phone (OTP) (coming soon)
-        </Link>
-      </div>
-
-      <div className="my-4 flex items-center gap-3">
-        <div className="h-px bg-gray-800 flex-1" />
-        <div className="text-xs text-gray-500">OR</div>
-        <div className="h-px bg-gray-800 flex-1" />
-      </div>
-
-      {/* ✅ 原有：邮箱/用户名 + 密码 */}
-      <div className="mt-2 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-        <input
-          className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="email or username"
-          value={emailOrUsername}
-          onChange={(e) => setEmailOrUsername(e.target.value)}
-          disabled={loading}
-        />
-        <input
-          className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-        />
-
-        <button
-          onClick={submit}
-          disabled={loading || !emailOrUsername || !password}
-          className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
-
-        <div className="text-xs text-gray-500">
-          Tip: If you just registered, make sure you verified your email code on the Register page.
+      {/* OAuth */}
+      <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
+        <div className="text-sm font-semibold text-white">Sign in quickly</div>
+        <p className="text-xs text-gray-400 mt-1">
+          Use Google or GitHub. You’ll be redirected and come back automatically.
+        </p>
+        <div className="mt-3">
+          <OAuthButtons />
         </div>
 
-        {err && <p className="text-red-400 text-sm">Error: {err}</p>}
+        <div className="flex items-center gap-3 my-4">
+          <div className="h-px flex-1 bg-gray-800" />
+          <div className="text-xs text-gray-500">or</div>
+          <div className="h-px flex-1 bg-gray-800" />
+        </div>
+
+        {/* Email/Username + Password */}
+        <div className="grid gap-3">
+          <input
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+            placeholder="email or username"
+            value={emailOrUsername}
+            onChange={(e) => setEmailOrUsername(e.target.value)}
+          />
+          <input
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+            placeholder="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button
+            onClick={submit}
+            disabled={loading || !emailOrUsername || !password}
+            className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+
+          {err && <p className="text-red-400 text-sm">Error: {err}</p>}
+        </div>
       </div>
     </div>
   );
