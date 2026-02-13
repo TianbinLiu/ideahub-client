@@ -7,12 +7,17 @@ import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
 
 function safeNext(next: string | null) {
-  // 只允许站内路径，避免 open redirect
   if (!next) return "/";
   if (!next.startsWith("/")) return "/";
   if (next.startsWith("//")) return "/";
+
+  // ✅ 不允许跳回登录/注册页（产品态）
+  if (next === "/login" || next.startsWith("/login?")) return "/";
+  if (next === "/register" || next.startsWith("/register?")) return "/";
+
   return next;
 }
+
 
 export default function OAuthCallbackPage() {
   const nav = useNavigate();

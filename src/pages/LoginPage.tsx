@@ -19,8 +19,14 @@ export default function LoginPage() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const qNext = new URLSearchParams(loc.search).get("next");
+  const state = loc.state as any;
+  const sNext = state?.from?.pathname
+    ? `${state.from.pathname}${state.from.search || ""}`
+    : null;
+
   // 支持 /login?next=/ideas/xxx 这种形式（现在先不强依赖后端 next，但前端先做好）
-  const next = new URLSearchParams(loc.search).get("next") || "/";
+  const next = qNext || sNext || "/";
 
   async function submit() {
     try {

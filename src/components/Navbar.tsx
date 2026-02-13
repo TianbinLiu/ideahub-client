@@ -1,7 +1,10 @@
-import { Link, NavLink } from "react-router-dom";
+//Navbar.tsx
+
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../authContext";
 import { useEffect, useState } from "react";
 import { getUnreadCount } from "../api";
+
 
 function cls(isActive: boolean) {
   return isActive ? "text-white" : "text-gray-300 hover:text-white";
@@ -10,6 +13,11 @@ function cls(isActive: boolean) {
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [unread, setUnread] = useState(0);
+  const loc = useLocation();
+
+  const next = `${loc.pathname}${loc.search || ""}`;
+  const loginTo = `/login?next=${encodeURIComponent(next)}`;
+  const registerTo = `/register?next=${encodeURIComponent(next)}`;
 
   useEffect(() => {
     let timer: any;
@@ -70,8 +78,8 @@ export default function Navbar() {
 
           {!user ? (
             <>
-              <NavLink to="/login" className={({ isActive }) => cls(isActive)}>Login</NavLink>
-              <NavLink to="/register" className={({ isActive }) => cls(isActive)}>Register</NavLink>
+              <NavLink to={loginTo} className={({ isActive }) => cls(isActive)}>Login</NavLink>
+              <NavLink to={registerTo} className={({ isActive }) => cls(isActive)}>Register</NavLink>
             </>
           ) : (
             <div className="flex items-center gap-3">
