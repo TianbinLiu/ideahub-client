@@ -31,9 +31,14 @@ export default function NewIdeaPage() {
       const ideaId = res.idea._id;
 
       if (requestAI) {
-        // 可选：这里可以加个 toast/状态提示
-        await apiFetch(`/api/ideas/${ideaId}/ai-review`, { method: "POST" });
+        const r = await apiFetch<{ ok: true; jobId: string; status: string }>(`/api/ideas/${ideaId}/ai-review`, { method: "POST" });
+        toast.success("AI review queued");
+        // 可选：把 jobId 带到详情页（state 或 query）
+        nav(`/ideas/${ideaId}?aiJob=${r.jobId}`);
+        return;
       }
+      nav(`/ideas/${ideaId}`);
+
 
       nav(`/ideas/${ideaId}`);
     } catch (e: any) {
