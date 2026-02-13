@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
 
 type Idea = {
   _id: string;
@@ -27,7 +29,10 @@ export default function MePage() {
       const res = await apiFetch<{ ideas: Idea[] }>("/api/ideas/mine");
       setIdeas(res.ideas || []);
     } catch (e: any) {
-      setErr(e.message);
+      const msg = humanizeError(e);
+      toast.error(msg);
+      setErr(msg); // 可选
+
     } finally {
       setLoading(false);
     }

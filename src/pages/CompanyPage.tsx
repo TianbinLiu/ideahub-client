@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
 
 export default function CompanyPage() {
   const { user } = useAuth();
@@ -14,7 +16,10 @@ export default function CompanyPage() {
         const res = await apiFetch<{ ideas: any[] }>("/api/company/interests");
         setIdeas(res.ideas || []);
       } catch (e: any) {
-        setErr(e.message);
+        const msg = humanizeError(e);
+        toast.error(msg);
+        setErr(msg); // 可选
+
       }
     })();
   }, []);

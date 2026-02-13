@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
 
 export default function NewIdeaPage() {
   const nav = useNavigate();
@@ -34,9 +36,10 @@ export default function NewIdeaPage() {
       }
 
       nav(`/ideas/${ideaId}`);
-      nav(`/ideas/${res.idea._id}`);
     } catch (e: any) {
-      setErr(e.message);
+      const msg = humanizeError(e);
+      toast.error(msg);
+      setErr(msg); // 可选：保留页面内红字
     } finally {
       setLoading(false);
     }

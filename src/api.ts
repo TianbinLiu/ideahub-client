@@ -13,7 +13,14 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   const json = await res.json().catch(() => ({}));
 
-  if (!res.ok) throw new Error(json?.message || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err: any = new Error(json?.message || `HTTP ${res.status}`);
+    err.code = json?.code;
+    err.details = json?.details;
+    err.status = res.status;
+    throw err;
+  }
+
   return json as T;
 }
 

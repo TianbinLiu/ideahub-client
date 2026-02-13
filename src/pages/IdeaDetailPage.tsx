@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
 
 type Idea = {
   _id: string;
@@ -89,7 +91,10 @@ export default function IdeaDetailPage() {
       setLiked(!!res.liked);
       setBookmarked(!!res.bookmarked);
     } catch (e: any) {
-      setErr(e.message);
+      const msg = humanizeError(e);
+      toast.error(msg);
+      setErr(msg); // 可选
+
     } finally {
       setLoading(false);
     }

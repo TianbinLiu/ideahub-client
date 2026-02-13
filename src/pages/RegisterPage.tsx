@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
 
 export default function RegisterPage() {
   const nav = useNavigate();
@@ -26,7 +28,10 @@ export default function RegisterPage() {
       await loginWithToken(res.token);
       nav("/");
     } catch (e: any) {
-      setErr(e.message);
+      const msg = humanizeError(e);
+      toast.error(msg);
+      setErr(msg); // 可选
+
     } finally {
       setLoading(false);
     }
@@ -41,23 +46,23 @@ export default function RegisterPage() {
 
       <div className="mt-6 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
         <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="username" value={username} onChange={(e)=>setUsername(e.target.value)} />
+          placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="email" value={email} onChange={(e)=>setEmail(e.target.value)} />
+          placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="password (>= 6)" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} />
+          placeholder="password (>= 6)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
         <div className="flex gap-2 text-sm">
           <button
-            className={`flex-1 rounded-xl border px-3 py-2 ${role==="user"?"border-white text-white":"border-gray-700 text-gray-300"}`}
-            onClick={()=>setRole("user")}
+            className={`flex-1 rounded-xl border px-3 py-2 ${role === "user" ? "border-white text-white" : "border-gray-700 text-gray-300"}`}
+            onClick={() => setRole("user")}
             type="button"
           >
             Creator
           </button>
           <button
-            className={`flex-1 rounded-xl border px-3 py-2 ${role==="company"?"border-white text-white":"border-gray-700 text-gray-300"}`}
-            onClick={()=>setRole("company")}
+            className={`flex-1 rounded-xl border px-3 py-2 ${role === "company" ? "border-white text-white" : "border-gray-700 text-gray-300"}`}
+            onClick={() => setRole("company")}
             type="button"
           >
             Company

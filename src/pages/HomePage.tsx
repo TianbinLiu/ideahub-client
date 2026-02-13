@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../api";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
 
 type Idea = {
   _id: string;
@@ -48,7 +50,10 @@ export default function HomePage() {
       setIdeas(res.ideas || []);
       setTotalPages(res.totalPages || 1);
     } catch (e: any) {
-      setErr(e.message);
+      const msg = humanizeError(e);
+      toast.error(msg);
+      setErr(msg); // 可选
+
     } finally {
       setLoading(false);
     }
