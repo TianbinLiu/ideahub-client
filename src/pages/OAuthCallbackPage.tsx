@@ -1,8 +1,18 @@
-import { useEffect, useState } from "react";
+// src/pages/OAuthCallbackPage.tsx
+
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
+
+function safeNext(next: string | null) {
+  // 只允许站内路径，避免 open redirect
+  if (!next) return "/";
+  if (!next.startsWith("/")) return "/";
+  if (next.startsWith("//")) return "/";
+  return next;
+}
 
 export default function OAuthCallbackPage() {
   const nav = useNavigate();
@@ -11,6 +21,8 @@ export default function OAuthCallbackPage() {
 
   const [err, setErr] = useState("");
   const [status, setStatus] = useState<"loading" | "error">("loading");
+
+  const next = useMemo(() => safeNext(sp.get("next")), [sp]);
 
   useEffect(() => {
     (async () => {
@@ -37,7 +49,7 @@ export default function OAuthCallbackPage() {
 
         await loginWithToken(token);
         toast.success("Logged in!");
-        nav("/", { replace: true });
+        nav(next, { replace: true });
       } catch (e: any) {
         const msg = humanizeError(e);
         setErr(msg);
@@ -45,7 +57,7 @@ export default function OAuthCallbackPage() {
         toast.error(msg);
       }
     })();
-  }, [sp, nav, loginWithToken]);
+  }, [sp, nav, loginWithToken, next]);
 
   return (
     <div className="max-w-md mx-auto p-4">
@@ -62,7 +74,7 @@ export default function OAuthCallbackPage() {
           <p className="text-red-400 text-sm">Error: {err}</p>
           <div className="mt-3 flex gap-2">
             <Link
-              to="/login"
+              to={`/login?next=${encodeURIComponent(next)}`}
               className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-950"
             >
               Back to Login
