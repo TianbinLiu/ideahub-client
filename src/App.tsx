@@ -10,6 +10,9 @@ import IdeaDetailPage from "./pages/IdeaDetailPage";
 import MePage from "./pages/MePage";
 import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
+import EditIdeaPage from "./pages/EditIdeaPage";
+
 
 
 export default function App() {
@@ -19,6 +22,15 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/ideas/:id" element={<IdeaDetailPage />} />
+        <Route
+          path="/ideas/:id/edit"
+          element={
+            <ProtectedRoute>
+              <EditIdeaPage />
+            </ProtectedRoute>
+          }
+        />
+
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -58,6 +70,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <AdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
+
 
 
         <Route path="*" element={<Navigate to="/" replace />} />

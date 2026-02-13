@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+
 
 type Idea = {
   _id: string;
@@ -40,6 +41,7 @@ type Comment = {
 export default function IdeaDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const nav = useNavigate();
 
   const [idea, setIdea] = useState<Idea | null>(null);
   const [err, setErr] = useState("");
@@ -79,6 +81,19 @@ export default function IdeaDetailPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onDeleteIdea() {
+    if (!id) return;
+    if (!confirm("Delete this idea? This cannot be undone.")) return;
+
+    try {
+      await apiFetch(`/api/ideas/${id}`, { method: "DELETE" });
+      toast.success("Idea deleted");
+      nav("/");
+    } catch (e: any) {
+      toast.error(humanizeError(e));
     }
   }
 
@@ -127,7 +142,11 @@ export default function IdeaDetailPage() {
       await loadComments();
     })();
   }, [id]);
-  const isOwner = !!idea?.author?._id && !!user?._id && idea.author._id === user._id;
+
+  const userId = (user as any)?._id || (user as any)?.id;
+  const isOwner = !!idea?.author?._id && !!userId && idea.author._id === userId;
+  const isAdmin = user?.role === "admin";
+  const canManageIdea = isOwner || isAdmin;
 
   return (
     <div className="max-w-3xl mx-auto p-4">
@@ -151,6 +170,25 @@ export default function IdeaDetailPage() {
               <div>visibility: {idea.visibility}</div>
               <div>license: {idea.licenseType}</div>
             </div>
+
+            {canManageIdea && (
+              <div className="flex flex-col gap-2 items-end">
+                <Link
+                  to={`/ideas/${idea._id}/edit`}
+                  className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200"
+                >
+                  Edit
+                </Link>
+
+                <button
+                  onClick={onDeleteIdea}
+                  className="text-xs rounded-lg border border-red-800 px-3 py-1.5 hover:bg-red-950 text-red-200"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+
           </div>
 
           {idea.summary && <p className="text-gray-200 mt-4">{idea.summary}</p>}
