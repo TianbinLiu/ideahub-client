@@ -7,11 +7,14 @@ import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import OAuthButtons from "../components/OAuthButtons";
+import { useLocation } from "react-router-dom";
 
 type Step = "START" | "VERIFY";
 
 export default function RegisterPage() {
   const nav = useNavigate();
+  const loc = useLocation();
+  const next = new URLSearchParams(loc.search).get("next") || "/";
   const { loginWithToken } = useAuth();
 
   const [step, setStep] = useState<Step>("START");
@@ -69,7 +72,7 @@ export default function RegisterPage() {
 
       await loginWithToken(res.token);
       toast.success("Account created!");
-      nav("/");
+      nav(next);;
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
