@@ -8,13 +8,15 @@ import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import OAuthButtons from "../components/OAuthButtons";
 import { useLocation } from "react-router-dom";
+import { safeNext } from "../utils/safeNext";
 
 type Step = "START" | "VERIFY";
 
 export default function RegisterPage() {
   const nav = useNavigate();
   const loc = useLocation();
-  const next = new URLSearchParams(loc.search).get("next") || "/";
+  const rawNext = new URLSearchParams(loc.search).get("next");
+  const next = safeNext(rawNext);
   const { loginWithToken } = useAuth();
 
   const [step, setStep] = useState<Step>("START");
@@ -72,7 +74,7 @@ export default function RegisterPage() {
 
       await loginWithToken(res.token);
       toast.success("Account created!");
-      nav(next);;
+      nav(next, { replace: true });
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
@@ -96,7 +98,7 @@ export default function RegisterPage() {
       <h1 className="text-2xl font-bold text-white">Register</h1>
       <p className="text-gray-400 text-sm mt-1">
         Already have an account?{" "}
-        <Link className="underline" to="/login">
+        <Link className="underline" to={`/login?next=${encodeURIComponent(next)}`}>
           Login
         </Link>
       </p>
@@ -146,9 +148,8 @@ export default function RegisterPage() {
 
           <div className="flex gap-2 text-sm">
             <button
-              className={`flex-1 rounded-xl border px-3 py-2 ${
-                role === "user" ? "border-white text-white" : "border-gray-700 text-gray-300"
-              }`}
+              className={`flex-1 rounded-xl border px-3 py-2 ${role === "user" ? "border-white text-white" : "border-gray-700 text-gray-300"
+                }`}
               onClick={() => setRole("user")}
               type="button"
               disabled={loading || step === "VERIFY"}
@@ -157,9 +158,8 @@ export default function RegisterPage() {
             </button>
 
             <button
-              className={`flex-1 rounded-xl border px-3 py-2 ${
-                role === "company" ? "border-white text-white" : "border-gray-700 text-gray-300"
-              }`}
+              className={`flex-1 rounded-xl border px-3 py-2 ${role === "company" ? "border-white text-white" : "border-gray-700 text-gray-300"
+                }`}
               onClick={() => setRole("company")}
               type="button"
               disabled={loading || step === "VERIFY"}

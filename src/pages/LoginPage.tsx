@@ -7,6 +7,7 @@ import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import OAuthButtons from "../components/OAuthButtons";
+import { safeNext } from "../utils/safeNext";
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -26,7 +27,8 @@ export default function LoginPage() {
     : null;
 
   // 支持 /login?next=/ideas/xxx 这种形式（现在先不强依赖后端 next，但前端先做好）
-  const next = qNext || sNext || "/";
+  const rawNext = qNext || sNext || "/";
+  const next = safeNext(rawNext);
 
   async function submit() {
     try {
@@ -40,7 +42,7 @@ export default function LoginPage() {
 
       await loginWithToken(res.token);
       toast.success("Welcome back!");
-      nav(next);
+      nav(next, { replace: true });
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
@@ -55,7 +57,7 @@ export default function LoginPage() {
       <h1 className="text-2xl font-bold text-white">Login</h1>
       <p className="text-gray-400 text-sm mt-1">
         New here?{" "}
-        <Link className="underline" to="/register">
+        <Link className="underline" to={`/register?next=${encodeURIComponent(next)}`}>
           Create an account
         </Link>
       </p>

@@ -5,19 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
-
-function safeNext(next: string | null) {
-  if (!next) return "/";
-  if (!next.startsWith("/")) return "/";
-  if (next.startsWith("//")) return "/";
-
-  // ✅ 不允许跳回登录/注册页（产品态）
-  if (next === "/login" || next.startsWith("/login?")) return "/";
-  if (next === "/register" || next.startsWith("/register?")) return "/";
-
-  return next;
-}
-
+import { safeNext } from "../utils/safeNext";
 
 export default function OAuthCallbackPage() {
   const nav = useNavigate();
