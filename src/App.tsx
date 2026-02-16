@@ -14,6 +14,7 @@ import AdminUsersPage from "./pages/AdminUsersPage";
 import EditIdeaPage from "./pages/EditIdeaPage";
 import PhoneLoginPage from "./pages/PhoneLoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 
 
@@ -35,6 +36,7 @@ export default function App() {
 
 
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset" element={<ResetPasswordPage />} />
         <Route path="/login/phone" element={<PhoneLoginPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
         <Route path="/register" element={<RegisterPage />} />

@@ -111,14 +111,12 @@ export default function LoginPage() {
           {/* 预留：忘记密码入口（你后面做邮箱 OTP reset 可以直接接这里） */}
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-500">Tip: OAuth login does not require a password.</span>
-            <button
-              type="button"
+            <Link
+              to={`/reset?next=${encodeURIComponent(next)}`}
               className="text-gray-300 hover:text-white underline decoration-gray-700"
-              onClick={() => toast("Password reset is coming soon.", { icon: "🛠️" })}
-              disabled={loading}
             >
               Forgot password?
-            </button>
+            </Link>
           </div>
 
           {err && <p className="text-red-400 text-sm">Error: {err}</p>}
