@@ -35,6 +35,10 @@ export default function ResetPasswordPage() {
       setStep("VERIFY");
       setCooldown(DEFAULT_COOLDOWN);
     } catch (e: any) {
+      // if server returned OTP_RESEND_COOLDOWN with retryAfter, use it
+      if (e?.code === "OTP_RESEND_COOLDOWN" && e?.details?.retryAfter) {
+        setCooldown(Number(e.details.retryAfter) || DEFAULT_COOLDOWN);
+      }
       toast.error(humanizeError(e));
     } finally {
       setLoading(false);
@@ -193,7 +197,7 @@ export default function ResetPasswordPage() {
 
               <div className="text-gray-400 text-xs">
                 {cooldown > 0
-                  ? "Please wait before requesting another code."
+                  ? humanizeError({ code: "OTP_RESEND_COOLDOWN", details: { retryAfter: cooldown } })
                   : "You can resend the code."}
               </div>
             </div>
