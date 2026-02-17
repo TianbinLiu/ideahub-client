@@ -35,12 +35,13 @@ type Comment = {
   createdAt: string;
   author?: { username: string; role: string };
 };
-                <button
-                  onClick={() => setShowMoveConfirm(true)}
-                  className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200"
-                >
-                  Delete local
-                </button>
+export default function IdeaDetailPage() {
+  const nav = useNavigate();
+  const { id } = useParams();
+  const { user } = useAuth();
+
+  const [idea, setIdea] = useState<Idea | null>(null);
+  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [showMoveConfirm, setShowMoveConfirm] = useState(false);
 

@@ -92,11 +92,7 @@ export default function RegisterPage() {
     }
   }
 
-  function backToStart() {
-    setStep("START");
-    setCode("");
-    setErr("");
-  }
+  // Removed unused backToStart helper (was causing TS6133).
 
   const canSend = !!username.trim() && !!email.trim() && password.length >= 6;
   const canVerify = canSend && !!code.trim();
