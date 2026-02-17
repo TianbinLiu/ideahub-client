@@ -27,6 +27,7 @@ export default function HomePage() {
   const [searchInput, setSearchInput] = useState(q);
   const [suggestions, setSuggestions] = useState<Array<{ type: string; text: string; id?: string }>>([]);
   const [highlight, setHighlight] = useState(-1);
+  const [recentTags, setRecentTags] = useState<string[]>([]);
   const nav = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suggRef = useRef<HTMLDivElement | null>(null);
@@ -73,6 +74,10 @@ export default function HomePage() {
     setSearchInput(q);
   }, [q]);
 
+  useEffect(() => {
+    loadRecentTags();
+  }, []);
+
   // fetch suggestions for tags and idea titles
   function fetchSuggestionsDebounced(v: string) {
     if (suggTimer.current) clearTimeout(suggTimer.current);
@@ -104,6 +109,32 @@ export default function HomePage() {
       }
     }
     return replacement;
+  }
+
+  function loadRecentTags() {
+    try {
+      const raw = localStorage.getItem("recentSearchTags");
+      if (!raw) return setRecentTags([]);
+      const parsed = JSON.parse(raw || "[]");
+      if (Array.isArray(parsed)) setRecentTags(parsed.slice(0, 12));
+    } catch (e) {
+      setRecentTags([]);
+    }
+  }
+
+  function persistRecentTags(tags: string[]) {
+    try {
+      localStorage.setItem("recentSearchTags", JSON.stringify(tags.slice(0, 12)));
+    } catch (e) {}
+  }
+
+  function updateRecentTagsFromInput(input: string) {
+    const parts = input.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    const normalized = parts.map(s => s.toLowerCase());
+    const merged = [...normalized, ...recentTags.filter(t => !normalized.includes(t))].slice(0, 12);
+    setRecentTags(merged);
+    persistRecentTags(merged);
   }
 
 
@@ -160,10 +191,13 @@ export default function HomePage() {
                   e.preventDefault();
                 } else {
                   // trigger search
-                  const next = new URLSearchParams(params);
-                  next.set("page", "1");
-                  searchInput.trim() ? next.set("q", searchInput.trim()) : next.delete("q");
-                  setParams(next);
+                    const next = new URLSearchParams(params);
+                    next.set("page", "1");
+                    if (searchInput.trim()) {
+                      next.set("q", searchInput.trim());
+                      updateRecentTagsFromInput(searchInput);
+                    } else next.delete("q");
+                    setParams(next);
                 }
               } else if (e.key === "Tab") {
                 if (highlight >= 0 && suggestions[highlight]) {
@@ -201,7 +235,30 @@ export default function HomePage() {
           )}
         </div>
 
-        <div />
+        <div className="flex flex-wrap gap-2 items-center">
+          {recentTags.length === 0 ? (
+            <div className="text-gray-500 text-sm">热门标签会在你搜索后出现</div>
+          ) : (
+            recentTags.map((t) => (
+              <button
+                key={t}
+                className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
+                onClick={() => {
+                  setSearchInput(prev => {
+                    const tokens = prev.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+                    if (tokens.length === 0) return t;
+                    const last = tokens[tokens.length - 1].toLowerCase();
+                    if (last === t.toLowerCase()) return prev;
+                    return prev.trim() ? prev.trim() + ", " + t : t;
+                  });
+                  inputRef.current?.focus();
+                }}
+              >
+                #{t}
+              </button>
+            ))
+          )}
+        </div>
 
         <button
           className="rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold"
@@ -209,9 +266,10 @@ export default function HomePage() {
             const next = new URLSearchParams(params);
             next.set("page", "1");
 
-            searchInput.trim()
-              ? next.set("q", searchInput.trim())
-              : next.delete("q");
+            if (searchInput.trim()) {
+              next.set("q", searchInput.trim());
+              updateRecentTagsFromInput(searchInput);
+            } else next.delete("q");
 
             setParams(next);
           }}
