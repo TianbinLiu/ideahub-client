@@ -9,14 +9,20 @@ export default function TagRankPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [total, setTotal] = useState(0);
 
   async function loadRank(t: string[]) {
     try {
       setLoading(true);
       const qs = new URLSearchParams();
       if (t.length) qs.set("tags", t.join(","));
+      qs.set("page", String(page));
+      qs.set("limit", String(limit));
       const res = await apiFetch(`/api/tag-rank?${qs.toString()}`);
       setResults(res.results || []);
+      setTotal(res.total || 0);
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -35,14 +41,30 @@ export default function TagRankPage() {
   }
 
   useEffect(() => {
-    // load empty list by default
-    loadRank([]);
-  }, []);
+    // load when tags or page changes
+    loadRank(tags);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tags, page]);
 
   function applyTags() {
     const arr = tagsInput.split(",").map(s => s.trim()).filter(Boolean).map(s=>s.toLowerCase());
     setTags(arr);
-    loadRank(arr);
+    setPage(1);
+  }
+
+  async function createLeaderboard() {
+    try {
+      setLoading(true);
+      const qs = new URLSearchParams();
+      if (tags.length) qs.set("tags", tags.join(","));
+      const res = await apiFetch(`/api/tag-rank/leaderboard`, { method: "POST", body: JSON.stringify({ tags: tags.join(",") }) });
+      toast.success(`Leaderboard created (${res.entriesCount || 0})`);
+      loadRank(tags);
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function vote(ideaId: string, v: number) {
@@ -108,8 +130,18 @@ export default function TagRankPage() {
           ))}
 
           {results.length === 0 && !loading && (
-            <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
+            <div>
+              <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
+              <div className="mt-3">
+                <button onClick={createLeaderboard} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Create leaderboard for these tags</button>
+              </div>
+            </div>
           )}
+        </div>
+        <div className="mt-4 flex items-center justify-between">
+          <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p-1))} className="rounded-xl border border-gray-700 px-3 py-2">← Prev</button>
+          <div className="text-sm text-gray-400">Page <span className="text-white">{page}</span> · Total <span className="text-white">{Math.ceil(total/limit) || 1}</span></div>
+          <button disabled={page >= Math.max(1, Math.ceil(total/limit || 1))} onClick={() => setPage(p => p+1)} className="rounded-xl border border-gray-700 px-3 py-2">Next →</button>
         </div>
       </div>
     </div>

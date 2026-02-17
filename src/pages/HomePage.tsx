@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -25,6 +25,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [searchInput, setSearchInput] = useState(q);
+  const [suggestions, setSuggestions] = useState<Array<{ type: string; text: string; id?: string }>>([]);
+  const [highlight, setHighlight] = useState(-1);
+  const nav = useNavigate();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const suggRef = useRef<HTMLDivElement | null>(null);
+
+  // debounce timer
+  const suggTimer = useRef<any>(null);
 
   async function load() {
     try {
@@ -65,6 +73,40 @@ export default function HomePage() {
     setSearchInput(q);
   }, [q]);
 
+  // fetch suggestions for tags and idea titles
+  function fetchSuggestionsDebounced(v: string) {
+    if (suggTimer.current) clearTimeout(suggTimer.current);
+    suggTimer.current = setTimeout(async () => {
+      try {
+        const token = v.trim();
+        if (!token) return setSuggestions([]);
+        const [tagsRes, ideasRes] = await Promise.all([
+          apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ tags: [] })),
+          apiFetch(`/api/ideas/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ ideas: [] })),
+        ]);
+        const tagSug = (tagsRes.tags || []).slice(0, 6).map((t: string) => ({ type: "tag", text: t }));
+        const ideaSug = (ideasRes.ideas || []).slice(0, 6).map((it: any) => ({ type: "idea", text: it.title, id: it.id }));
+        setSuggestions([...tagSug, ...ideaSug]);
+        setHighlight(-1);
+      } catch (e) {
+        // ignore
+      }
+    }, 180);
+  }
+
+  function replaceLastTokenWith(input: string, replacement: string) {
+    // replace last comma/space separated token
+    const parts = input.split(/([,\s]+)/);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (!parts[i].match(/^[,\s]+$/)) {
+        parts[i] = replacement;
+        return parts.join("");
+      }
+    }
+    return replacement;
+  }
+
+
   return (
     <div className="max-w-5xl mx-auto p-4">
       <div className="flex items-end justify-between">
@@ -92,12 +134,72 @@ export default function HomePage() {
       </div>
 
       <div className="mt-4 grid gap-2 md:grid-cols-3">
-        <input
-          className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm"
-          placeholder="Search tags or keywords (e.g. novel, dark or roguelike)"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
+        <div className="relative">
+          <input
+            className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm w-full"
+            placeholder="Search tags or keywords (e.g. novel, dark or roguelike)"
+            value={searchInput}
+            onChange={(e) => { setSearchInput(e.target.value); fetchSuggestionsDebounced(e.target.value); }}
+            ref={inputRef}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setHighlight((h) => Math.min((suggestions.length || 0) - 1, h + 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setHighlight((h) => Math.max(-1, h - 1));
+              } else if (e.key === "Enter") {
+                if (highlight >= 0 && suggestions[highlight]) {
+                  const s = suggestions[highlight];
+                  if (s.type === "idea" && s.id) {
+                    nav(`/ideas/${s.id}`);
+                  } else if (s.type === "tag") {
+                    setSearchInput(prev => replaceLastTokenWith(prev, s.text));
+                  }
+                  setSuggestions([]);
+                  e.preventDefault();
+                } else {
+                  // trigger search
+                  const next = new URLSearchParams(params);
+                  next.set("page", "1");
+                  searchInput.trim() ? next.set("q", searchInput.trim()) : next.delete("q");
+                  setParams(next);
+                }
+              } else if (e.key === "Tab") {
+                if (highlight >= 0 && suggestions[highlight]) {
+                  e.preventDefault();
+                  const s = suggestions[highlight];
+                  if (s.type === "idea" && s.id) {
+                    nav(`/ideas/${s.id}`);
+                  } else if (s.type === "tag") {
+                    setSearchInput(prev => replaceLastTokenWith(prev, s.text));
+                  }
+                  setSuggestions([]);
+                }
+              }
+            }}
+          />
+
+          {suggestions.length > 0 && (
+            <div ref={suggRef} className="absolute mt-2 left-0 w-full bg-gray-900 border border-gray-800 rounded-xl z-50">
+              {suggestions.map((s, idx) => (
+                <div key={`${s.type}-${s.text}-${s.id || ""}`}
+                  className={`px-3 py-2 cursor-pointer ${idx === highlight ? "bg-gray-800" : ""}`}
+                  onMouseEnter={() => setHighlight(idx)}
+                  onMouseLeave={() => setHighlight(-1)}
+                  onClick={() => {
+                    if (s.type === "idea" && s.id) nav(`/ideas/${s.id}`);
+                    else setSearchInput(prev => replaceLastTokenWith(prev, s.text));
+                    setSuggestions([]);
+                  }}
+                >
+                  <div className="text-sm text-gray-200">{s.text}</div>
+                  <div className="text-xs text-gray-500">{s.type === "tag" ? "tag suggestion" : "idea title"}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div />
 
