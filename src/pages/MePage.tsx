@@ -23,6 +23,8 @@ export default function MePage() {
   const [likedIdeas, setLikedIdeas] = useState<any[]>([]);
   const [bookmarkedIdeas, setBookmarkedIdeas] = useState<any[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<any[]>([]);
+  const [publicUsed, setPublicUsed] = useState(0);
+  const FREE_PUBLIC_LIMIT = Number((import.meta as any).env?.VITE_FREE_PUBLIC_IDEA_LIMIT) || 5;
 
   async function load() {
     try {
@@ -30,6 +32,8 @@ export default function MePage() {
       setLoading(true);
       const res = await apiFetch<{ ideas: Idea[] }>("/api/ideas/mine");
       setIdeas(res.ideas || []);
+      const used = (res.ideas || []).filter((i) => i.visibility === "public").length;
+      setPublicUsed(used);
       // load local private ideas from browser
       setLocalIdeas(listLocalIdeas());
     } catch (e: any) {
@@ -70,11 +74,36 @@ export default function MePage() {
       <h1 className="text-2xl font-bold text-white">Me</h1>
       <p className="text-gray-400 text-sm mt-1">{user?.email}</p>
 
+      {user && user.role !== "company" && user.role !== "admin" && (
+        <div className="mt-3 p-3 rounded-xl bg-gray-900 border border-gray-800 text-sm text-gray-300">
+          Public ideas: <span className="text-white font-semibold">{publicUsed}</span> / <span className="text-white font-semibold">{FREE_PUBLIC_LIMIT}</span>
+          {publicUsed >= FREE_PUBLIC_LIMIT && (
+            <div className="mt-3 p-3 rounded-lg bg-red-950 border border-red-800 text-sm text-red-200 flex items-center justify-between">
+              <div>
+                You have reached your public idea limit. Delete an existing public idea or upgrade to publish more.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("my-ideas");
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className="rounded-xl border border-red-700 px-3 py-2 text-sm bg-transparent"
+                >
+                  Manage ideas
+                </button>
+                <a href="/company" className="rounded-xl bg-white text-black px-3 py-2 text-sm font-semibold">Upgrade</a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading && <p className="text-gray-300 mt-6">Loading...</p>}
       {err && <p className="text-red-400 mt-6">Error: {err}</p>}
 
       {/* ================= 我的 Ideas ================= */}
-      <h2 className="text-xl font-semibold text-white mt-6">My Ideas</h2>
+      <h2 id="my-ideas" className="text-xl font-semibold text-white mt-6">My Ideas</h2>
 
       <div className="mt-3 grid gap-3">
         {localIdeas.map((it) => (
