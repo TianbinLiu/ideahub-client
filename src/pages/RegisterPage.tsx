@@ -262,6 +262,8 @@ export default function RegisterPage() {
                 className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
               >
                 {loading ? "Verifying..." : "Verify & create account"}
+              </button>
+
               <button
                 onClick={sendCode}
                 disabled={loading || cooldown > 0}
@@ -275,9 +277,6 @@ export default function RegisterPage() {
                   </svg>
                 ) : null}
                 {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
-              </button>
-              >
-                Back (resend)
               </button>
             </div>
           )}
