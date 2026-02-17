@@ -15,6 +15,7 @@ import EditIdeaPage from "./pages/EditIdeaPage";
 import PhoneLoginPage from "./pages/PhoneLoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import TagRankPage from "./pages/TagRankPage";
 
 
 
@@ -67,6 +68,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/tag-rank" element={<TagRankPage />} />
 
         <Route
           path="/notifications"
