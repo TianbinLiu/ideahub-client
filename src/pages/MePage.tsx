@@ -4,6 +4,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { listLocalIdeas } from "../utils/localIdeas";
 
 type Idea = {
   _id: string;
@@ -16,6 +17,7 @@ type Idea = {
 export default function MePage() {
   const { user } = useAuth();
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [localIdeas, setLocalIdeas] = useState<any[]>([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [likedIdeas, setLikedIdeas] = useState<any[]>([]);
@@ -28,6 +30,8 @@ export default function MePage() {
       setLoading(true);
       const res = await apiFetch<{ ideas: Idea[] }>("/api/ideas/mine");
       setIdeas(res.ideas || []);
+      // load local private ideas from browser
+      setLocalIdeas(listLocalIdeas());
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
@@ -73,6 +77,24 @@ export default function MePage() {
       <h2 className="text-xl font-semibold text-white mt-6">My Ideas</h2>
 
       <div className="mt-3 grid gap-3">
+        {localIdeas.map((it) => (
+          <Link
+            key={it._id}
+            to={`/ideas/${it._id}`}
+            className="rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-semibold">{it.title}</h3>
+              <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
+            </div>
+            {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-gray-500">visibility: private (local)</p>
+              <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">Local</span>
+            </div>
+          </Link>
+        ))}
+
         {ideas.map((it) => (
           <Link
             key={it._id}
@@ -86,9 +108,10 @@ export default function MePage() {
               </span>
             </div>
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
-            <p className="text-xs text-gray-500 mt-2">
-              visibility: {it.visibility}
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-gray-500">visibility: {it.visibility}</p>
+              <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">Server</span>
+            </div>
           </Link>
         ))}
 

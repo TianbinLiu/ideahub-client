@@ -4,6 +4,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { getLocalIdea, deleteLocalIdea, saveLocalIdea } from "../utils/localIdeas";
 
 
 type Idea = {
@@ -34,18 +35,14 @@ type Comment = {
   createdAt: string;
   author?: { username: string; role: string };
 };
-
-
-
-
-export default function IdeaDetailPage() {
-  const { id } = useParams();
-  const { user } = useAuth();
-  const nav = useNavigate();
-
-  const [idea, setIdea] = useState<Idea | null>(null);
-  const [err, setErr] = useState("");
+                <button
+                  onClick={() => setShowMoveConfirm(true)}
+                  className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200"
+                >
+                  Delete local
+                </button>
   const [loading, setLoading] = useState(true);
+  const [showMoveConfirm, setShowMoveConfirm] = useState(false);
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
@@ -101,6 +98,30 @@ export default function IdeaDetailPage() {
     try {
       setErr("");
       setLoading(true);
+      if (id && id.startsWith("local-")) {
+        const li = getLocalIdea(id);
+        if (!li) {
+          setErr("Local idea not found");
+          return;
+        }
+        // map to Idea shape partially
+        setIdea({
+          _id: li._id,
+          title: li.title,
+          summary: li.summary || "",
+          content: li.content || "",
+          tags: li.tags || [],
+          visibility: "private",
+          isMonetizable: false,
+          licenseType: "default",
+          createdAt: li.createdAt,
+          updatedAt: li.updatedAt,
+        } as any);
+        setLiked(false);
+        setBookmarked(false);
+        return;
+      }
+
       const res = await apiFetch<{ idea: Idea; liked?: boolean; bookmarked?: boolean }>(`/api/ideas/${id}`);
       setIdea(res.idea);
       setLiked(!!res.liked);
@@ -143,13 +164,67 @@ export default function IdeaDetailPage() {
     })();
   }, [id]);
 
+  // migration handler: confirm modal -> fetch full data -> save locally -> delete server
+  async function confirmMoveToLocal() {
+    if (!id) return;
+    try {
+      setLoading(true);
+      // fetch latest idea (with liked/bookmarked) and comments
+      const resIdea = await apiFetch<{ idea: Idea; liked?: boolean; bookmarked?: boolean }>(`/api/ideas/${id}`);
+      const resComments = await apiFetch<{ comments: Comment[] }>(`/api/ideas/${id}/comments`);
+
+      const payload: any = {
+        _id: undefined,
+        title: resIdea.idea.title,
+        summary: resIdea.idea.summary,
+        content: resIdea.idea.content,
+        tags: resIdea.idea.tags,
+        createdAt: resIdea.idea.createdAt,
+        comments: resComments.comments || [],
+        stats: resIdea.idea.stats || {},
+        liked: !!resIdea.liked,
+        bookmarked: !!resIdea.bookmarked,
+      };
+
+      const local = saveLocalIdea(payload);
+
+      // delete server idea (owner only)
+      await apiFetch(`/api/ideas/${id}`, { method: "DELETE" });
+
+      // navigate to local idea view
+      deleteLocalIdea(local._id); // ensure duplication doesn't occur, then re-save with full data
+      saveLocalIdea({ ...local, ...payload, _id: local._id });
+
+      toast.success("Moved to local private storage");
+      setShowMoveConfirm(false);
+      nav(`/ideas/${local._id}`);
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const userId = (user as any)?._id || (user as any)?.id;
   const isOwner = !!idea?.author?._id && !!userId && idea.author._id === userId;
   const isAdmin = user?.role === "admin";
   const canManageIdea = isOwner || isAdmin;
+  const isLocal = !!idea && String(idea._id).startsWith("local-");
 
   return (
     <div className="max-w-3xl mx-auto p-4">
+      {showMoveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-lg w-full">
+            <h3 className="text-lg font-semibold text-white">Move to private (local)</h3>
+            <p className="text-sm text-gray-400 mt-2">This will delete the idea from the server and store it locally in your browser. Comments, like/bookmark counts and your like/bookmark state will be preserved.</p>
+            <div className="mt-4 flex gap-2 justify-end">
+              <button onClick={() => setShowMoveConfirm(false)} className="rounded-xl border border-gray-700 px-3 py-2 text-sm">Cancel</button>
+              <button onClick={confirmMoveToLocal} className="rounded-xl bg-white text-black px-3 py-2 text-sm font-semibold">Confirm move</button>
+            </div>
+          </div>
+        </div>
+      )}
       <Link to="/" className="text-sm text-gray-400 hover:text-white">← Back</Link>
 
       {loading && <p className="text-gray-300 mt-6">Loading...</p>}
@@ -180,11 +255,85 @@ export default function IdeaDetailPage() {
                   Edit
                 </Link>
 
+                {!isLocal && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Move this public idea to your local private storage? This will delete it from the server.")) return;
+                      try {
+                        setLoading(true);
+                        // save locally first
+                        const local = saveLocalIdea({
+                          title: idea.title,
+                          summary: idea.summary,
+                          content: idea.content,
+                          tags: idea.tags,
+                          createdAt: idea.createdAt,
+                        });
+                        // delete on server
+                        await apiFetch(`/api/ideas/${idea._id}`, { method: "DELETE" });
+                        toast.success("Moved to local private storage");
+                        nav(`/ideas/${local._id}`);
+                      } catch (e: any) {
+                        toast.error(humanizeError(e));
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className="text-xs rounded-lg border border-yellow-700 px-3 py-1.5 hover:bg-yellow-950 text-yellow-200"
+                  >
+                    Move to private (local)
+                  </button>
+                )}
+
                 <button
                   onClick={onDeleteIdea}
                   className="text-xs rounded-lg border border-red-800 px-3 py-1.5 hover:bg-red-950 text-red-200"
                 >
                   Delete
+                </button>
+              </div>
+            )}
+
+            {isLocal && (
+              <div className="flex flex-col gap-2 items-end">
+                <button
+                  onClick={async () => {
+                    // publish local idea -> POST to server
+                    try {
+                      setLoading(true);
+                      const payload = {
+                        title: idea.title,
+                        summary: idea.summary,
+                        content: idea.content,
+                        tags: idea.tags,
+                        visibility: "public",
+                      };
+                      const res = await apiFetch(`/api/ideas`, { method: "POST", body: JSON.stringify(payload) });
+                      // on success, remove local and navigate to server idea
+                      deleteLocalIdea(idea._id);
+                      toast.success("Published to public.");
+                      nav(`/ideas/${res.idea._id}`);
+                    } catch (e: any) {
+                      toast.error(humanizeError(e));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="text-xs rounded-lg border border-green-700 px-3 py-1.5 hover:bg-green-950 text-green-200"
+                >
+                  Publish (make public)
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!confirm("Delete local private idea?")) return;
+                    deleteLocalIdea(idea._id);
+                    toast.success("Local idea deleted");
+                    nav("/me");
+                  }}
+                  className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200"
+                >
+                  Delete local
                 </button>
               </div>
             )}

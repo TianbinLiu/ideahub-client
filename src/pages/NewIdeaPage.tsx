@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { saveLocalIdea } from "../utils/localIdeas";
 
 export default function NewIdeaPage() {
   const nav = useNavigate();
@@ -23,6 +24,13 @@ export default function NewIdeaPage() {
     try {
       setErr("");
       setLoading(true);
+      if (visibility === "private") {
+        const local = saveLocalIdea({ title, summary, content, tags: tags.split(",").map((s) => s.trim()).filter(Boolean) });
+        toast.success("Saved locally (private)");
+        nav(`/ideas/${local._id}`);
+        return;
+      }
+
       const res = await apiFetch<{ idea: { _id: string } }>(`/api/ideas`, {
         method: "POST",
         body: JSON.stringify({ title, summary, content, tags, visibility, isMonetizable, licenseType }),
@@ -33,13 +41,9 @@ export default function NewIdeaPage() {
       if (requestAI) {
         const r = await apiFetch<{ ok: true; jobId: string; status: string }>(`/api/ideas/${ideaId}/ai-review`, { method: "POST" });
         toast.success("AI review queued");
-        // 可选：把 jobId 带到详情页（state 或 query）
         nav(`/ideas/${ideaId}?aiJob=${r.jobId}`);
         return;
       }
-      nav(`/ideas/${ideaId}`);
-
-
       nav(`/ideas/${ideaId}`);
     } catch (e: any) {
       const msg = humanizeError(e);

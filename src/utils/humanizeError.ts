@@ -15,6 +15,9 @@ export function humanizeError(err: any) {
       return "请稍后再试";
     case "VALIDATION_ERROR":
       return "Please check your input.";
+    case "PUBLIC_LIMIT_EXCEEDED":
+      if (err?.details?.limit) return `Free accounts can publish up to ${Number(err.details.limit)} public ideas. Delete one or upgrade your account.`;
+      return `Free accounts have reached the public idea limit.`;
     case "NOT_FOUND":
       return "Not found.";
     case "DUPLICATE":

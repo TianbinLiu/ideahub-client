@@ -146,7 +146,10 @@ export default function HomePage() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-white font-semibold">{it.title}</h2>
-              <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">Server</span>
+              </div>
             </div>
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
 
