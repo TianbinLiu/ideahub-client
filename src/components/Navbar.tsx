@@ -51,6 +51,7 @@ export default function Navbar() {
           <NavLink to="/" className={({ isActive }) => cls(isActive)}>Home</NavLink>
           <NavLink to="/ideas/new" className={({ isActive }) => cls(isActive)}>New</NavLink>
           <NavLink to="/me" className={({ isActive }) => cls(isActive)}>Me</NavLink>
+          <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>Tag Rank</NavLink>
 
           {user && (
             <NavLink to="/notifications" className={({ isActive }) => cls(isActive)}>

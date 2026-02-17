@@ -17,16 +17,14 @@ type Idea = {
 export default function HomePage() {
   const [params, setParams] = useSearchParams();
   const sort = params.get("sort") || "new";
-  const keyword = params.get("keyword") || "";
-  const tag = params.get("tag") || "";
+  const q = params.get("q") || "";
   const page = Math.max(parseInt(params.get("page") || "1", 10), 1);
 
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
-  const [keywordInput, setKeywordInput] = useState(keyword);
-  const [tagInput, setTagInput] = useState(tag);
+  const [searchInput, setSearchInput] = useState(q);
 
   async function load() {
     try {
@@ -35,8 +33,7 @@ export default function HomePage() {
 
       const qs = new URLSearchParams({
         sort,
-        keyword,
-        tag,
+        q,
         page: String(page),
         limit: "10",
       });
@@ -62,12 +59,11 @@ export default function HomePage() {
 
   useEffect(() => {
     load();
-  }, [sort]);
+  }, [sort, q, page]);
 
   useEffect(() => {
-    setKeywordInput(keyword);
-    setTagInput(tag);
-  }, [keyword, tag]);
+    setSearchInput(q);
+  }, [q]);
 
   return (
     <div className="max-w-5xl mx-auto p-4">
@@ -98,17 +94,12 @@ export default function HomePage() {
       <div className="mt-4 grid gap-2 md:grid-cols-3">
         <input
           className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm"
-          placeholder="Search keyword..."
-          value={keywordInput}
-          onChange={(e) => setKeywordInput(e.target.value)}
+          placeholder="Search tags or keywords (e.g. novel, dark or roguelike)"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
 
-        <input
-          className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm"
-          placeholder="Filter tag (e.g. demo)"
-          value={tagInput}
-          onChange={(e) => setTagInput(e.target.value)}
-        />
+        <div />
 
         <button
           className="rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold"
@@ -116,18 +107,14 @@ export default function HomePage() {
             const next = new URLSearchParams(params);
             next.set("page", "1");
 
-            keywordInput.trim()
-              ? next.set("keyword", keywordInput.trim())
-              : next.delete("keyword");
-
-            tagInput.trim()
-              ? next.set("tag", tagInput.trim())
-              : next.delete("tag");
+            searchInput.trim()
+              ? next.set("q", searchInput.trim())
+              : next.delete("q");
 
             setParams(next);
           }}
         >
-          Apply
+          Search
         </button>
       </div>
 

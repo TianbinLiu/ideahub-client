@@ -24,6 +24,16 @@ export default function TagRankPage() {
     }
   }
 
+  // tag suggestions
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  async function fetchSuggestions(q: string) {
+    try {
+      if (!q.trim()) return setSuggestions([]);
+      const res = await apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(q)}`);
+      setSuggestions(res.tags || []);
+    } catch {}
+  }
+
   useEffect(() => {
     // load empty list by default
     loadRank([]);
@@ -54,8 +64,18 @@ export default function TagRankPage() {
         <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
           placeholder="tags, comma separated (e.g. novel,dark)"
           value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
+          onChange={(e) => { setTagsInput(e.target.value); fetchSuggestions(e.target.value); }}
         />
+        {suggestions.length > 0 && (
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {suggestions.map(s => (
+              <button key={s} onClick={() => { setTagsInput(prev => prev ? `${prev},${s}` : s); setSuggestions([]); }}
+                className="text-sm px-2 py-1 rounded-full border border-gray-700 text-gray-300">
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2">
           <button onClick={applyTags} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Apply</button>
           <button onClick={() => { setTagsInput(""); setTags([]); loadRank([]); }} className="rounded-xl border border-gray-700 px-3 py-2">Clear</button>
