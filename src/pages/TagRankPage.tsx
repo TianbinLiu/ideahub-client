@@ -12,6 +12,7 @@ export default function TagRankPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
+  const [recentBoards, setRecentBoards] = useState<any[]>([]);
 
   async function loadRank(t: string[]) {
     try {
@@ -22,7 +23,7 @@ export default function TagRankPage() {
       qs.set("limit", String(limit));
       const res = await apiFetch(`/api/tag-rank?${qs.toString()}`);
       setResults(res.results || []);
-      setTotal(res.total || 0);
+      setTotal(res.total || (res.results ? res.results.length : 0));
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -45,6 +46,17 @@ export default function TagRankPage() {
     loadRank(tags);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tags, page]);
+
+  useEffect(() => {
+    // load recent persisted leaderboards for discovery when no tags selected
+    async function loadRecent() {
+      try {
+        const res = await apiFetch(`/api/tag-rank/leaderboards?limit=6`);
+        setRecentBoards(res.boards || []);
+      } catch (e) {}
+    }
+    loadRecent();
+  }, []);
 
   function applyTags() {
     const arr = tagsInput.split(",").map(s => s.trim()).filter(Boolean).map(s=>s.toLowerCase());
@@ -129,11 +141,31 @@ export default function TagRankPage() {
             </div>
           ))}
 
-          {results.length === 0 && !loading && (
+          {!loading && results.length === 0 && (
             <div>
               <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
               <div className="mt-3">
-                <button onClick={createLeaderboard} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Create leaderboard for these tags</button>
+                {tags.length > 0 ? (
+                  // show create only when user has searched tags
+                  <button onClick={createLeaderboard} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Create leaderboard for these tags</button>
+                ) : (
+                  // when no tags selected, show recent persisted leaderboards for discovery
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {recentBoards.length === 0 ? (
+                      <div className="text-gray-500">No persisted leaderboards yet.</div>
+                    ) : (
+                      recentBoards.map((b: any) => (
+                        <div key={b.tagsKey} className="rounded-xl border border-gray-800 p-3 bg-gray-950/30">
+                          <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
+                          <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
+                          <div className="mt-2">
+                            <button onClick={() => { setTags(b.tags || []); setTagsInput((b.tags||[]).join(",")); setPage(1); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
