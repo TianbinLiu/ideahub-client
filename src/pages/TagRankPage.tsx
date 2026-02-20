@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -13,6 +14,15 @@ export default function TagRankPage() {
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
   const [recentBoards, setRecentBoards] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsLimit] = useState(6);
+  const [postsTotal, setPostsTotal] = useState(0);
+  const [newPostTitle, setNewPostTitle] = useState("");
+  const [newPostBody, setNewPostBody] = useState("");
+  const [postsSort, setPostsSort] = useState<"popular"|"recent">("popular");
+  const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   async function loadRank(t: string[]) {
     try {
@@ -48,6 +58,18 @@ export default function TagRankPage() {
   }, [tags, page]);
 
   useEffect(() => {
+    // initialize from query param if present
+    const q = searchParams.get("tags") || searchParams.get("tagsKey") || "";
+    if (q) {
+      const arr = q.split(/[,|]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase());
+      setTags(arr);
+      setTagsInput(arr.join(","));
+      setPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     // load recent persisted leaderboards for discovery when no tags selected
     async function loadRecent() {
       try {
@@ -62,6 +84,9 @@ export default function TagRankPage() {
     const arr = tagsInput.split(",").map(s => s.trim()).filter(Boolean).map(s=>s.toLowerCase());
     setTags(arr);
     setPage(1);
+    // update URL so users can share/bookmark leaderboard
+    if (arr.length) setSearchParams({ tags: arr.join(",") });
+    else setSearchParams({});
   }
 
   async function createLeaderboard() {
@@ -89,6 +114,43 @@ export default function TagRankPage() {
     }
   }
 
+  // posts related
+  async function loadPostsForTags(curTags: string[]) {
+    try {
+      if (!curTags || curTags.length === 0) return setPosts([]);
+      const tagsKey = curTags.join("|");
+      const qs = new URLSearchParams({ tagsKey, sort: postsSort, page: String(postsPage), limit: String(postsLimit) });
+      const res = await apiFetch(`/api/tag-rank/posts?${qs.toString()}`);
+      setPosts(res.posts || []);
+      setPostsTotal(res.total || 0);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    loadPostsForTags(tags);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tags, postsPage, postsSort]);
+
+  async function submitPost() {
+    try {
+      if (!tags || tags.length === 0) return toast.error("请选择一个 leaderboard 再发帖");
+      const tagsKey = tags.join("|");
+      const res = await apiFetch(`/api/tag-rank/posts`, { method: "POST", body: JSON.stringify({ title: newPostTitle, body: newPostBody, tagsKey }) });
+      setNewPostTitle(""); setNewPostBody("");
+      toast.success("Post created");
+      loadPostsForTags(tags);
+    } catch (e: any) { toast.error(humanizeError(e)); }
+  }
+
+  async function toggleLike(postId: string) {
+    try {
+      const res = await apiFetch(`/api/tag-rank/posts/${postId}/like`, { method: "POST" });
+      setPosts(prev => prev.map(p => p._id === postId ? { ...p, likesCount: res.likesCount } : p));
+    } catch (e: any) { toast.error(humanizeError(e)); }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-white">Tag Rank</h1>
@@ -114,6 +176,51 @@ export default function TagRankPage() {
           <button onClick={applyTags} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Apply</button>
           <button onClick={() => { setTagsInput(""); setTags([]); loadRank([]); }} className="rounded-xl border border-gray-700 px-3 py-2">Clear</button>
         </div>
+        {/* Posts section: only show when viewing a specific leaderboard (tags selected) */}
+        {tags.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-lg text-white mb-2">Leaderboard Posts</h3>
+            <div className="grid gap-2">
+              <input value={newPostTitle} onChange={e=>setNewPostTitle(e.target.value)} placeholder="Nomination title" className="px-3 py-2 rounded-xl bg-gray-900 border border-gray-800" />
+              <textarea value={newPostBody} onChange={e=>setNewPostBody(e.target.value)} placeholder="Why nominate this?" className="px-3 py-2 rounded-xl bg-gray-900 border border-gray-800" />
+              <div className="flex gap-2">
+                <button onClick={submitPost} className="rounded-xl bg-white text-black px-3 py-2">Post Nomination</button>
+                <div className="ml-auto flex items-center gap-2">
+                  <label className="text-sm text-gray-400">Sort:</label>
+                  <select value={postsSort} onChange={e=>{ setPostsSort(e.target.value as any); setPostsPage(1); }} className="bg-gray-900 border border-gray-800 px-2 py-1 rounded-md">
+                    <option value="popular">Popular</option>
+                    <option value="recent">Recent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                {posts.map(p => (
+                  <div key={p._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-white font-semibold">{p.title}</div>
+                        <div className="text-xs text-gray-400">by {p.author?.username || 'unknown'} · {new Date(p.createdAt).toLocaleString()}</div>
+                        <div className="text-sm text-gray-300 mt-2">{p.body}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white font-bold">{p.likesCount || 0}</div>
+                        <div className="text-xs text-gray-400">likes</div>
+                        <button onClick={()=>toggleLike(p._id)} className="mt-2 rounded-md border border-gray-700 px-2 py-1 text-sm">Like</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between">
+                <button disabled={postsPage <= 1} onClick={()=>setPostsPage(p=>Math.max(1,p-1))} className="rounded-xl border border-gray-700 px-3 py-2">← Prev</button>
+                <div className="text-sm text-gray-400">Page <span className="text-white">{postsPage}</span> · Total <span className="text-white">{Math.ceil(postsTotal/postsLimit) || 1}</span></div>
+                <button disabled={postsPage >= Math.max(1, Math.ceil(postsTotal/postsLimit || 1))} onClick={()=>setPostsPage(p=>p+1)} className="rounded-xl border border-gray-700 px-3 py-2">Next →</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6">
@@ -142,32 +249,31 @@ export default function TagRankPage() {
           ))}
 
           {!loading && results.length === 0 && (
-            <div>
-              <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
-              <div className="mt-3">
-                {tags.length > 0 ? (
-                  // show create only when user has searched tags
+            tags.length > 0 ? (
+              <div>
+                <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
+                <div className="mt-3">
                   <button onClick={createLeaderboard} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Create leaderboard for these tags</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {recentBoards.length === 0 ? (
+                  <div className="text-gray-500">No persisted leaderboards yet.</div>
                 ) : (
-                  // when no tags selected, show recent persisted leaderboards for discovery
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {recentBoards.length === 0 ? (
-                      <div className="text-gray-500">No persisted leaderboards yet.</div>
-                    ) : (
-                      recentBoards.map((b: any) => (
-                        <div key={b.tagsKey} className="rounded-xl border border-gray-800 p-3 bg-gray-950/30">
-                          <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
-                          <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
-                          <div className="mt-2">
-                            <button onClick={() => { setTags(b.tags || []); setTagsInput((b.tags||[]).join(",")); setPage(1); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  recentBoards.map((b: any) => (
+                    <div key={b.tagsKey} className="rounded-xl border border-gray-800 p-3 bg-gray-950/30">
+                      <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
+                      <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => { setTags(b.tags || []); setTagsInput((b.tags||[]).join(",")); setPage(1); setSearchParams({ tags: (b.tags||[]).join(",") }); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
+                        <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">Open</button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
-            </div>
+            )
           )}
         </div>
         <div className="mt-4 flex items-center justify-between">
