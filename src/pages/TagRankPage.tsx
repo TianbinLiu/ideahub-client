@@ -69,6 +69,20 @@ export default function TagRankPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // sync when search params change (e.g. navigation via View/Open)
+  useEffect(() => {
+    const q = searchParams.get("tags") || searchParams.get("tagsKey") || "";
+    const arr = q ? q.split(/[,|]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase()) : [];
+    // only update if different to avoid loops
+    const same = arr.length === tags.length && arr.every((t,i)=>t === tags[i]);
+    if (!same) {
+      setTags(arr);
+      setTagsInput(arr.join(","));
+      setPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
+
   useEffect(() => {
     // load recent persisted leaderboards for discovery when no tags selected
     async function loadRecent() {
@@ -137,7 +151,7 @@ export default function TagRankPage() {
     try {
       if (!tags || tags.length === 0) return toast.error("请选择一个 leaderboard 再发帖");
       const tagsKey = tags.join("|");
-      const res = await apiFetch(`/api/tag-rank/posts`, { method: "POST", body: JSON.stringify({ title: newPostTitle, body: newPostBody, tagsKey }) });
+      await apiFetch(`/api/tag-rank/posts`, { method: "POST", body: JSON.stringify({ title: newPostTitle, body: newPostBody, tagsKey }) });
       setNewPostTitle(""); setNewPostBody("");
       toast.success("Post created");
       loadPostsForTags(tags);
@@ -266,8 +280,8 @@ export default function TagRankPage() {
                       <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
                       <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
                       <div className="mt-2 flex gap-2">
-                        <button onClick={() => { setTags(b.tags || []); setTagsInput((b.tags||[]).join(",")); setPage(1); setSearchParams({ tags: (b.tags||[]).join(",") }); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
-                        <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">Open</button>
+                            <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
+                            <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">Open</button>
                       </div>
                     </div>
                   ))
