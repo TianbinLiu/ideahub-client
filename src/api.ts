@@ -24,7 +24,7 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   return json as T;
 }
 
-export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST";
+export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE";
 
 export type NotificationItem = {
   _id: string;

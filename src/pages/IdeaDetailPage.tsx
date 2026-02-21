@@ -5,6 +5,7 @@ import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { getLocalIdea, deleteLocalIdea, saveLocalIdea } from "../utils/localIdeas";
+import { MentionTextarea } from "../components/MentionTextarea";
 
 
 type Idea = {
@@ -425,11 +426,11 @@ export default function IdeaDetailPage() {
 
             {user ? (
               <div className="mt-3 grid gap-2">
-                <textarea
-                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[90px]"
-                  placeholder="Write a comment..."
+                <MentionTextarea
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
+                  onChange={setCommentText}
+                  placeholder="Write a comment... (use @username to mention)"
+                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[90px] w-full text-gray-200"
                 />
                 <button
                   className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"

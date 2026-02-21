@@ -16,6 +16,8 @@ function renderText(n: NotificationItem) {
     case "COMMENT": return `${actor} commented on "${title}"`;
     case "BOOKMARK": return `${actor} bookmarked "${title}"`;
     case "INTEREST": return `${actor} showed interest in "${title}"`;
+    case "MENTION": return `${actor} mentioned you in a comment on "${title}"`;
+    case "INVITE": return `${actor} invited you to view "${title}"`;
     default: return "New notification";
   }
 }

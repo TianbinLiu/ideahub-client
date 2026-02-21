@@ -4,6 +4,7 @@ import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { saveLocalIdea } from "../utils/localIdeas";
+import { MentionTextarea } from "../components/MentionTextarea";
 
 export default function NewIdeaPage() {
   const nav = useNavigate();
@@ -64,8 +65,12 @@ export default function NewIdeaPage() {
           placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
           placeholder="Summary" value={summary} onChange={(e) => setSummary(e.target.value)} />
-        <textarea className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px]"
-          placeholder="Content" value={content} onChange={(e) => setContent(e.target.value)} />
+        <MentionTextarea
+          value={content}
+          onChange={setContent}
+          placeholder="Content (use @username to invite users)"
+          className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px] text-gray-200"
+        />
         <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
           placeholder="Tags (comma-separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
 
