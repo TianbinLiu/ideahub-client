@@ -106,21 +106,6 @@ export default function TagRankPage() {
     else setSearchParams({});
   }
 
-  async function createLeaderboard() {
-    try {
-      setLoading(true);
-      const qs = new URLSearchParams();
-      if (tags.length) qs.set("tags", tags.join(","));
-      const res = await apiFetch(`/api/tag-rank/leaderboard`, { method: "POST", body: JSON.stringify({ tags: tags.join(",") }) });
-      toast.success(`Leaderboard created (${res.entriesCount || 0})`);
-      loadRank(tags);
-    } catch (e: any) {
-      toast.error(humanizeError(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function vote(ideaId: string, v: number) {
     try {
       const res = await apiFetch(`/api/tag-rank/vote`, { method: "POST", body: JSON.stringify({ ideaId, tags, vote: v }) });
