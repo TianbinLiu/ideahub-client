@@ -246,6 +246,11 @@ export default function TagRankPage() {
                     </div>
                   );
                 })}
+                {posts.length === 0 && (
+                  <div>
+                    <p className="text-gray-400">No Nomination in this leaderboard yet. You can create the first one or adjust tags.</p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-2 flex items-center justify-between">
@@ -259,63 +264,70 @@ export default function TagRankPage() {
       </div>
 
       <div className="mt-6">
-        <h2 className="text-lg text-white">{tags.length ? `Leaderboard for: ${tags.join(", ")}` : "Global Leaderboard"}</h2>
-        {loading && <p className="text-gray-400">Loading...</p>}
+        {/* Leaderboard Ideas section - only show when tags selected */}
+        {tags.length > 0 && (
+          <div>
+            <h2 className="text-lg text-white">Leaderboard for: {tags.join(", ")}</h2>
+            {loading && <p className="text-gray-400">Loading...</p>}
 
-        <div className="mt-3 grid gap-3">
-          {results.map((r: any) => (
-            <div key={r.idea._id} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <Link to={`/ideas/${r.idea._id}`} className="text-white font-semibold text-lg">{r.idea.title}</Link>
-                  <div className="text-sm text-gray-400">by {r.idea.author?.username || 'unknown'}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-white font-bold text-lg">{r.score ?? 0}</div>
-                  <div className="text-xs text-gray-400">{r.votes ?? 0} votes</div>
-                </div>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <button onClick={() => vote(r.idea._id, 1)} className="rounded-xl border border-green-700 px-3 py-1 text-sm text-green-200">支持</button>
-                <button onClick={() => vote(r.idea._id, -1)} className="rounded-xl border border-red-700 px-3 py-1 text-sm text-red-200">反对</button>
-              </div>
-            </div>
-          ))}
-
-          {!loading && results.length === 0 && (
-            tags.length > 0 ? (
-              <div>
-                <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
-                <div className="mt-3">
-                  <button onClick={createLeaderboard} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Create leaderboard for these tags</button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {recentBoards.length === 0 ? (
-                  <div className="text-gray-500">No persisted leaderboards yet.</div>
-                ) : (
-                  recentBoards.map((b: any) => (
-                    <div key={b.tagsKey} className="rounded-xl border border-gray-800 p-3 bg-gray-950/30">
-                      <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
-                      <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
-                      <div className="mt-2 flex gap-2">
-                            <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
-                            <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">Open</button>
-                      </div>
+            <div className="mt-3 grid gap-3">
+              {results.map((r: any) => (
+                <div key={r.idea._id} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <Link to={`/ideas/${r.idea._id}`} className="text-white font-semibold text-lg">{r.idea.title}</Link>
+                      <div className="text-sm text-gray-400">by {r.idea.author?.username || 'unknown'}</div>
                     </div>
-                  ))
-                )}
-              </div>
-            )
-          )}
-        </div>
-        <div className="mt-4 flex items-center justify-between">
-          <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p-1))} className="rounded-xl border border-gray-700 px-3 py-2">← Prev</button>
-          <div className="text-sm text-gray-400">Page <span className="text-white">{page}</span> · Total <span className="text-white">{Math.ceil(total/limit) || 1}</span></div>
-          <button disabled={page >= Math.max(1, Math.ceil(total/limit || 1))} onClick={() => setPage(p => p+1)} className="rounded-xl border border-gray-700 px-3 py-2">Next →</button>
-        </div>
+                    <div className="text-right">
+                      <div className="text-white font-bold text-lg">{r.score ?? 0}</div>
+                      <div className="text-xs text-gray-400">{r.votes ?? 0} votes</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => vote(r.idea._id, 1)} className="rounded-xl border border-green-700 px-3 py-1 text-sm text-green-200">支持</button>
+                    <button onClick={() => vote(r.idea._id, -1)} className="rounded-xl border border-red-700 px-3 py-1 text-sm text-red-200">反对</button>
+                  </div>
+                </div>
+              ))}
+
+              {!loading && results.length === 0 && (
+                <div>
+                  <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p-1))} className="rounded-xl border border-gray-700 px-3 py-2">← Prev</button>
+              <div className="text-sm text-gray-400">Page <span className="text-white">{page}</span> · Total <span className="text-white">{Math.ceil(total/limit) || 1}</span></div>
+              <button disabled={page >= Math.max(1, Math.ceil(total/limit || 1))} onClick={() => setPage(p => p+1)} className="rounded-xl border border-gray-700 px-3 py-2">Next →</button>
+            </div>
+          </div>
+        )}
+
+        {/* No leaderboard prompt - show on home when no tags selected */}
+        {tags.length === 0 && (
+          <div>
+            <h2 className="text-lg text-white">Global Leaderboard</h2>
+            <div className="mt-3 grid gap-3">
+              {recentBoards.length === 0 ? (
+                <div className="text-gray-500">No persisted leaderboards yet.</div>
+              ) : (
+                recentBoards.map((b: any) => (
+                  <div key={b.tagsKey} className="rounded-xl border border-gray-800 p-3 bg-gray-950/30">
+                    <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
+                    <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
+                      <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">Open</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
