@@ -57,7 +57,12 @@ export default function NotificationsPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Auto-refresh every 5 seconds
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function markOne(id: string) {
     await markNotificationRead(id);
@@ -73,9 +78,14 @@ export default function NotificationsPage() {
     <div className="max-w-3xl mx-auto p-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold text-white">Notifications</h1>
-        <button onClick={markAll} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200">
-          Mark all read
-        </button>
+        <div className="flex gap-2">
+          <button onClick={load} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200 text-sm">
+            ↻ Refresh
+          </button>
+          <button onClick={markAll} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200">
+            Mark all read
+          </button>
+        </div>
       </div>
 
       {loading && <div className="text-gray-400 text-sm">Loading...</div>}

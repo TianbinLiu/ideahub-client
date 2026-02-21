@@ -4,8 +4,11 @@ import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { Link } from "react-router-dom";
+import { useAuth } from "../authContext";
 
 export default function TagRankPage() {
+  const { user } = useAuth();
+  const userId = (user as any)?._id || (user as any)?.id;
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [results, setResults] = useState<any[]>([]);
@@ -160,8 +163,12 @@ export default function TagRankPage() {
 
   async function toggleLike(postId: string) {
     try {
-      const res = await apiFetch(`/api/tag-rank/posts/${postId}/like`, { method: "POST" });
-      setPosts(prev => prev.map(p => p._id === postId ? { ...p, likesCount: res.likesCount } : p));
+      const res = await apiFetch<{ liked: boolean; likesCount: number }>(`/api/tag-rank/posts/${postId}/like`, { method: "POST" });
+      setPosts(prev => prev.map(p => p._id === postId ? { 
+        ...p, 
+        likesCount: res.likesCount,
+        likes: res.liked ? [...(p.likes || []), userId] : (p.likes || []).filter((u: string) => u !== userId)
+      } : p));
     } catch (e: any) { toast.error(humanizeError(e)); }
   }
 
@@ -209,22 +216,36 @@ export default function TagRankPage() {
               </div>
 
               <div className="grid gap-2">
-                {posts.map(p => (
-                  <div key={p._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-white font-semibold">{p.title}</div>
-                        <div className="text-xs text-gray-400">by {p.author?.username || 'unknown'} · {new Date(p.createdAt).toLocaleString()}</div>
-                        <div className="text-sm text-gray-300 mt-2">{p.body}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-white font-bold">{p.likesCount || 0}</div>
-                        <div className="text-xs text-gray-400">likes</div>
-                        <button onClick={()=>toggleLike(p._id)} className="mt-2 rounded-md border border-gray-700 px-2 py-1 text-sm">Like</button>
+                {posts.map(p => {
+                  const isLiked = p.likes?.includes(userId);
+                  return (
+                    <div key={p._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-white font-semibold">{p.title}</div>
+                          <div className="text-xs text-gray-400">by {p.author?.username || 'unknown'} · {new Date(p.createdAt).toLocaleString()}</div>
+                          <div className="text-sm text-gray-300 mt-2">{p.body}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-white font-bold">{p.likesCount || 0}</div>
+                          <div className="text-xs text-gray-400">likes</div>
+                          {user && (
+                            <button 
+                              onClick={()=>toggleLike(p._id)} 
+                              className={`mt-2 text-xs px-2 py-1 rounded border ${
+                                isLiked
+                                  ? "border-white text-white"
+                                  : "border-gray-700 text-gray-400 hover:text-gray-200"
+                              }`}
+                            >
+                              {isLiked ? "❤️" : "🤍"} {p.likesCount || 0}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="mt-2 flex items-center justify-between">
