@@ -9,18 +9,27 @@ import {
 
 function renderText(n: NotificationItem) {
   const actor = n.actorId?.username || "Someone";
-  const title = n.ideaId?.title || "your idea";
+  const title = n.ideaId?.title || "an idea";
 
   switch (n.type) {
-    case "LIKE": return `${actor} liked "${title}"`;
-    case "COMMENT": return `${actor} commented on "${title}"`;
-    case "BOOKMARK": return `${actor} bookmarked "${title}"`;
-    case "INTEREST": return `${actor} showed interest in "${title}"`;
-    case "MENTION": return `${actor} mentioned you in a comment on "${title}"`;
-    case "INVITE": return `${actor} invited you to view "${title}"`;
-    case "LIKE_COMMENT": return `${actor} liked your comment on "${title}"`;
-    case "LIKE_POST": return `${actor} liked your nomination`;
-    default: return "New notification";
+    case "LIKE":
+      return `${actor} liked "${title}"`;
+    case "COMMENT":
+      return `${actor} commented on "${title}"`;
+    case "BOOKMARK":
+      return `${actor} bookmarked "${title}"`;
+    case "INTEREST":
+      return `${actor} showed interest in "${title}"`;
+    case "MENTION":
+      return `${actor} mentioned you in a comment on "${title}"`;
+    case "INVITE":
+      return `${actor} invited you to view "${title}"`;
+    case "LIKE_COMMENT":
+      return `${actor} liked your comment on "${title}"`;
+    case "LIKE_POST":
+      return `${actor} liked your nomination "${n.payload?.postTitle || 'a post'}"`;
+    default:
+      return `${actor}: ${n.type}`;
   }
 }
 
