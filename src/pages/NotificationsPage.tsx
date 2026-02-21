@@ -36,12 +36,22 @@ function renderText(n: NotificationItem) {
 export default function NotificationsPage() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
+    setError("");
     try {
+      console.log("[NotificationsPage] Loading notifications...");
       const r = await listNotifications({ page: 1, limit: 50 });
-      setItems(r.items);
+      console.log("[NotificationsPage] Got response:", r);
+      setItems(r.items || []);
+      if (r.items && r.items.length === 0) {
+        console.log("[NotificationsPage] No items returned");
+      }
+    } catch (e: any) {
+      console.error("[NotificationsPage] Error loading notifications:", e);
+      setError(e.message || "Failed to load notifications");
     } finally {
       setLoading(false);
     }
@@ -69,8 +79,10 @@ export default function NotificationsPage() {
       </div>
 
       {loading && <div className="text-gray-400 text-sm">Loading...</div>}
+      {error && <div className="text-red-400 text-sm mb-4">Error: {error}</div>}
 
       <div className="space-y-2">
+        {items.length === 0 && !loading && <p className="text-gray-400 text-sm">No notifications yet.</p>}
         {items.map(n => (
           <div
             key={n._id}
