@@ -35,6 +35,8 @@ type Comment = {
   content: string;
   createdAt: string;
   author?: { username: string; role: string };
+  likes?: string[];
+  likesCount?: number;
 };
 export default function IdeaDetailPage() {
   const nav = useNavigate();
@@ -80,6 +82,25 @@ export default function IdeaDetailPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function toggleCommentLike(commentId: string) {
+    if (!id || !userId) return;
+    try {
+      const res = await apiFetch<{ liked: boolean; likesCount: number }>(
+        `/api/ideas/${id}/comments/${commentId}/like`,
+        { method: "POST" }
+      );
+      setComments((prev) =>
+        prev.map((c) =>
+          c._id === commentId
+            ? { ...c, likesCount: res.likesCount, likes: res.liked ? [...(c.likes || []), userId] : (c.likes || []).filter((uid: string) => uid !== userId) }
+            : c
+        )
+      );
+    } catch (e: any) {
+      toast.error(humanizeError(e));
     }
   }
 
@@ -446,15 +467,30 @@ export default function IdeaDetailPage() {
 
             <div className="mt-4 space-y-3">
               {comments.length === 0 && <p className="text-gray-400 text-sm">No comments yet.</p>}
-              {comments.map((c) => (
-                <div key={c._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>{c.author?.username || "unknown"}</span>
-                    <span>{new Date(c.createdAt).toLocaleString()}</span>
+              {comments.map((c) => {
+                const isCommentLiked = c.likes?.includes(userId);
+                return (
+                  <div key={c._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span>{c.author?.username || "unknown"}</span>
+                      <span>{new Date(c.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-gray-200 mt-2 whitespace-pre-wrap">{c.content}</p>
+                    {user && (
+                      <button
+                        onClick={() => toggleCommentLike(c._id)}
+                        className={`mt-2 text-xs px-2 py-1 rounded border ${
+                          isCommentLiked
+                            ? "border-white text-white"
+                            : "border-gray-700 text-gray-400 hover:text-gray-200"
+                        }`}
+                      >
+                        {isCommentLiked ? "❤️" : "🤍"} {c.likesCount || 0}
+                      </button>
+                    )}
                   </div>
-                  <p className="text-gray-200 mt-2 whitespace-pre-wrap">{c.content}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

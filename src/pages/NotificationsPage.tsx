@@ -18,6 +18,8 @@ function renderText(n: NotificationItem) {
     case "INTEREST": return `${actor} showed interest in "${title}"`;
     case "MENTION": return `${actor} mentioned you in a comment on "${title}"`;
     case "INVITE": return `${actor} invited you to view "${title}"`;
+    case "LIKE_COMMENT": return `${actor} liked your comment on "${title}"`;
+    case "LIKE_POST": return `${actor} liked your nomination`;
     default: return "New notification";
   }
 }

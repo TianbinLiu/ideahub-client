@@ -24,7 +24,7 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   return json as T;
 }
 
-export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE";
+export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "LIKE_POST";
 
 export type NotificationItem = {
   _id: string;
@@ -57,4 +57,12 @@ export function markNotificationRead(id: string) {
 
 export function markAllNotificationsRead() {
   return apiFetch<{ ok: true }>(`/api/notifications/read-all`, { method: "POST" });
+}
+
+export function searchUsers(query: string, limit: number = 8) {
+  const q = new URLSearchParams();
+  if (query) q.set("q", query);
+  if (limit) q.set("limit", String(limit));
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return apiFetch<{ users: { _id: string; username: string }[] }>(`/api/users/search${suffix}`);
 }
