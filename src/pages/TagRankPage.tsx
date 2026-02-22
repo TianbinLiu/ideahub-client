@@ -275,12 +275,6 @@ export default function TagRankPage() {
                   </div>
                 </div>
               ))}
-
-              {!loading && results.length === 0 && (
-                <div>
-                  <p className="text-gray-400">No ideas in this leaderboard yet. You can create the first one or adjust tags.</p>
-                </div>
-              )}
             </div>
 
             <div className="mt-4 flex items-center justify-between">
