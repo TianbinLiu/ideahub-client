@@ -68,12 +68,7 @@ export default function TagRankPage() {
         `/api/tag-rank/search?q=${encodeURIComponent(tagsArr.join(","))}`
       );
 
-      // If exact match found, navigate directly to leaderboard
-      if (res.exact) {
-        return nav(`/leaderboard/${res.exact._id}`);
-      }
-
-      // Otherwise show search results
+      // Show search results (including exact match if found)
       setSearchResults(res);
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -187,12 +182,33 @@ export default function TagRankPage() {
         <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
           <h2 className="text-lg text-white mb-3">Search Results</h2>
 
-          {searchResults.related && searchResults.related.length > 0 ? (
-            <div>
-              <p className="text-sm text-gray-400 mb-3">
-                Exact match not found. Here are related leaderboards:
+          {/* Exact Match */}
+          {searchResults.exact && (
+            <div className="mb-4">
+              <p className="text-sm text-green-400 mb-2">
+                ✓ Found exact match:
               </p>
-              <div className="grid gap-2 mb-4">
+              <div
+                className="rounded-xl border-2 border-green-700 bg-gray-950/50 p-3 cursor-pointer hover:bg-gray-950"
+                onClick={() => nav(`/leaderboard/${searchResults.exact._id}`)}
+              >
+                <div className="text-white font-semibold">
+                  {searchResults.exact.tags?.join(", ")}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {searchResults.exact.postsCount || 0} nominations
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Related Leaderboards */}
+          {!searchResults.exact && searchResults.related && searchResults.related.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-2">
+                No exact match found. Here are related leaderboards:
+              </p>
+              <div className="grid gap-2">
                 {searchResults.related.map((board: any) => (
                   <div
                     key={board._id}
@@ -209,20 +225,31 @@ export default function TagRankPage() {
                 ))}
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-gray-400 mb-3">
-              No related leaderboards found.
-            </p>
           )}
 
-          <div className="border-t border-gray-800 pt-3 mt-3">
-            <button
-              onClick={createNewLeaderboard}
-              className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700"
-            >
-              Create Leaderboard for "{tagsInput}"
-            </button>
-          </div>
+          {/* No Match Found */}
+          {!searchResults.exact && (!searchResults.related || searchResults.related.length === 0) && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-2">
+                No matching leaderboards found for these tags.
+              </p>
+            </div>
+          )}
+
+          {/* Create Button - only show when no exact match */}
+          {!searchResults.exact && (
+            <div className="border-t border-gray-800 pt-3">
+              <p className="text-sm text-gray-400 mb-3">
+                Would you like to create a new leaderboard for "{tagsInput}"?
+              </p>
+              <button
+                onClick={createNewLeaderboard}
+                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700"
+              >
+                Create New Leaderboard
+              </button>
+            </div>
+          )}
         </div>
       )}
 
