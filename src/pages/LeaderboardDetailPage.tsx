@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -91,30 +91,6 @@ export default function LeaderboardDetailPage() {
               }
             : p
         )
-      );
-    } catch (e: any) {
-      toast.error(humanizeError(e));
-    }
-  }
-
-  async function vote(ideaId: string, v: number) {
-    try {
-      const tags = leaderboard?.tags || [];
-      const res = await apiFetch<any>(`/api/tag-rank/vote`, {
-        method: "POST",
-        body: JSON.stringify({ ideaId, tags, vote: v }),
-      });
-      setLeaderboard((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              entries: prev.entries.map((e: any) =>
-                e.idea._id === ideaId
-                  ? { ...e, score: res.score, votes: res.votes }
-                  : e
-              ),
-            }
-          : prev
       );
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -290,61 +266,6 @@ export default function LeaderboardDetailPage() {
           >
             Next →
           </button>
-        </div>
-      </div>
-
-      {/* Ideas Ranking Section */}
-      <div className="mt-6">
-        <h2 className="text-lg text-white mb-3">Ideas Ranking</h2>
-
-        <div className="grid gap-3">
-          {leaderboard.entries?.map((entry: any) => (
-            <div
-              key={entry.idea._id}
-              className="rounded-2xl border border-gray-800 bg-gray-900 p-4"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <Link
-                    to={`/ideas/${entry.idea._id}`}
-                    className="text-white font-semibold text-lg hover:underline"
-                  >
-                    {entry.idea.title}
-                  </Link>
-                  <div className="text-sm text-gray-400">
-                    by {entry.idea.author?.username || "unknown"}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-white font-bold text-lg">
-                    {entry.score ?? 0}
-                  </div>
-                  <div className="text-xs text-gray-400">{entry.votes ?? 0} votes</div>
-                </div>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => vote(entry.idea._id, 1)}
-                  className="rounded-xl border border-green-700 px-3 py-1 text-sm text-green-200 hover:bg-green-950"
-                >
-                  ↑ Support
-                </button>
-                <button
-                  onClick={() => vote(entry.idea._id, -1)}
-                  className="rounded-xl border border-red-700 px-3 py-1 text-sm text-red-200 hover:bg-red-950"
-                >
-                  ↓ Oppose
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {!leaderboard.entries || leaderboard.entries.length === 0 && (
-            <p className="text-gray-400 text-sm">
-              No ideas in this leaderboard yet.
-            </p>
-          )}
         </div>
       </div>
     </div>
