@@ -203,7 +203,7 @@ export default function TagRankPage() {
                       {board.tags?.join(", ")}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {board.entries?.length || 0} nominations
+                      {board.postsCount || 0} nominations
                     </div>
                   </div>
                 ))}
@@ -274,7 +274,7 @@ export default function TagRankPage() {
                       {board.tags?.join(", ")}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {board.entries?.length || 0} nominations ·{" "}
+                      {board.postsCount || 0} nominations ·{" "}
                       {new Date(board.computedAt).toLocaleDateString()}
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
