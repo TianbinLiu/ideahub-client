@@ -16,6 +16,7 @@ import PhoneLoginPage from "./pages/PhoneLoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import TagRankPage from "./pages/TagRankPage";
+import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
 
 
 
@@ -70,6 +71,7 @@ export default function App() {
         />
 
         <Route path="/tag-rank" element={<TagRankPage />} />
+        <Route path="/leaderboard/:id" element={<LeaderboardDetailPage />} />
 
         <Route
           path="/notifications"

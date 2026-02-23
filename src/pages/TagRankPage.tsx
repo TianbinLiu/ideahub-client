@@ -1,313 +1,296 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
-import { Link } from "react-router-dom";
-import { useAuth } from "../authContext";
 
 export default function TagRankPage() {
-  const { user } = useAuth();
-  const userId = (user as any)?._id || (user as any)?.id;
-  const [tagsInput, setTagsInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [recentBoards, setRecentBoards] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [postsPage, setPostsPage] = useState(1);
-  const [postsLimit] = useState(6);
-  const [postsTotal, setPostsTotal] = useState(0);
-  const [newPostTitle, setNewPostTitle] = useState("");
-  const [newPostBody, setNewPostBody] = useState("");
-  const [postsSort, setPostsSort] = useState<"popular"|"recent">("popular");
   const nav = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  async function loadRank(t: string[]) {
-    try {
-      setLoading(true);
-      const qs = new URLSearchParams();
-      if (t.length) qs.set("tags", t.join(","));
-      qs.set("page", String(page));
-      qs.set("limit", String(limit));
-      const res = await apiFetch(`/api/tag-rank?${qs.toString()}`);
-      setResults(res.results || []);
-      setTotal(res.total || (res.results ? res.results.length : 0));
-    } catch (e: any) {
-      toast.error(humanizeError(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // tag suggestions
+  const [tagsInput, setTagsInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  // Discovery section state
+  const [discoverySort, setDiscoverySort] = useState<"recent" | "hottest">(
+    "recent"
+  );
+  const [discoveryBoards, setDiscoveryBoards] = useState<any[]>([]);
+  const [discoveryLoading, setDiscoveryLoading] = useState(true);
+
+  // Search results state
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // Fetch tag suggestions
   async function fetchSuggestions(q: string) {
     try {
       if (!q.trim()) return setSuggestions([]);
-      const res = await apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(q)}`);
+      const res = await apiFetch(
+        `/api/tag-rank/suggest?q=${encodeURIComponent(q)}`
+      );
       setSuggestions(res.tags || []);
     } catch {}
   }
 
-  useEffect(() => {
-    // load when tags or page changes
-    loadRank(tags);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tags, page]);
-
-  useEffect(() => {
-    // initialize from query param if present
-    const q = searchParams.get("tags") || searchParams.get("tagsKey") || "";
-    if (q) {
-      const arr = q.split(/[,|]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase());
-      setTags(arr);
-      setTagsInput(arr.join(","));
-      setPage(1);
+  // Load discovery leaderboards
+  async function loadDiscovery() {
+    try {
+      setDiscoveryLoading(true);
+      const sort = discoverySort === "hottest" ? "hottest" : "recent";
+      const res = await apiFetch(
+        `/api/tag-rank/leaderboards?sort=${sort}&limit=6`
+      );
+      setDiscoveryBoards(res.boards || []);
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setDiscoveryLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // sync when search params change (e.g. navigation via View/Open)
-  useEffect(() => {
-    const q = searchParams.get("tags") || searchParams.get("tagsKey") || "";
-    const arr = q ? q.split(/[,|]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase()) : [];
-    // only update if different to avoid loops
-    const same = arr.length === tags.length && arr.every((t,i)=>t === tags[i]);
-    if (!same) {
-      setTags(arr);
-      setTagsInput(arr.join(","));
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()]);
-
-  useEffect(() => {
-    // load recent persisted leaderboards for discovery when no tags selected
-    async function loadRecent() {
-      try {
-        const res = await apiFetch(`/api/tag-rank/leaderboards?limit=6`);
-        setRecentBoards(res.boards || []);
-      } catch (e) {}
-    }
-    loadRecent();
-  }, []);
-
-  function applyTags() {
-    const arr = tagsInput.split(",").map(s => s.trim()).filter(Boolean).map(s=>s.toLowerCase());
-    setTags(arr);
-    setPage(1);
-    // update URL so users can share/bookmark leaderboard
-    if (arr.length) setSearchParams({ tags: arr.join(",") });
-    else setSearchParams({});
   }
 
-  async function vote(ideaId: string, v: number) {
+  // Search for leaderboards
+  async function handleSearch() {
     try {
-      const res = await apiFetch(`/api/tag-rank/vote`, { method: "POST", body: JSON.stringify({ ideaId, tags, vote: v }) });
-      // update local score for idea
-      setResults(prev => prev.map(r => r.idea._id === ideaId ? { ...r, score: res.score, votes: res.votes } : r));
+      const tagsArr = tagsInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => s.toLowerCase());
+
+      if (tagsArr.length === 0) {
+        return toast.error("Please enter at least one tag");
+      }
+
+      setSearchLoading(true);
+      setSearchResults(null);
+
+      const res = await apiFetch(
+        `/api/tag-rank/search?q=${encodeURIComponent(tagsArr.join(","))}`
+      );
+
+      // If exact match found, navigate directly to leaderboard
+      if (res.exact) {
+        return nav(`/leaderboard/${res.exact._id}`);
+      }
+
+      // Otherwise show search results
+      setSearchResults(res);
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  // Create new leaderboard
+  async function createNewLeaderboard() {
+    try {
+      const tagsArr = tagsInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => s.toLowerCase());
+
+      if (tagsArr.length === 0) {
+        return toast.error("Please enter at least one tag");
+      }
+
+      const res = await apiFetch(`/api/tag-rank/leaderboard`, {
+        method: "POST",
+        body: JSON.stringify({ tags: tagsArr }),
+      });
+
+      nav(`/leaderboard/${res._id}`);
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
   }
 
-  // posts related
-  async function loadPostsForTags(curTags: string[]) {
-    try {
-      if (!curTags || curTags.length === 0) return setPosts([]);
-      const tagsKey = curTags.join("|");
-      const qs = new URLSearchParams({ tagsKey, sort: postsSort, page: String(postsPage), limit: String(postsLimit) });
-      const res = await apiFetch(`/api/tag-rank/posts?${qs.toString()}`);
-      setPosts(res.posts || []);
-      setPostsTotal(res.total || 0);
-    } catch (e) {
-      // ignore
-    }
-  }
-
+  // Initial load of discovery
   useEffect(() => {
-    loadPostsForTags(tags);
+    loadDiscovery();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tags, postsPage, postsSort]);
+  }, []);
 
-  async function submitPost() {
-    try {
-      if (!tags || tags.length === 0) return toast.error("请选择一个 leaderboard 再发帖");
-      const tagsKey = tags.join("|");
-      await apiFetch(`/api/tag-rank/posts`, { method: "POST", body: JSON.stringify({ title: newPostTitle, body: newPostBody, tagsKey }) });
-      setNewPostTitle(""); setNewPostBody("");
-      toast.success("Post created");
-      loadPostsForTags(tags);
-    } catch (e: any) { toast.error(humanizeError(e)); }
-  }
-
-  async function toggleLike(postId: string) {
-    try {
-      const res = await apiFetch<{ liked: boolean; likesCount: number }>(`/api/tag-rank/posts/${postId}/like`, { method: "POST" });
-      setPosts(prev => prev.map(p => p._id === postId ? { 
-        ...p, 
-        likesCount: res.likesCount,
-        likes: res.liked ? [...(p.likes || []), userId] : (p.likes || []).filter((u: string) => u !== userId)
-      } : p));
-    } catch (e: any) { toast.error(humanizeError(e)); }
-  }
+  // Reload when sort changes
+  useEffect(() => {
+    loadDiscovery();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoverySort]);
 
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-white">Tag Rank</h1>
-      <p className="text-gray-400 text-sm mt-1">Pick tags to form a custom leaderboard.</p>
+      <p className="text-gray-400 text-sm mt-1">
+        Search or browse leaderboards by tags.
+      </p>
 
-      <div className="mt-4 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-        <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="tags, comma separated (e.g. novel,dark)"
-          value={tagsInput}
-          onChange={(e) => { setTagsInput(e.target.value); fetchSuggestions(e.target.value); }}
-        />
-        {suggestions.length > 0 && (
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {suggestions.map(s => (
-              <button key={s} onClick={() => { setTagsInput(prev => prev ? `${prev},${s}` : s); setSuggestions([]); }}
-                className="text-sm px-2 py-1 rounded-full border border-gray-700 text-gray-300">
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <button onClick={applyTags} className="rounded-xl bg-white text-black px-3 py-2 font-semibold">Apply</button>
-          <button onClick={() => { setTagsInput(""); setTags([]); loadRank([]); }} className="rounded-xl border border-gray-700 px-3 py-2">Clear</button>
-        </div>
-        {/* Posts section: only show when viewing a specific leaderboard (tags selected) */}
-        {tags.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg text-white mb-2">Leaderboard Posts</h3>
-            <div className="grid gap-2">
-              <input value={newPostTitle} onChange={e=>setNewPostTitle(e.target.value)} placeholder="Nomination title" className="px-3 py-2 rounded-xl bg-gray-900 border border-gray-800" />
-              <textarea value={newPostBody} onChange={e=>setNewPostBody(e.target.value)} placeholder="Why nominate this?" className="px-3 py-2 rounded-xl bg-gray-900 border border-gray-800" />
-              <div className="flex gap-2">
-                <button onClick={submitPost} className="rounded-xl bg-white text-black px-3 py-2">Post Nomination</button>
-                <div className="ml-auto flex items-center gap-2">
-                  <label className="text-sm text-gray-400">Sort:</label>
-                  <select value={postsSort} onChange={e=>{ setPostsSort(e.target.value as any); setPostsPage(1); }} className="bg-gray-900 border border-gray-800 px-2 py-1 rounded-md">
-                    <option value="popular">Popular</option>
-                    <option value="recent">Recent</option>
-                  </select>
-                </div>
-              </div>
+      {/* Search Section */}
+      <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
+        <h2 className="text-lg text-white mb-3">Search Leaderboards</h2>
 
-              <div className="grid gap-2">
-                {posts.map(p => {
-                  const isLiked = p.likes?.includes(userId);
-                  return (
-                    <div key={p._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="text-white font-semibold">{p.title}</div>
-                          <div className="text-xs text-gray-400">by {p.author?.username || 'unknown'} · {new Date(p.createdAt).toLocaleString()}</div>
-                          <div className="text-sm text-gray-300 mt-2">{p.body}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-white font-bold">{p.likesCount || 0}</div>
-                          <div className="text-xs text-gray-400">likes</div>
-                          {user && (
-                            <button 
-                              onClick={()=>toggleLike(p._id)} 
-                              className={`mt-2 text-xs px-2 py-1 rounded border ${
-                                isLiked
-                                  ? "border-white text-white"
-                                  : "border-gray-700 text-gray-400 hover:text-gray-200"
-                              }`}
-                            >
-                              {isLiked ? "❤️" : "🤍"} {p.likesCount || 0}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {posts.length === 0 && (
-                  <div>
-                    <p className="text-gray-400">No Nomination in this leaderboard yet. You can create the first one or adjust tags.</p>
-                  </div>
-                )}
-              </div>
+        <div className="grid gap-3">
+          <input
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+            placeholder="tags, comma separated (e.g. novel,dark)"
+            value={tagsInput}
+            onChange={(e) => {
+              setTagsInput(e.target.value);
+              fetchSuggestions(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
+          />
 
-              <div className="mt-2 flex items-center justify-between">
-                <button disabled={postsPage <= 1} onClick={()=>setPostsPage(p=>Math.max(1,p-1))} className="rounded-xl border border-gray-700 px-3 py-2">← Prev</button>
-                <div className="text-sm text-gray-400">Page <span className="text-white">{postsPage}</span> · Total <span className="text-white">{Math.ceil(postsTotal/postsLimit) || 1}</span></div>
-                <button disabled={postsPage >= Math.max(1, Math.ceil(postsTotal/postsLimit || 1))} onClick={()=>setPostsPage(p=>p+1)} className="rounded-xl border border-gray-700 px-3 py-2">Next →</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6">
-        {/* Leaderboard Ideas section - only show when tags selected */}
-        {tags.length > 0 && (
-          <div>
-            <h2 className="text-lg text-white">Leaderboard for: {tags.join(", ")}</h2>
-            {loading && <p className="text-gray-400">Loading...</p>}
-
-            <div className="mt-3 grid gap-3">
-              {results.map((r: any) => (
-                <div key={r.idea._id} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <Link to={`/ideas/${r.idea._id}`} className="text-white font-semibold text-lg">{r.idea.title}</Link>
-                      <div className="text-sm text-gray-400">by {r.idea.author?.username || 'unknown'}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white font-bold text-lg">{r.score ?? 0}</div>
-                      <div className="text-xs text-gray-400">{r.votes ?? 0} votes</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                    <button onClick={() => vote(r.idea._id, 1)} className="rounded-xl border border-green-700 px-3 py-1 text-sm text-green-200">支持</button>
-                    <button onClick={() => vote(r.idea._id, -1)} className="rounded-xl border border-red-700 px-3 py-1 text-sm text-red-200">反对</button>
-                  </div>
-                </div>
+          {suggestions.length > 0 && (
+            <div className="grid grid-cols-4 gap-2">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setTagsInput((prev) => (prev ? `${prev},${s}` : s));
+                    setSuggestions([]);
+                  }}
+                  className="text-sm px-2 py-1 rounded-full border border-gray-700 text-gray-300 hover:border-gray-500"
+                >
+                  {s}
+                </button>
               ))}
             </div>
+          )}
 
-            <div className="mt-4 flex items-center justify-between">
-              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p-1))} className="rounded-xl border border-gray-700 px-3 py-2">← Prev</button>
-              <div className="text-sm text-gray-400">Page <span className="text-white">{page}</span> · Total <span className="text-white">{Math.ceil(total/limit) || 1}</span></div>
-              <button disabled={page >= Math.max(1, Math.ceil(total/limit || 1))} onClick={() => setPage(p => p+1)} className="rounded-xl border border-gray-700 px-3 py-2">Next →</button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              disabled={searchLoading}
+              className="rounded-xl bg-white text-black px-3 py-2 font-semibold disabled:opacity-50"
+            >
+              {searchLoading ? "Searching..." : "Search"}
+            </button>
+            <button
+              onClick={() => {
+                setTagsInput("");
+                setSuggestions([]);
+                setSearchResults(null);
+              }}
+              className="rounded-xl border border-gray-700 px-3 py-2"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Results */}
+      {searchResults && (
+        <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
+          <h2 className="text-lg text-white mb-3">Search Results</h2>
+
+          {searchResults.related && searchResults.related.length > 0 ? (
+            <div>
+              <p className="text-sm text-gray-400 mb-3">
+                Exact match not found. Here are related leaderboards:
+              </p>
+              <div className="grid gap-2 mb-4">
+                {searchResults.related.map((board: any) => (
+                  <div
+                    key={board._id}
+                    className="rounded-xl border border-gray-800 bg-gray-950/50 p-3 cursor-pointer hover:bg-gray-950"
+                    onClick={() => nav(`/leaderboard/${board._id}`)}
+                  >
+                    <div className="text-white font-semibold">
+                      {board.tags?.join(", ")}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {board.entries?.length || 0} ideas
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 mb-3">
+              No related leaderboards found.
+            </p>
+          )}
+
+          <div className="border-t border-gray-800 pt-3 mt-3">
+            <button
+              onClick={createNewLeaderboard}
+              className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700"
+            >
+              Create Leaderboard for "{tagsInput}"
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Discovery Section */}
+      {!searchResults && (
+        <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg text-white">Discover Leaderboards</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDiscoverySort("recent")}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  discoverySort === "recent"
+                    ? "bg-white text-black font-semibold"
+                    : "border border-gray-700 text-gray-300"
+                }`}
+              >
+                Recent
+              </button>
+              <button
+                onClick={() => setDiscoverySort("hottest")}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  discoverySort === "hottest"
+                    ? "bg-white text-black font-semibold"
+                    : "border border-gray-700 text-gray-300"
+                }`}
+              >
+                Hottest
+              </button>
             </div>
           </div>
-        )}
 
-        {/* No leaderboard prompt - show on home when no tags selected */}
-        {tags.length === 0 && (
-          <div>
-            <h2 className="text-lg text-white">Global Leaderboard</h2>
-            <div className="mt-3 grid gap-3">
-              {recentBoards.length === 0 ? (
-                <div className="text-gray-500">No persisted leaderboards yet.</div>
+          {discoveryLoading ? (
+            <p className="text-gray-400">Loading leaderboards...</p>
+          ) : (
+            <div className="grid gap-3">
+              {discoveryBoards.length === 0 ? (
+                <p className="text-gray-400 text-sm">
+                  No leaderboards yet. Search or create one!
+                </p>
               ) : (
-                recentBoards.map((b: any) => (
-                  <div key={b.tagsKey} className="rounded-xl border border-gray-800 p-3 bg-gray-950/30">
-                    <div className="text-sm text-gray-300">{(b.tags || []).join(", ") || "global"}</div>
-                    <div className="text-xs text-gray-400 mt-1">{(b.entries || []).slice(0,3).map((e:any)=>e.idea? e.idea.title : "- ").join(" · ")}</div>
-                    <div className="mt-2 flex gap-2">
-                      <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">View</button>
-                      <button onClick={() => { nav(`/tag-rank?tags=${encodeURIComponent((b.tags||[]).join(","))}`); }} className="text-sm px-2 py-1 rounded-full border border-gray-700">Open</button>
+                discoveryBoards.map((board: any) => (
+                  <div
+                    key={board._id}
+                    className="rounded-xl border border-gray-800 bg-gray-950/50 p-3 cursor-pointer hover:bg-gray-950 transition"
+                    onClick={() => nav(`/leaderboard/${board._id}`)}
+                  >
+                    <div className="text-white font-semibold">
+                      {board.tags?.join(", ")}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {board.entries?.length || 0} ideas ·{" "}
+                      {new Date(board.computedAt).toLocaleDateString()}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      {board.entries
+                        ?.slice(0, 3)
+                        .map((e: any) => e.idea?.title || "")
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
