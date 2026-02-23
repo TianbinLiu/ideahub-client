@@ -22,6 +22,7 @@ export default function MePage() {
   const [loading, setLoading] = useState(true);
   const [likedIdeas, setLikedIdeas] = useState<any[]>([]);
   const [bookmarkedIdeas, setBookmarkedIdeas] = useState<any[]>([]);
+  const [bookmarkedLeaderboards, setBookmarkedLeaderboards] = useState<any[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<any[]>([]);
   const [publicUsed, setPublicUsed] = useState(0);
   const FREE_PUBLIC_LIMIT = Number((import.meta as any).env?.VITE_FREE_PUBLIC_IDEA_LIMIT) || 5;
@@ -52,8 +53,9 @@ export default function MePage() {
       try {
         const a = await apiFetch<{ ideas: any[] }>("/api/me/likes");
         setLikedIdeas(a.ideas || []);
-        const b = await apiFetch<{ ideas: any[] }>("/api/me/bookmarks");
+        const b = await apiFetch<{ ideas: any[]; leaderboards: any[] }>("/api/me/bookmarks");
         setBookmarkedIdeas(b.ideas || []);
+        setBookmarkedLeaderboards(b.leaderboards || []);
       } catch (e: any) {
         // 你也可以把错误显示出来，这里先忽略
       }
@@ -177,9 +179,10 @@ export default function MePage() {
       {/* ================= My Bookmarks ================= */}
       <h2 className="text-xl font-semibold text-white mt-10">My Bookmarks</h2>
 
+      <h3 className="text-lg font-semibold text-white mt-4">Ideas</h3>
       <div className="mt-3 grid gap-3">
         {bookmarkedIdeas.length === 0 && (
-          <p className="text-gray-400">No bookmarks yet.</p>
+          <p className="text-gray-400">No idea bookmarks yet.</p>
         )}
 
         {bookmarkedIdeas.map((it) => (
@@ -195,6 +198,33 @@ export default function MePage() {
               </span>
             </div>
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
+          </Link>
+        ))}
+      </div>
+
+      <h3 className="text-lg font-semibold text-white mt-6">Leaderboards</h3>
+      <div className="mt-3 grid gap-3">
+        {bookmarkedLeaderboards.length === 0 && (
+          <p className="text-gray-400">No leaderboard bookmarks yet.</p>
+        )}
+
+        {bookmarkedLeaderboards.map((lb) => (
+          <Link
+            key={lb._id}
+            to={`/leaderboard/${lb._id}`}
+            className="rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
+          >
+            <div className="flex justify-between">
+              <span className="text-white font-semibold">
+                {lb.tags?.join(", ") || "Leaderboard"}
+              </span>
+              <span className="text-xs text-gray-500">
+                {lb.author?.username || "unknown"}
+              </span>
+            </div>
+            <p className="text-gray-300 mt-1 text-sm">
+              {lb.entries?.length || 0} nominations
+            </p>
           </Link>
         ))}
       </div>

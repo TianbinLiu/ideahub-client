@@ -24,6 +24,32 @@ export default function LeaderboardDetailPage() {
   const [newPostTitle, setNewPostTitle] = useState("");
   const [newPostBody, setNewPostBody] = useState("");
 
+  async function toggleBookmark() {
+    try {
+      const res = await apiFetch<{ bookmarked: boolean }>(
+        `/api/tag-rank/leaderboards/${id}/bookmark`,
+        { method: "POST" }
+      );
+      setLeaderboard((prev: any) =>
+        prev ? { ...prev, bookmarked: res.bookmarked } : prev
+      );
+      toast.success(res.bookmarked ? "Bookmarked" : "Bookmark removed");
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  async function deleteLeaderboard() {
+    if (!confirm("Are you sure you want to delete this leaderboard?")) return;
+    try {
+      await apiFetch(`/api/tag-rank/leaderboards/${id}`, { method: "DELETE" });
+      toast.success("Leaderboard deleted");
+      nav("/tag-rank");
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
   async function loadLeaderboard() {
     if (!id) return;
     try {
@@ -154,9 +180,42 @@ export default function LeaderboardDetailPage() {
         ← Back to Tag Rank
       </button>
 
-      <h1 className="text-2xl font-bold text-white mt-4">
-        Leaderboard: {leaderboard.tags?.join(", ")}
-      </h1>
+      <div className="flex items-start justify-between mt-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">
+            Leaderboard: {leaderboard.tags?.join(", ")}
+          </h1>
+          {leaderboard.author && (
+            <p className="text-sm text-gray-400 mt-1">
+              Created by {leaderboard.author.username}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          {user && (
+            <button
+              onClick={toggleBookmark}
+              className={`rounded-xl border px-3 py-2 text-sm ${
+                leaderboard.bookmarked
+                  ? "border-white text-white"
+                  : "border-gray-700 text-gray-400 hover:text-white"
+              }`}
+            >
+              {leaderboard.bookmarked ? "★ Bookmarked" : "☆ Bookmark"}
+            </button>
+          )}
+          
+          {userId && leaderboard.author && String(leaderboard.author._id || leaderboard.author.id) === String(userId) && (
+            <button
+              onClick={deleteLeaderboard}
+              className="rounded-xl border border-red-700 px-3 py-2 text-sm text-red-200 hover:bg-red-950"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Nominations/Posts Section */}
       <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
