@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
@@ -10,7 +10,6 @@ import { listLocalIdeas } from "../utils/localIdeas";
 const LIMITS = {
   DISPLAY_NAME: 50,
   BIO: 500,
-  AVATAR_URL: 500,
 };
 
 type UserProfile = {
@@ -78,8 +77,10 @@ export default function UserProfilePage() {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const userId = (currentUser as any)?._id || (currentUser as any)?.id;
   const isOwnProfile = userId === id;
@@ -110,7 +111,6 @@ export default function UserProfilePage() {
       setFollowing(res.user.isFollowing);
       setDisplayName(res.user.displayName || "");
       setBio(res.user.bio || "");
-      setAvatarUrl(res.user.avatarUrl || "");
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -205,12 +205,65 @@ export default function UserProfilePage() {
     }
   }
 
+  async function handleAvatarClick() {
+    if (isOwnProfile && avatarInputRef.current) {
+      avatarInputRef.current.click();
+    }
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only image files are allowed (jpeg, jpg, png, gif, webp)');
+      return;
+    }
+
+    // 验证文件大小 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await fetch('/api/me/avatar', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setProfile(data.user);
+      toast.success('Avatar updated successfully');
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setUploadingAvatar(false);
+      // 重置input以允许上传相同文件
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
+      }
+    }
+  }
+
   async function saveProfile() {
     setSaving(true);
     try {
       const res = await apiFetch<{ ok: true; user: UserProfile }>("/api/me/profile", {
         method: "PUT",
-        body: JSON.stringify({ displayName, bio, avatarUrl }),
+        body: JSON.stringify({ displayName, bio }),
       });
       setProfile(res.user);
       setEditing(false);
@@ -227,7 +280,6 @@ export default function UserProfilePage() {
     if (profile) {
       setDisplayName(profile.displayName || "");
       setBio(profile.bio || "");
-      setAvatarUrl(profile.avatarUrl || "");
     }
   }
 
@@ -269,17 +321,44 @@ export default function UserProfilePage() {
       <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
         <div className="flex items-start gap-6">
           {/* Avatar */}
-          <div>
-            {profile.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt={profile.username}
-                className="w-24 h-24 rounded-full object-cover"
+          <div className="relative">
+            <div
+              onClick={handleAvatarClick}
+              className={`relative ${isOwnProfile ? 'cursor-pointer group' : ''}`}
+              title={isOwnProfile ? 'Click to change avatar' : ''}
+            >
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.username}
+                  className="w-24 h-24 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center text-white text-3xl font-bold">
+                  {profile.username[0].toUpperCase()}
+                </div>
+              )}
+              
+              {/* Upload overlay */}
+              {isOwnProfile && (
+                <div className="absolute inset-0 rounded-full bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
+                  <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    {uploadingAvatar ? 'Uploading...' : 'Change'}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Hidden file input */}
+            {isOwnProfile && (
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleAvatarChange}
+                className="hidden"
+                disabled={uploadingAvatar}
               />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center text-white text-3xl font-bold">
-                {profile.username[0].toUpperCase()}
-              </div>
             )}
           </div>
 
@@ -386,15 +465,8 @@ export default function UserProfilePage() {
               <CharCount current={bio.length} max={LIMITS.BIO} className="mt-1" />
             </div>
 
-            <div>
-              <input
-                className="w-full rounded-lg bg-gray-950/50 border border-gray-800 px-3 py-2"
-                placeholder="Avatar URL"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                maxLength={LIMITS.AVATAR_URL}
-              />
-              <CharCount current={avatarUrl.length} max={LIMITS.AVATAR_URL} className="mt-1" />
+            <div className="text-sm text-gray-400">
+              💡 Tip: Click on your avatar above to change your profile picture
             </div>
 
             <div className="flex gap-2">
