@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../authContext";
 import { useEffect, useState } from "react";
 import { getUnreadCount } from "../api";
+import { UserHoverCard } from "./UserHoverCard";
 
 
 function cls(isActive: boolean) {
@@ -18,6 +19,8 @@ export default function Navbar() {
   const next = `${loc.pathname}${loc.search || ""}`;
   const loginTo = `/login?next=${encodeURIComponent(next)}`;
   const registerTo = `/register?next=${encodeURIComponent(next)}`;
+  
+  const userId = (user as any)?._id || (user as any)?.id;
 
   useEffect(() => {
     let timer: any;
@@ -49,7 +52,6 @@ export default function Navbar() {
 
         <div className="flex items-center gap-4 text-sm">
           <NavLink to="/" className={({ isActive }) => cls(isActive)}>Home</NavLink>
-          <NavLink to="/ideas/new" className={({ isActive }) => cls(isActive)}>New</NavLink>
           <NavLink to="/me" className={({ isActive }) => cls(isActive)}>Me</NavLink>
           <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>Tag Rank</NavLink>
 
@@ -84,7 +86,13 @@ export default function Navbar() {
             </>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="text-gray-300">{user.username}</span>
+              {userId && (
+                <UserHoverCard userId={userId} username={user.username}>
+                  <Link to={`/users/${userId}`} className="text-gray-300 hover:text-white">
+                    {user.username}
+                  </Link>
+                </UserHoverCard>
+              )}
               <button
                 onClick={logout}
                 className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900"

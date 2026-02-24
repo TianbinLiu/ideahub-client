@@ -182,12 +182,20 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
               )}
 
               {isOwnProfile && (
-                <Link
-                  to="/me"
-                  className="block w-full text-center rounded-lg border border-gray-600 px-4 py-2 font-semibold text-sm text-gray-200 hover:bg-gray-800"
-                >
-                  Edit Profile
-                </Link>
+                <div className="space-y-2">
+                  <Link
+                    to="/ideas/new"
+                    className="block w-full text-center rounded-lg bg-white text-black px-4 py-2 font-semibold text-sm hover:bg-gray-200"
+                  >
+                    New Idea
+                  </Link>
+                  <Link
+                    to="/me"
+                    className="block w-full text-center rounded-lg border border-gray-600 px-4 py-2 font-semibold text-sm text-gray-200 hover:bg-gray-800"
+                  >
+                    Edit Profile
+                  </Link>
+                </div>
               )}
             </div>
           )}
