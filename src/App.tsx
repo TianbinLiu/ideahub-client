@@ -1,13 +1,13 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useAuth } from "./authContext";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import NewIdeaPage from "./pages/NewIdeaPage";
 import IdeaDetailPage from "./pages/IdeaDetailPage";
-import MePage from "./pages/MePage";
 import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
@@ -19,6 +19,17 @@ import TagRankPage from "./pages/TagRankPage";
 import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
 import UserProfilePage from "./pages/UserProfilePage";
 
+// Redirect /me to the current user's profile
+function MeRedirect() {
+  const { user } = useAuth();
+  const userId = (user as any)?._id || (user as any)?.id;
+  
+  if (!userId) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <Navigate to={`/users/${userId}`} replace />;
+}
 
 
 export default function App() {
@@ -57,7 +68,7 @@ export default function App() {
           path="/me"
           element={
             <ProtectedRoute>
-              <MePage />
+              <MeRedirect />
             </ProtectedRoute>
           }
         />

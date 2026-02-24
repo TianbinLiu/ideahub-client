@@ -52,7 +52,6 @@ export default function Navbar() {
 
         <div className="flex items-center gap-4 text-sm">
           <NavLink to="/" className={({ isActive }) => cls(isActive)}>Home</NavLink>
-          <NavLink to="/me" className={({ isActive }) => cls(isActive)}>Me</NavLink>
           <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>Tag Rank</NavLink>
 
           {user && (
