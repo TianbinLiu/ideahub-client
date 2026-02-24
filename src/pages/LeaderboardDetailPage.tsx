@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 import { CharCount } from "../components/CharCount";
+import { UserHoverCard } from "../components/UserHoverCard";
 
 const LIMITS = {
   NOMINATION_TITLE: 150,
@@ -193,7 +194,14 @@ export default function LeaderboardDetailPage() {
           </h1>
           {leaderboard.author && (
             <p className="text-sm text-gray-400 mt-1">
-              Created by {leaderboard.author.username}
+              Created by{" "}
+              {leaderboard.author._id ? (
+                <UserHoverCard userId={leaderboard.author._id} username={leaderboard.author.username}>
+                  <span className="text-white">{leaderboard.author.username}</span>
+                </UserHoverCard>
+              ) : (
+                <span>{leaderboard.author.username}</span>
+              )}
             </p>
           )}
         </div>
@@ -283,8 +291,15 @@ export default function LeaderboardDetailPage() {
                   <div>
                     <div className="text-white font-semibold">{p.title}</div>
                     <div className="text-xs text-gray-400">
-                      by {p.author?.username || "unknown"} ·{" "}
-                      {new Date(p.createdAt).toLocaleString()}
+                      by{" "}
+                      {p.author?._id ? (
+                        <UserHoverCard userId={p.author._id} username={p.author.username}>
+                          <span className="text-white">{p.author.username}</span>
+                        </UserHoverCard>
+                      ) : (
+                        <span>unknown</span>
+                      )}{" "}
+                      · {new Date(p.createdAt).toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-300 mt-2">{p.body}</div>
                   </div>

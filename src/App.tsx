@@ -17,6 +17,7 @@ import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import TagRankPage from "./pages/TagRankPage";
 import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
+import UserProfilePage from "./pages/UserProfilePage";
 
 
 
@@ -72,6 +73,8 @@ export default function App() {
 
         <Route path="/tag-rank" element={<TagRankPage />} />
         <Route path="/leaderboard/:id" element={<LeaderboardDetailPage />} />
+
+        <Route path="/users/:id" element={<UserProfilePage />} />
 
         <Route
           path="/notifications"

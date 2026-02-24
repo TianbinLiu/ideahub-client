@@ -7,6 +7,7 @@ import { humanizeError } from "../utils/humanizeError";
 import { getLocalIdea, deleteLocalIdea, saveLocalIdea } from "../utils/localIdeas";
 import { MentionTextarea } from "../components/MentionTextarea";
 import { CharCount } from "../components/CharCount";
+import { UserHoverCard } from "../components/UserHoverCard";
 
 const LIMITS = {
   COMMENT: 2000,
@@ -39,7 +40,7 @@ type Comment = {
   _id: string;
   content: string;
   createdAt: string;
-  author?: { username: string; role: string };
+  author?: { _id: string; username: string; role: string };
   likes?: string[];
   likesCount?: number;
 };
@@ -265,7 +266,15 @@ export default function IdeaDetailPage() {
             <div>
               <h1 className="text-2xl font-bold text-white">{idea.title}</h1>
               <p className="text-gray-400 text-sm mt-1">
-                by {idea.author?.username || "unknown"} · {new Date(idea.createdAt).toLocaleString()}
+                by{" "}
+                {idea.author?._id ? (
+                  <UserHoverCard userId={idea.author._id} username={idea.author.username}>
+                    <span className="text-white">{idea.author.username}</span>
+                  </UserHoverCard>
+                ) : (
+                  <span>unknown</span>
+                )}{" "}
+                · {new Date(idea.createdAt).toLocaleString()}
               </p>
             </div>
 
@@ -481,7 +490,15 @@ export default function IdeaDetailPage() {
                 return (
                   <div key={c._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
                     <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span>{c.author?.username || "unknown"}</span>
+                      <span>
+                        {c.author?._id ? (
+                          <UserHoverCard userId={c.author._id} username={c.author.username}>
+                            <span className="text-white">{c.author.username}</span>
+                          </UserHoverCard>
+                        ) : (
+                          <span>unknown</span>
+                        )}
+                      </span>
                       <span>{new Date(c.createdAt).toLocaleString()}</span>
                     </div>
                     <p className="text-gray-200 mt-2 whitespace-pre-wrap">{c.content}</p>
