@@ -43,6 +43,15 @@ type Leaderboard = {
   author?: { username: string; role: string; _id: string };
 };
 
+type UserLeaderboard = {
+  _id: string;
+  tags?: string[];
+  tagsKey?: string;
+  computedAt?: string;
+  entriesCount?: number;
+  postsCount?: number;
+};
+
 type Interest = {
   _id: string;
   createdAt: string;
@@ -51,7 +60,7 @@ type Interest = {
   companyUser?: { username: string; email: string };
 };
 
-type TabType = "ideas" | "bookmarks" | "likes" | "followers" | "following" | "interests";
+type TabType = "ideas" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests";
 
 export default function UserProfilePage() {
   const { id } = useParams();
@@ -62,6 +71,7 @@ export default function UserProfilePage() {
 
   const [bookmarkedIdeas, setBookmarkedIdeas] = useState<Idea[]>([]);
   const [bookmarkedLeaderboards, setBookmarkedLeaderboards] = useState<Leaderboard[]>([]);
+  const [userLeaderboards, setUserLeaderboards] = useState<UserLeaderboard[]>([]);
   const [followers, setFollowers] = useState<any[]>([]);
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
   
@@ -89,6 +99,7 @@ export default function UserProfilePage() {
   useEffect(() => {
     loadProfile();
     loadBookmarks();
+    loadUserLeaderboards();
     loadFollowers();
     loadFollowing();
     
@@ -128,6 +139,18 @@ export default function UserProfilePage() {
       setBookmarkedLeaderboards(res.leaderboards || []);
     } catch (e) {
       console.error("Failed to load bookmarks", e);
+    }
+  }
+
+  async function loadUserLeaderboards() {
+    if (!id) return;
+    try {
+      const res = await apiFetch<{ ok: true; items: UserLeaderboard[] }>(
+        `/api/users/${id}/leaderboards?limit=50`
+      );
+      setUserLeaderboards(res.items || []);
+    } catch (e) {
+      console.error("Failed to load user leaderboards", e);
     }
   }
 
@@ -303,6 +326,7 @@ export default function UserProfilePage() {
   const availableTabs: { key: TabType; label: string }[] = isOwnProfile
     ? [
         { key: "ideas", label: "My Ideas" },
+        { key: "leaderboards", label: "My Leaderboards" },
         { key: "bookmarks", label: "Bookmarks" },
         { key: "likes", label: "Likes" },
         { key: "interests", label: "Received Interests" },
@@ -518,6 +542,8 @@ export default function UserProfilePage() {
         return renderBookmarks();
       case "likes":
         return renderLikes();
+      case "leaderboards":
+        return renderMyLeaderboards();
       case "followers":
         return renderFollowers();
       case "following":
@@ -671,6 +697,43 @@ export default function UserProfilePage() {
               </div>
               <span className="text-xs text-gray-500 ml-4">{idea.author?.username || "unknown"}</span>
             </div>
+          </Link>
+        ))}
+      </div>
+    );
+  }
+
+  function renderMyLeaderboards() {
+    if (!isOwnProfile) return null;
+
+    return (
+      <div className="grid gap-3">
+        {userLeaderboards.length === 0 && (
+          <p className="text-gray-400">No leaderboards yet</p>
+        )}
+        {userLeaderboards.map((b) => (
+          <Link
+            key={b._id}
+            to={`/leaderboard/${b._id}`}
+            className="block rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
+          >
+            <div className="flex flex-wrap gap-2">
+              {b.tags && b.tags.length > 0 ? (
+                b.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-sm bg-gray-800 text-gray-300 px-2 py-1 rounded"
+                  >
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-400">(no tags)</span>
+              )}
+            </div>
+            <p className="text-gray-400 text-sm mt-2">
+              entries: {b.entriesCount || 0} · nominations: {b.postsCount || 0}
+            </p>
           </Link>
         ))}
       </div>
