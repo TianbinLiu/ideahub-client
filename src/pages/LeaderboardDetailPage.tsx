@@ -4,6 +4,12 @@ import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
+import { CharCount } from "../components/CharCount";
+
+const LIMITS = {
+  NOMINATION_TITLE: 150,
+  NOMINATION_BODY: 2000,
+};
 
 export default function LeaderboardDetailPage() {
   const { id } = useParams();
@@ -223,18 +229,26 @@ export default function LeaderboardDetailPage() {
 
         {user && (
           <div className="grid gap-2 mb-4">
-            <input
-              value={newPostTitle}
-              onChange={(e) => setNewPostTitle(e.target.value)}
-              placeholder="Nomination title"
-              className="px-3 py-2 rounded-xl bg-gray-950 border border-gray-800"
-            />
-            <textarea
-              value={newPostBody}
-              onChange={(e) => setNewPostBody(e.target.value)}
-              placeholder="Why nominate this?"
-              className="px-3 py-2 rounded-xl bg-gray-950 border border-gray-800 min-h-20"
-            />
+            <div>
+              <input
+                value={newPostTitle}
+                onChange={(e) => setNewPostTitle(e.target.value)}
+                placeholder="Nomination title"
+                className="px-3 py-2 rounded-xl bg-gray-950 border border-gray-800 w-full"
+                maxLength={LIMITS.NOMINATION_TITLE}
+              />
+              <CharCount current={newPostTitle.length} max={LIMITS.NOMINATION_TITLE} className="mt-1" />
+            </div>
+            <div>
+              <textarea
+                value={newPostBody}
+                onChange={(e) => setNewPostBody(e.target.value)}
+                placeholder="Why nominate this?"
+                className="px-3 py-2 rounded-xl bg-gray-950 border border-gray-800 min-h-20 w-full"
+                maxLength={LIMITS.NOMINATION_BODY}
+              />
+              <CharCount current={newPostBody.length} max={LIMITS.NOMINATION_BODY} className="mt-1" />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={submitPost}

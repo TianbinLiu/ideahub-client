@@ -7,6 +7,7 @@ interface MentionTextareaProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  maxLength?: number;
 }
 
 export function MentionTextarea({
@@ -15,6 +16,7 @@ export function MentionTextarea({
   placeholder = "Write something...",
   className = "",
   disabled = false,
+  maxLength,
 }: MentionTextareaProps) {
   const [suggestions, setSuggestions] = useState<{ username: string; _id: string }[]>([]);
   const [highlight, setHighlight] = useState(-1);
@@ -112,6 +114,7 @@ export function MentionTextarea({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        maxLength={maxLength}
         className={className}
       />
       

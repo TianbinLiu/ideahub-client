@@ -6,6 +6,11 @@ import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { getLocalIdea, deleteLocalIdea, saveLocalIdea } from "../utils/localIdeas";
 import { MentionTextarea } from "../components/MentionTextarea";
+import { CharCount } from "../components/CharCount";
+
+const LIMITS = {
+  COMMENT: 2000,
+};
 
 
 type Idea = {
@@ -447,12 +452,16 @@ export default function IdeaDetailPage() {
 
             {user ? (
               <div className="mt-3 grid gap-2">
-                <MentionTextarea
-                  value={commentText}
-                  onChange={setCommentText}
-                  placeholder="Write a comment... (use @username to mention)"
-                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[90px] w-full text-gray-200"
-                />
+                <div>
+                  <MentionTextarea
+                    value={commentText}
+                    onChange={setCommentText}
+                    placeholder="Write a comment... (use @username to mention)"
+                    className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[90px] w-full text-gray-200"
+                    maxLength={LIMITS.COMMENT}
+                  />
+                  <CharCount current={commentText.length} max={LIMITS.COMMENT} className="mt-1" />
+                </div>
                 <button
                   className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
                   onClick={submitComment}

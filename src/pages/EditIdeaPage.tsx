@@ -4,6 +4,14 @@ import toast from "react-hot-toast";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
+import { CharCount } from "../components/CharCount";
+
+const LIMITS = {
+  TITLE: 150,
+  SUMMARY: 500,
+  CONTENT: 10000,
+  TAGS: 200,
+};
 
 type Idea = {
   _id: string;
@@ -139,37 +147,53 @@ export default function EditIdeaPage() {
 
         {!loading && idea && (
           <div className="mt-5 grid gap-3">
-            <input
-              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-              placeholder="Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={!canEdit || saving}
-            />
+            <div>
+              <input
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+                placeholder="Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={!canEdit || saving}
+                maxLength={LIMITS.TITLE}
+              />
+              <CharCount current={title.length} max={LIMITS.TITLE} className="mt-1" />
+            </div>
 
-            <input
-              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-              placeholder="Summary"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              disabled={!canEdit || saving}
-            />
+            <div>
+              <input
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+                placeholder="Summary"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                disabled={!canEdit || saving}
+                maxLength={LIMITS.SUMMARY}
+              />
+              <CharCount current={summary.length} max={LIMITS.SUMMARY} className="mt-1" />
+            </div>
 
-            <textarea
-              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px]"
-              placeholder="Content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              disabled={!canEdit || saving}
-            />
+            <div>
+              <textarea
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px] w-full"
+                placeholder="Content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                disabled={!canEdit || saving}
+                maxLength={LIMITS.CONTENT}
+              />
+              <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
+            </div>
 
-            <input
-              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-              placeholder="Tags (comma-separated)"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              disabled={!canEdit || saving}
-            />
+            <div>
+              <input
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+                placeholder="Tags (comma-separated)"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                disabled={!canEdit || saving}
+                maxLength={LIMITS.TAGS}
+              />
+              <CharCount current={tags.length} max={LIMITS.TAGS} className="mt-1" />
+            </div>
 
             <div className="grid md:grid-cols-3 gap-2">
               <select

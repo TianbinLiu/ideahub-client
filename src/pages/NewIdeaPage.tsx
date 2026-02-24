@@ -5,6 +5,14 @@ import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { saveLocalIdea } from "../utils/localIdeas";
 import { MentionTextarea } from "../components/MentionTextarea";
+import { CharCount } from "../components/CharCount";
+
+const LIMITS = {
+  TITLE: 150,
+  SUMMARY: 500,
+  CONTENT: 10000,
+  TAGS: 200,
+};
 
 export default function NewIdeaPage() {
   const nav = useNavigate();
@@ -61,18 +69,43 @@ export default function NewIdeaPage() {
       <p className="text-gray-400 text-sm mt-1">This will be saved under your account.</p>
 
       <div className="mt-6 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-        <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="Summary" value={summary} onChange={(e) => setSummary(e.target.value)} />
-        <MentionTextarea
-          value={content}
-          onChange={setContent}
-          placeholder="Content (use @username to invite users)"
-          className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px] text-gray-200"
-        />
-        <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="Tags (comma-separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
+        <div>
+          <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+            placeholder="Title" 
+            value={title} 
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={LIMITS.TITLE} />
+          <CharCount current={title.length} max={LIMITS.TITLE} className="mt-1" />
+        </div>
+
+        <div>
+          <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+            placeholder="Summary" 
+            value={summary} 
+            onChange={(e) => setSummary(e.target.value)}
+            maxLength={LIMITS.SUMMARY} />
+          <CharCount current={summary.length} max={LIMITS.SUMMARY} className="mt-1" />
+        </div>
+
+        <div>
+          <MentionTextarea
+            value={content}
+            onChange={setContent}
+            placeholder="Content (use @username to invite users)"
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px] text-gray-200"
+            maxLength={LIMITS.CONTENT}
+          />
+          <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
+        </div>
+
+        <div>
+          <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+            placeholder="Tags (comma-separated)" 
+            value={tags} 
+            onChange={(e) => setTags(e.target.value)}
+            maxLength={LIMITS.TAGS} />
+          <CharCount current={tags.length} max={LIMITS.TAGS} className="mt-1" />
+        </div>
 
         <div className="grid md:grid-cols-3 gap-2">
           <select className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"

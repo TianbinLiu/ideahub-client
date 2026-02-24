@@ -9,6 +9,12 @@ import { humanizeError } from "../utils/humanizeError";
 import OAuthButtons from "../components/OAuthButtons";
 import { useLocation } from "react-router-dom";
 import { safeNext } from "../utils/safeNext";
+import { CharCount } from "../components/CharCount";
+
+const LIMITS = {
+  USERNAME: 50,
+  EMAIL: 100,
+};
 
 type Step = "START" | "VERIFY";
 
@@ -156,21 +162,29 @@ export default function RegisterPage() {
 
         {/* ===== Email OTP register (your original flow) ===== */}
         <div className="grid gap-3">
-          <input
-            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-            placeholder="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            disabled={loading || step === "VERIFY"}
-          />
+          <div>
+            <input
+              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+              placeholder="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={loading || step === "VERIFY"}
+              maxLength={LIMITS.USERNAME}
+            />
+            <CharCount current={username.length} max={LIMITS.USERNAME} className="mt-1" />
+          </div>
 
-          <input
-            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-            placeholder="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loading || step === "VERIFY"}
-          />
+          <div>
+            <input
+              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
+              placeholder="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading || step === "VERIFY"}
+              maxLength={LIMITS.EMAIL}
+            />
+            <CharCount current={email.length} max={LIMITS.EMAIL} className="mt-1" />
+          </div>
 
           <input
             className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
