@@ -173,7 +173,7 @@ export default function EditIdeaPage() {
 
             <div>
               <textarea
-                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px] w-full"
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[220px] w-full"
                 placeholder="Content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}

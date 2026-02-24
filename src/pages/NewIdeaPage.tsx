@@ -92,7 +92,7 @@ export default function NewIdeaPage() {
             value={content}
             onChange={setContent}
             placeholder="Content (use @username to invite users)"
-            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[120px] text-gray-200"
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[220px] w-full text-gray-200"
             maxLength={LIMITS.CONTENT}
           />
           <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
