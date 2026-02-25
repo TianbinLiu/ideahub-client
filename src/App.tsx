@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import { useAuth } from "./authContext";
 
 import HomePage from "./pages/HomePage";
@@ -100,18 +101,18 @@ export default function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminUsersPage />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
 
         <Route
           path="/feedback"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <FeedbackAdminPage />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
 
