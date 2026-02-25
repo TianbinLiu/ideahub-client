@@ -34,6 +34,10 @@ type Idea = {
     model?: string;
     createdAt?: string;
   };
+  isFeedback?: boolean;
+  feedbackType?: string;
+  feedbackStatus?: string;
+  aiSummary?: string;
 };
 
 type Comment = {
@@ -376,6 +380,68 @@ export default function IdeaDetailPage() {
             )}
 
           </div>
+
+          {idea.isFeedback && (
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                idea.feedbackType === "bug" 
+                  ? "bg-red-900/30 border border-red-800 text-red-200" 
+                  : "bg-blue-900/30 border border-blue-800 text-blue-200"
+              }`}>
+                {idea.feedbackType === "bug" ? "🐛 Bug Report" : "💡 Feature Suggestion"}
+              </span>
+              
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                idea.feedbackStatus === "pending" ? "bg-yellow-900/30 border border-yellow-800 text-yellow-200" :
+                idea.feedbackStatus === "under_review" ? "bg-purple-900/30 border border-purple-800 text-purple-200" :
+                idea.feedbackStatus === "adopted" ? "bg-green-900/30 border border-green-800 text-green-200" :
+                idea.feedbackStatus === "resolved" ? "bg-teal-900/30 border border-teal-800 text-teal-200" :
+                idea.feedbackStatus === "rejected" ? "bg-gray-900/30 border border-gray-700 text-gray-400" :
+                "bg-gray-900/30 border border-gray-700 text-gray-300"
+              }`}>
+                {idea.feedbackStatus === "pending" ? "⏳ Pending" :
+                 idea.feedbackStatus === "under_review" ? "🔍 Under Review" :
+                 idea.feedbackStatus === "adopted" ? "✅ Adopted" :
+                 idea.feedbackStatus === "resolved" ? "✔️ Resolved" :
+                 idea.feedbackStatus === "rejected" ? "❌ Rejected" :
+                 "Status Unknown"}
+              </span>
+
+              {isAdmin && !isLocal && (
+                <div className="flex gap-1 ml-auto">
+                  <select
+                    className="text-xs rounded-lg bg-gray-950/50 border border-gray-700 px-2 py-1 text-gray-200"
+                    value={idea.feedbackStatus || "pending"}
+                    onChange={async (e) => {
+                      try {
+                        await apiFetch(`/api/admin/ideas/${idea._id}/feedback-status`, {
+                          method: "PATCH",
+                          body: JSON.stringify({ status: e.target.value }),
+                        });
+                        toast.success("Status updated");
+                        await load();
+                      } catch (err: any) {
+                        toast.error(humanizeError(err));
+                      }
+                    }}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="adopted">Adopted</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
+          {idea.aiSummary && (
+            <div className="mt-4 rounded-2xl border border-blue-800 bg-blue-950/20 p-3">
+              <h4 className="text-sm font-semibold text-blue-200">📝 AI Summary</h4>
+              <p className="text-sm text-blue-100 mt-1">{idea.aiSummary}</p>
+            </div>
+          )}
 
           {idea.summary && <p className="text-gray-200 mt-4">{idea.summary}</p>}
           {idea.content && <pre className="text-gray-200 mt-4 whitespace-pre-wrap font-sans">{idea.content}</pre>}

@@ -18,6 +18,8 @@ export function humanizeError(err: any) {
     case "PUBLIC_LIMIT_EXCEEDED":
       if (err?.details?.limit) return `Free accounts can publish up to ${Number(err.details.limit)} public ideas. Delete one or upgrade your account.`;
       return `Free accounts have reached the public idea limit.`;
+    case "FEEDBACK_VALIDATION_FAILED":
+      return err.message || "反馈内容无效，请提供有意义的bug报告或功能建议。";
     case "NOT_FOUND":
       return "Not found.";
     case "DUPLICATE":

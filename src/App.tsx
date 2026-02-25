@@ -11,6 +11,7 @@ import IdeaDetailPage from "./pages/IdeaDetailPage";
 import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import FeedbackAdminPage from "./pages/FeedbackAdminPage";
 import EditIdeaPage from "./pages/EditIdeaPage";
 import PhoneLoginPage from "./pages/PhoneLoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -101,6 +102,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/feedback"
+          element={
+            <ProtectedRoute>
+              <FeedbackAdminPage />
             </ProtectedRoute>
           }
         />

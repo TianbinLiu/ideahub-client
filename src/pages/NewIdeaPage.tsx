@@ -25,6 +25,7 @@ export default function NewIdeaPage() {
   const [isMonetizable, setIsMonetizable] = useState(false);
   const [licenseType, setLicenseType] = useState("default");
   const [requestAI, setRequestAI] = useState(false);
+  const [isFeedback, setIsFeedback] = useState(false);
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,7 +43,7 @@ export default function NewIdeaPage() {
 
       const res = await apiFetch<{ idea: { _id: string } }>(`/api/ideas`, {
         method: "POST",
-        body: JSON.stringify({ title, summary, content, tags, visibility, isMonetizable, licenseType }),
+        body: JSON.stringify({ title, summary, content, tags, visibility, isMonetizable, licenseType, isFeedback }),
       });
 
       const ideaId = res.idea._id;
@@ -128,7 +129,22 @@ export default function NewIdeaPage() {
             />
             Request AI review
           </label>
+          <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
+            <input
+              type="checkbox"
+              checked={isFeedback}
+              onChange={(e) => setIsFeedback(e.target.checked)}
+            />
+            反馈网站问题或建议
+          </label>
         </div>
+
+        {isFeedback && (
+          <div className="bg-blue-900/20 border border-blue-800 rounded-xl p-3 text-sm text-blue-200">
+            <p className="font-semibold mb-1">📋 提交反馈</p>
+            <p>您正在提交网站bug报告或功能建议。AI将验证内容并自动分类。请详细描述问题或建议。</p>
+          </div>
+        )}
 
         <button
           onClick={submit}
