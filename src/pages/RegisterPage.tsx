@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
@@ -19,6 +20,7 @@ const LIMITS = {
 type Step = "START" | "VERIFY";
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const loc = useLocation();
   const rawNext = new URLSearchParams(loc.search).get("next");
@@ -54,7 +56,7 @@ export default function RegisterPage() {
         }),
       });
 
-      toast.success("Verification code sent. Check your email.");
+      toast.success(t('auth.verificationSent'));
       setStep("VERIFY");
       setCooldown(DEFAULT_COOLDOWN);
     } catch (e: any) {
@@ -136,19 +138,19 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-md mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white">Register</h1>
+      <h1 className="text-2xl font-bold text-white">{t('auth.registerTitle')}</h1>
       <p className="text-gray-400 text-sm mt-1">
-        Already have an account?{" "}
+        {t('auth.haveAccount')}{" "}
         <Link className="underline" to={`/login?next=${encodeURIComponent(next)}`}>
-          Login
+          {t('auth.loginButton')}
         </Link>
       </p>
 
       {/* ===== OAuth quick register ===== */}
       <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-        <div className="text-sm font-semibold text-white">Create account quickly</div>
+        <div className="text-sm font-semibold text-white">{t('auth.createAccountQuickly')}</div>
         <p className="text-xs text-gray-400 mt-1">
-          Continue with Google or GitHub. We’ll bring you back automatically.
+          {t('auth.oauthRegisterDescription')}
         </p>
         <div className="mt-3">
           <OAuthButtons />
@@ -156,7 +158,7 @@ export default function RegisterPage() {
 
         <div className="flex items-center gap-3 my-4">
           <div className="h-px flex-1 bg-gray-800" />
-          <div className="text-xs text-gray-500">or sign up with email</div>
+          <div className="text-xs text-gray-500">{t('auth.orSignUpWith')}</div>
           <div className="h-px flex-1 bg-gray-800" />
         </div>
 
@@ -165,7 +167,7 @@ export default function RegisterPage() {
           <div>
             <input
               className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
-              placeholder="username"
+              placeholder={t('auth.username')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading || step === "VERIFY"}
@@ -177,7 +179,7 @@ export default function RegisterPage() {
           <div>
             <input
               className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
-              placeholder="email"
+              placeholder={t('auth.email')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading || step === "VERIFY"}
@@ -188,7 +190,7 @@ export default function RegisterPage() {
 
           <input
             className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-            placeholder="password (>= 6)"
+            placeholder={t('auth.passwordHint')}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -203,7 +205,7 @@ export default function RegisterPage() {
               type="button"
               disabled={loading || step === "VERIFY"}
             >
-              Creator
+              {t('auth.creator')}
             </button>
 
             <button
@@ -213,7 +215,7 @@ export default function RegisterPage() {
               type="button"
               disabled={loading || step === "VERIFY"}
             >
-              Company
+              {t('auth.company')}
             </button>
           </div>
 
@@ -221,13 +223,13 @@ export default function RegisterPage() {
             <>
               <input
                 className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 tracking-widest"
-                placeholder="verification code (6 digits)"
+                placeholder={t('auth.verificationCodePlaceholder')}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 disabled={loading}
               />
 
-              <div className="text-xs text-gray-500">Didn’t receive it? Check spam.</div>
+              <div className="text-xs text-gray-500">{t('auth.didntReceive')}</div>
 
               <div className="flex items-center gap-2 mt-2">
                 <button
@@ -235,11 +237,11 @@ export default function RegisterPage() {
                   disabled={loading || cooldown > 0}
                   className="rounded-xl border border-gray-700 px-3 py-2 text-gray-200 hover:bg-gray-950 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
+                  {cooldown > 0 ? t('auth.resendCodeWait', { seconds: cooldown }) : t('auth.resendCode')}
                 </button>
 
                 <div className="text-gray-400 text-xs">
-                  {cooldown > 0 ? `请稍等 ${cooldown} 秒后再请求验证码` : "You can resend the code."}
+                  {cooldown > 0 ? t('auth.waitBeforeResend', { seconds: cooldown }) : t('auth.canResendCode')}
                 </div>
               </div>
             </>
@@ -258,10 +260,10 @@ export default function RegisterPage() {
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.2" />
                     <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
-                  Sending...
+                  {t('auth.sendingCode')}
                 </>
               ) : (
-                "Send verification code"
+                t('auth.sendVerificationCode')
               )}
             </button>
           ) : (
@@ -271,7 +273,7 @@ export default function RegisterPage() {
                 disabled={loading || !canVerify}
                 className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
               >
-                {loading ? "Verifying..." : "Verify & create account"}
+                {loading ? t('auth.verifying') : t('auth.verifyAndCreate')}
               </button>
 
               <button
@@ -286,15 +288,15 @@ export default function RegisterPage() {
                     <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
                 ) : null}
-                {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
+                {cooldown > 0 ? t('auth.resendCodeWait', { seconds: cooldown }) : t('auth.resendCode')}
               </button>
             </div>
           )}
 
-          {err && <p className="text-red-400 text-sm">Error: {err}</p>}
+          {err && <p className="text-red-400 text-sm">{t('common.error')}: {err}</p>}
 
           <p className="text-xs text-gray-500 mt-1">
-            By continuing, you agree to our basic usage and privacy terms.
+            {t('auth.agreeTerms')}
           </p>
         </div>
       </div>
