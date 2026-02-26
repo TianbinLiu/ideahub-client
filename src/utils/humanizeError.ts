@@ -1,11 +1,13 @@
+import i18n from '../i18n';
+
 export function humanizeError(err: any) {
-  if (!err) return "Unknown error";
+  if (!err) return i18n.t('errors.unknown');
 
   switch (err.code) {
     case "UNAUTHORIZED":
-      return "Please login first.";
+      return i18n.t('auth.unauthorized');
     case "FORBIDDEN":
-      return "You don't have permission to do that.";
+      return i18n.t('auth.forbidden');
     case "OTP_RESEND_COOLDOWN":
       // backend includes details.retryAfter (seconds)
       if (err?.details?.retryAfter) {
@@ -14,17 +16,17 @@ export function humanizeError(err: any) {
       if (err.message) return String(err.message);
       return "请稍后再试";
     case "VALIDATION_ERROR":
-      return "Please check your input.";
+      return i18n.t('errors.validation');
     case "PUBLIC_LIMIT_EXCEEDED":
       if (err?.details?.limit) return `Free accounts can publish up to ${Number(err.details.limit)} public ideas. Delete one or upgrade your account.`;
-      return `Free accounts have reached the public idea limit.`;
+      return i18n.t('errors.publicLimitExceeded');
     case "FEEDBACK_VALIDATION_FAILED":
-      return err.message || "反馈内容无效，请提供有意义的bug报告或功能建议。";
+      return err.message || i18n.t('errors.feedbackValidationFailed');
     case "NOT_FOUND":
-      return "Not found.";
+      return i18n.t('errors.notFound');
     case "DUPLICATE":
-      return "Already exists.";
+      return i18n.t('errors.duplicate');
     default:
-      return err.message || "Server error.";
+      return err.message || i18n.t('errors.serverError');
   }
 }

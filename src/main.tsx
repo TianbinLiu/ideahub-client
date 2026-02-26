@@ -5,6 +5,7 @@ import App from "./App";
 import { AuthProvider } from "./authContext";
 import "./index.css";
 import { Toaster } from "react-hot-toast";
+import "./i18n";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

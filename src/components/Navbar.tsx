@@ -5,6 +5,8 @@ import { useAuth } from "../authContext";
 import { useEffect, useState } from "react";
 import { getUnreadCount } from "../api";
 import { UserHoverCard } from "./UserHoverCard";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 
 function cls(isActive: boolean) {
@@ -13,6 +15,7 @@ function cls(isActive: boolean) {
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const [unread, setUnread] = useState(0);
   const loc = useLocation();
 
@@ -51,13 +54,13 @@ export default function Navbar() {
         <Link to="/" className="font-bold text-xl text-white">IdeaHub</Link>
 
         <div className="flex items-center gap-4 text-sm">
-          <NavLink to="/" className={({ isActive }) => cls(isActive)}>Home</NavLink>
-          <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>Tag Rank</NavLink>
+          <NavLink to="/" className={({ isActive }) => cls(isActive)}>{t('nav.home')}</NavLink>
+          <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>{t('nav.tagRank')}</NavLink>
 
           {user && (
             <NavLink to="/notifications" className={({ isActive }) => cls(isActive)}>
               <span className="relative inline-flex items-center">
-                Notifications
+                {t('nav.notifications')}
                 {unread > 0 && (
                   <span className="ml-2 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] min-w-5 h-5 px-1">
                     {unread > 99 ? "99+" : unread}
@@ -68,25 +71,26 @@ export default function Navbar() {
           )}
 
           {user?.role === "company" && (
-            <NavLink to="/company" className={({ isActive }) => cls(isActive)}>Company</NavLink>
+            <NavLink to="/company" className={({ isActive }) => cls(isActive)}>{t('nav.company')}</NavLink>
           )}
 
           {user?.role === "admin" && (
             <>
               <NavLink to="/admin/users" className={({ isActive }) => cls(isActive)}>
-                Admin
+                {t('nav.admin')}
               </NavLink>
               <NavLink to="/feedback" className={({ isActive }) => cls(isActive)}>
-                Feedback
+                {t('nav.feedback')}
               </NavLink>
             </>
           )}
 
+          <LanguageSwitcher />
 
           {!user ? (
             <>
-              <NavLink to={loginTo} className={({ isActive }) => cls(isActive)}>Login</NavLink>
-              <NavLink to={registerTo} className={({ isActive }) => cls(isActive)}>Register</NavLink>
+              <NavLink to={loginTo} className={({ isActive }) => cls(isActive)}>{t('nav.login')}</NavLink>
+              <NavLink to={registerTo} className={({ isActive }) => cls(isActive)}>{t('nav.register')}</NavLink>
             </>
           ) : (
             <div className="flex items-center gap-3">
@@ -101,7 +105,7 @@ export default function Navbar() {
                 onClick={logout}
                 className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900"
               >
-                Logout
+                {t('nav.logout')}
               </button>
             </div>
           )}
