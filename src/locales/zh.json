@@ -61,12 +61,16 @@
     "createButton": "创建",
     "saving": "保存中...",
     "editTitle": "编辑想法",
+    "updated": "想法已更新",
+    "loginToEdit": "请登录以编辑想法。",
+    "backToIdea": "← 返回想法",
+    "author": "作者",
+    "adminMode": "（管理员模式）",
+    "editForbidden": "禁止操作：只有作者或管理员可以编辑此想法。",
     "deleteConfirm": "删除此想法？此操作无法撤销。",
     "moveToPrivate": "移至私密（本地）",
-    "moveToPrivateConfirm": "将此公开想法移至本地私密存储？这将从服务器删除。",
     "publishToPublic": "发布（公开）",
     "deleteLocal": "删除本地",
-    "deleteLocalConfirm": "删除本地私密想法？",
     "by": "作者",
     "viewCount": "浏览",
     "likeCount": "点赞",
@@ -85,7 +89,21 @@
     "feedbackAdopted": "已采纳",
     "feedbackResolved": "已解决",
     "feedbackRejected": "已拒绝",
-    "aiSummary": "AI总结"
+    "statusUnknown": "状态未知",
+    "aiSummary": "AI摘要",
+    "visibilityLabel": "可见性",
+    "licenseLabel": "许可证",
+    "confirmMove": "确认移动",
+    "moveToPrivateConfirmMsg": "这将从服务器删除想法并存储到浏览器本地。评论、点赞/书签计数和您的点赞/书签状态将被保留。",
+    "deleteLocalConfirm": "删除本地私有想法？",
+    "moveToPrivateConfirm": "将此公开想法移动到您的本地私有存储？这将从服务器删除它。",
+    "publishSuccess": "已发布为公开。",
+    "localDeleted": "本地想法已删除",
+    "movedToLocal": "已移动到本地私有存储",
+    "statusUpdated": "状态已更新",
+    "loginToInteract": "登录以点赞/书签/评论。",
+    "loginToComment": "请登录以发表评论。",
+    "authorNote": "您是作者（编辑/删除界面在第5/6阶段）。"
   },
   "comment": {
     "title": "评论",
@@ -136,8 +154,13 @@
     "follow": "关注",
     "unfollow": "取消关注",
     "bio": "简介"
-  },
-  "errors": {
+  },  "company": {
+    "interest": "公司兴趣",
+    "interestDescription": "将此想法标记为感兴趣并给创作者留言。",
+    "messagePlaceholder": "可选消息（联系邮箱/您要寻找的内容...）",
+    "interested": "已感兴趣（点击移除）",
+    "markInterested": "标记为感兴趣"
+  },  "errors": {
     "unknown": "未知错误",
     "notFound": "未找到。",
     "duplicate": "已存在。",
@@ -149,9 +172,22 @@
   "home": {
     "welcome": "欢迎来到 IdeaHub",
     "newIdea": "新建想法",
+    "title": "公开想法",
+    "subtitle": "浏览创作者分享的想法。",
     "sortBy": "排序方式",
     "hot": "热门",
     "new": "最新",
+    "searchPlaceholder": "搜索标签或关键词（例如 小说、黑暗风 或 roguelike）",
+    "searchButton": "搜索",
+    "tagSuggestion": "标签建议",
+    "ideaTitle": "想法标题",
+    "recentTagsHint": "热门标签会在你搜索后出现",
+    "noPublicIdeas": "还没有公开想法。",
+    "server": "服务器",
+    "unknownAuthor": "未知",
+    "page": "第",
+    "prev": "← 上一页",
+    "next": "下一页 →",
     "noIdeas": "还没有想法。快来创建第一个！"
   }
 }

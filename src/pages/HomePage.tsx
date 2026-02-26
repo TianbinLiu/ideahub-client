@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -15,6 +16,7 @@ type Idea = {
 };
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const sort = params.get("sort") || "new";
   const q = params.get("q") || "";
@@ -142,8 +144,8 @@ export default function HomePage() {
     <div className="max-w-5xl mx-auto p-4">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Public Ideas</h1>
-          <p className="text-gray-400 text-sm mt-1">Browse ideas shared by creators.</p>
+          <h1 className="text-2xl font-bold text-white">{t('home.title')}</h1>
+          <p className="text-gray-400 text-sm mt-1">{t('home.subtitle')}</p>
         </div>
 
         <div className="flex gap-2">
@@ -152,14 +154,14 @@ export default function HomePage() {
             className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "new" ? "border-white text-white" : "border-gray-700 text-gray-300"
               }`}
           >
-            New
+            {t('home.new')}
           </button>
           <button
             onClick={() => setParams({ sort: "hot" })}
             className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "hot" ? "border-white text-white" : "border-gray-700 text-gray-300"
               }`}
           >
-            Hot
+            {t('home.hot')}
           </button>
         </div>
       </div>
@@ -168,7 +170,7 @@ export default function HomePage() {
         <div className="relative">
           <input
             className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm w-full"
-            placeholder="Search tags or keywords (e.g. novel, dark or roguelike)"
+            placeholder={t('home.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => { setSearchInput(e.target.value); fetchSuggestionsDebounced(e.target.value); }}
             ref={inputRef}
@@ -228,7 +230,7 @@ export default function HomePage() {
                   }}
                 >
                   <div className="text-sm text-gray-200">{s.text}</div>
-                  <div className="text-xs text-gray-500">{s.type === "tag" ? "tag suggestion" : "idea title"}</div>
+                  <div className="text-xs text-gray-500">{s.type === "tag" ? t('home.tagSuggestion') : t('home.ideaTitle')}</div>
                 </div>
               ))}
             </div>
@@ -237,7 +239,7 @@ export default function HomePage() {
 
         <div className="flex flex-wrap gap-2 items-center">
           {recentTags.length === 0 ? (
-            <div className="text-gray-500 text-sm">热门标签会在你搜索后出现</div>
+            <div className="text-gray-500 text-sm">{t('home.recentTagsHint')}</div>
           ) : (
             recentTags.map((t) => (
               <button
@@ -274,16 +276,16 @@ export default function HomePage() {
             setParams(next);
           }}
         >
-          Search
+          {t('home.searchButton')}
         </button>
       </div>
 
 
-      {loading && <p className="text-gray-300 mt-6">Loading...</p>}
-      {err && <p className="text-red-400 mt-6">Error: {err}</p>}
+      {loading && <p className="text-gray-300 mt-6">{t('common.loading')}</p>}
+      {err && <p className="text-red-400 mt-6">{t('common.error')}: {err}</p>}
 
       <div className="mt-6 grid gap-3">
-        {!loading && ideas.length === 0 && <p className="text-gray-400">No public ideas yet.</p>}
+        {!loading && ideas.length === 0 && <p className="text-gray-400">{t('home.noPublicIdeas')}</p>}
 
         {ideas.map((it) => (
           <Link
@@ -295,14 +297,14 @@ export default function HomePage() {
               <h2 className="text-white font-semibold">{it.title}</h2>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">Server</span>
+                <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">{t('home.server')}</span>
               </div>
             </div>
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
 
             <div className="flex flex-wrap gap-2 mt-3 text-xs text-gray-400">
               <span className="px-2 py-1 rounded-full border border-gray-800">
-                {it.author?.username || "unknown"}
+                {it.author?.username || t('home.unknownAuthor')}
               </span>
               {(it.tags || []).map((t) => (
                 <span key={t} className="px-2 py-1 rounded-full border border-gray-800">
@@ -327,11 +329,11 @@ export default function HomePage() {
             setParams(next);
           }}
         >
-          ← Prev
+          {t('home.prev')}
         </button>
 
         <div className="text-sm text-gray-400">
-          Page <span className="text-white">{page}</span> / {totalPages}
+          {t('home.page')} <span className="text-white">{page}</span> / {totalPages}
         </div>
 
         <button
@@ -343,7 +345,7 @@ export default function HomePage() {
             setParams(next);
           }}
         >
-          Next →
+          {t('home.next')}
         </button>
       </div>
 

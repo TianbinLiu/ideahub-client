@@ -61,12 +61,16 @@
     "createButton": "Create",
     "saving": "Saving...",
     "editTitle": "Edit Idea",
+    "updated": "Idea updated",
+    "loginToEdit": "Please login to edit ideas.",
+    "backToIdea": "← Back to idea",
+    "author": "Author",
+    "adminMode": "(admin mode)",
+    "editForbidden": "Forbidden: only the author or admin can edit this idea.",
     "deleteConfirm": "Delete this idea? This cannot be undone.",
     "moveToPrivate": "Move to private (local)",
-    "moveToPrivateConfirm": "Move this public idea to your local private storage? This will delete it from the server.",
     "publishToPublic": "Publish (make public)",
     "deleteLocal": "Delete local",
-    "deleteLocalConfirm": "Delete local private idea?",
     "by": "by",
     "viewCount": "views",
     "likeCount": "likes",
@@ -85,7 +89,21 @@
     "feedbackAdopted": "Adopted",
     "feedbackResolved": "Resolved",
     "feedbackRejected": "Rejected",
-    "aiSummary": "AI Summary"
+    "statusUnknown": "Status Unknown",
+    "aiSummary": "AI Summary",
+    "visibilityLabel": "visibility",
+    "licenseLabel": "license",
+    "confirmMove": "Confirm move",
+    "moveToPrivateConfirmMsg": "This will delete the idea from the server and store it locally in your browser. Comments, like/bookmark counts and your like/bookmark state will be preserved.",
+    "deleteLocalConfirm": "Delete local private idea?",
+    "moveToPrivateConfirm": "Move this public idea to your local private storage? This will delete it from the server.",
+    "publishSuccess": "Published to public.",
+    "localDeleted": "Local idea deleted",
+    "movedToLocal": "Moved to local private storage",
+    "statusUpdated": "Status updated",
+    "loginToInteract": "Login to like/bookmark/comment.",
+    "loginToComment": "Please login to post comments.",
+    "authorNote": "You are the author (Edit/Delete UI comes in Phase 5/6)."
   },
   "comment": {
     "title": "Comments",
@@ -137,6 +155,13 @@
     "unfollow": "Unfollow",
     "bio": "Bio"
   },
+  "company": {
+    "interest": "Company Interest",
+    "interestDescription": "Mark this idea as interesting and leave a message for the creator.",
+    "messagePlaceholder": "Optional message (contact email / what you're looking for...)",
+    "interested": "Interested (click to remove)",
+    "markInterested": "Mark Interested"
+  },
   "errors": {
     "unknown": "Unknown error",
     "notFound": "Not found.",
@@ -149,9 +174,22 @@
   "home": {
     "welcome": "Welcome to IdeaHub",
     "newIdea": "New Idea",
+    "title": "Public Ideas",
+    "subtitle": "Browse ideas shared by creators.",
     "sortBy": "Sort by",
     "hot": "Hot",
     "new": "New",
+    "searchPlaceholder": "Search tags or keywords (e.g. novel, dark or roguelike)",
+    "searchButton": "Search",
+    "tagSuggestion": "tag suggestion",
+    "ideaTitle": "idea title",
+    "recentTagsHint": "Hot tags will appear after you search",
+    "noPublicIdeas": "No public ideas yet.",
+    "server": "Server",
+    "unknownAuthor": "unknown",
+    "page": "Page",
+    "prev": "← Prev",
+    "next": "Next →",
     "noIdeas": "No ideas yet. Be the first to create one!"
   }
 }

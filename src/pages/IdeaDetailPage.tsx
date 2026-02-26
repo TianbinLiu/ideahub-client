@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
@@ -49,6 +50,7 @@ type Comment = {
   likesCount?: number;
 };
 export default function IdeaDetailPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
@@ -228,7 +230,7 @@ export default function IdeaDetailPage() {
       deleteLocalIdea(local._id); // ensure duplication doesn't occur, then re-save with full data
       saveLocalIdea({ ...local, ...payload, _id: local._id });
 
-      toast.success("Moved to local private storage");
+      toast.success(t('idea.movedToLocal'));
       setShowMoveConfirm(false);
       nav(`/ideas/${local._id}`);
     } catch (e: any) {
@@ -249,19 +251,19 @@ export default function IdeaDetailPage() {
       {showMoveConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-lg w-full">
-            <h3 className="text-lg font-semibold text-white">Move to private (local)</h3>
-            <p className="text-sm text-gray-400 mt-2">This will delete the idea from the server and store it locally in your browser. Comments, like/bookmark counts and your like/bookmark state will be preserved.</p>
+            <h3 className="text-lg font-semibold text-white">{t('idea.moveToPrivate')}</h3>
+            <p className="text-sm text-gray-400 mt-2">{t('idea.moveToPrivateConfirmMsg')}</p>
             <div className="mt-4 flex gap-2 justify-end">
-              <button onClick={() => setShowMoveConfirm(false)} className="rounded-xl border border-gray-700 px-3 py-2 text-sm">Cancel</button>
-              <button onClick={confirmMoveToLocal} className="rounded-xl bg-white text-black px-3 py-2 text-sm font-semibold">Confirm move</button>
+              <button onClick={() => setShowMoveConfirm(false)} className="rounded-xl border border-gray-700 px-3 py-2 text-sm">{t('common.cancel')}</button>
+              <button onClick={confirmMoveToLocal} className="rounded-xl bg-white text-black px-3 py-2 text-sm font-semibold">{t('idea.confirmMove')}</button>
             </div>
           </div>
         </div>
       )}
-      <Link to="/" className="text-sm text-gray-400 hover:text-white">← Back</Link>
+      <Link to="/" className="text-sm text-gray-400 hover:text-white">{t('common.back')}</Link>
 
-      {loading && <p className="text-gray-300 mt-6">Loading...</p>}
-      {err && <p className="text-red-400 mt-6">Error: {err}</p>}
+      {loading && <p className="text-gray-300 mt-6">{t('common.loading')}</p>}
+      {err && <p className="text-red-400 mt-6">{t('common.error')}: {err}</p>}
 
       {idea && (
 
@@ -270,21 +272,21 @@ export default function IdeaDetailPage() {
             <div>
               <h1 className="text-2xl font-bold text-white">{idea.title}</h1>
               <p className="text-gray-400 text-sm mt-1">
-                by{" "}
+                {t('idea.by')}{" "}
                 {idea.author?._id ? (
                   <UserHoverCard userId={idea.author._id} username={idea.author.username}>
                     <span className="text-white">{idea.author.username}</span>
                   </UserHoverCard>
                 ) : (
-                  <span>unknown</span>
+                  <span>{t('home.unknownAuthor')}</span>
                 )}{" "}
                 · {new Date(idea.createdAt).toLocaleString()}
               </p>
             </div>
 
             <div className="text-right text-xs text-gray-400">
-              <div>visibility: {idea.visibility}</div>
-              <div>license: {idea.licenseType}</div>
+              <div>{t('idea.visibilityLabel')}: {idea.visibility}</div>
+              <div>{t('idea.licenseLabel')}: {idea.licenseType}</div>
             </div>
 
             {canManageIdea && (
@@ -293,13 +295,13 @@ export default function IdeaDetailPage() {
                   to={`/ideas/${idea._id}/edit`}
                   className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200"
                 >
-                  Edit
+                  {t('common.edit')}
                 </Link>
 
                 {!isLocal && (
                   <button
                     onClick={async () => {
-                      if (!confirm("Move this public idea to your local private storage? This will delete it from the server.")) return;
+                      if (!confirm(t('idea.moveToPrivateConfirm'))) return;
                       try {
                         setLoading(true);
                         // save locally first
@@ -312,7 +314,7 @@ export default function IdeaDetailPage() {
                         });
                         // delete on server
                         await apiFetch(`/api/ideas/${idea._id}`, { method: "DELETE" });
-                        toast.success("Moved to local private storage");
+                        toast.success(t('idea.movedToLocal'));
                         nav(`/ideas/${local._id}`);
                       } catch (e: any) {
                         toast.error(humanizeError(e));
@@ -322,7 +324,7 @@ export default function IdeaDetailPage() {
                     }}
                     className="text-xs rounded-lg border border-yellow-700 px-3 py-1.5 hover:bg-yellow-950 text-yellow-200"
                   >
-                    Move to private (local)
+                    {t('idea.moveToPrivate')}
                   </button>
                 )}
 
@@ -330,7 +332,7 @@ export default function IdeaDetailPage() {
                   onClick={onDeleteIdea}
                   className="text-xs rounded-lg border border-red-800 px-3 py-1.5 hover:bg-red-950 text-red-200"
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             )}
@@ -352,7 +354,7 @@ export default function IdeaDetailPage() {
                       const res = await apiFetch(`/api/ideas`, { method: "POST", body: JSON.stringify(payload) });
                       // on success, remove local and navigate to server idea
                       deleteLocalIdea(idea._id);
-                      toast.success("Published to public.");
+                      toast.success(t('idea.publishSuccess'));
                       nav(`/ideas/${res.idea._id}`);
                     } catch (e: any) {
                       toast.error(humanizeError(e));
@@ -362,19 +364,19 @@ export default function IdeaDetailPage() {
                   }}
                   className="text-xs rounded-lg border border-green-700 px-3 py-1.5 hover:bg-green-950 text-green-200"
                 >
-                  Publish (make public)
+                  {t('idea.publishToPublic')}
                 </button>
 
                 <button
                   onClick={() => {
-                    if (!confirm("Delete local private idea?")) return;
+                    if (!confirm(t('idea.deleteLocalConfirm'))) return;
                     deleteLocalIdea(idea._id);
-                    toast.success("Local idea deleted");
+                    toast.success(t('idea.localDeleted'));
                     nav("/me");
                   }}
                   className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200"
                 >
-                  Delete local
+                  {t('idea.deleteLocal')}
                 </button>
               </div>
             )}
@@ -388,7 +390,7 @@ export default function IdeaDetailPage() {
                   ? "bg-red-900/30 border border-red-800 text-red-200" 
                   : "bg-blue-900/30 border border-blue-800 text-blue-200"
               }`}>
-                {idea.feedbackType === "bug" ? "🐛 Bug Report" : "💡 Feature Suggestion"}
+                {idea.feedbackType === "bug" ? `🐛 ${t('idea.feedbackBug')}` : `💡 ${t('idea.feedbackSuggestion')}`}
               </span>
               
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -399,12 +401,12 @@ export default function IdeaDetailPage() {
                 idea.feedbackStatus === "rejected" ? "bg-gray-900/30 border border-gray-700 text-gray-400" :
                 "bg-gray-900/30 border border-gray-700 text-gray-300"
               }`}>
-                {idea.feedbackStatus === "pending" ? "⏳ Pending" :
-                 idea.feedbackStatus === "under_review" ? "🔍 Under Review" :
-                 idea.feedbackStatus === "adopted" ? "✅ Adopted" :
-                 idea.feedbackStatus === "resolved" ? "✔️ Resolved" :
-                 idea.feedbackStatus === "rejected" ? "❌ Rejected" :
-                 "Status Unknown"}
+                {idea.feedbackStatus === "pending" ? `⏳ ${t('idea.feedbackPending')}` :
+                 idea.feedbackStatus === "under_review" ? `🔍 ${t('idea.feedbackUnderReview')}` :
+                 idea.feedbackStatus === "adopted" ? `✅ ${t('idea.feedbackAdopted')}` :
+                 idea.feedbackStatus === "resolved" ? `✔️ ${t('idea.feedbackResolved')}` :
+                 idea.feedbackStatus === "rejected" ? `❌ ${t('idea.feedbackRejected')}` :
+                 t('idea.statusUnknown')}
               </span>
 
               {isAdmin && !isLocal && (
@@ -418,18 +420,18 @@ export default function IdeaDetailPage() {
                           method: "PATCH",
                           body: JSON.stringify({ status: e.target.value }),
                         });
-                        toast.success("Status updated");
+                        toast.success(t('idea.statusUpdated'));
                         await load();
                       } catch (err: any) {
                         toast.error(humanizeError(err));
                       }
                     }}
                   >
-                    <option value="pending">Pending</option>
-                    <option value="under_review">Under Review</option>
-                    <option value="adopted">Adopted</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="rejected">Rejected</option>
+                    <option value="pending">{t('idea.feedbackPending')}</option>
+                    <option value="under_review">{t('idea.feedbackUnderReview')}</option>
+                    <option value="adopted">{t('idea.feedbackAdopted')}</option>
+                    <option value="resolved">{t('idea.feedbackResolved')}</option>
+                    <option value="rejected">{t('idea.feedbackRejected')}</option>
                   </select>
                 </div>
               )}
@@ -438,7 +440,7 @@ export default function IdeaDetailPage() {
 
           {idea.aiSummary && (
             <div className="mt-4 rounded-2xl border border-blue-800 bg-blue-950/20 p-3">
-              <h4 className="text-sm font-semibold text-blue-200">📝 AI Summary</h4>
+              <h4 className="text-sm font-semibold text-blue-200">📝 {t('idea.aiSummary')}</h4>
               <p className="text-sm text-blue-100 mt-1">{idea.aiSummary}</p>
             </div>
           )}
@@ -448,13 +450,13 @@ export default function IdeaDetailPage() {
 
           {idea.aiReview?.analysisText && (
             <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
-              <h3 className="font-semibold text-white">AI Review</h3>
+              <h3 className="font-semibold text-white">{t('aiReview.title')}</h3>
 
               <div className="mt-2 text-sm text-gray-300">
-                <div>Feasibility: <span className="text-white font-semibold">{idea.aiReview.feasibilityScore}</span> / 100</div>
-                <div>Profit potential: <span className="text-white font-semibold">{idea.aiReview.profitPotentialScore}</span> / 100</div>
+                <div>{t('aiReview.feasibility')}: <span className="text-white font-semibold">{idea.aiReview.feasibilityScore}</span> / 100</div>
+                <div>{t('aiReview.profitPotential')}: <span className="text-white font-semibold">{idea.aiReview.profitPotentialScore}</span> / 100</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  model: {idea.aiReview.model || "unknown"} · {idea.aiReview.createdAt ? new Date(idea.aiReview.createdAt).toLocaleString() : ""}
+                  {t('aiReview.model')}: {idea.aiReview.model || t('home.unknownAuthor')} · {idea.aiReview.createdAt ? new Date(idea.aiReview.createdAt).toLocaleString() : ""}
                 </div>
               </div>
 
@@ -483,7 +485,7 @@ export default function IdeaDetailPage() {
               onClick={onToggleLike}
               disabled={!user}
             >
-              {liked ? "❤️ Liked" : "🤍 Like"}
+              {liked ? `❤️ ${t('idea.liked')}` : `🤍 ${t('idea.like')}`}
             </button>
 
             <button
@@ -492,19 +494,19 @@ export default function IdeaDetailPage() {
               onClick={onToggleBookmark}
               disabled={!user}
             >
-              {bookmarked ? "🔖 Bookmarked" : "📑 Bookmark"}
+              {bookmarked ? `🔖 ${t('idea.bookmarked')}` : `📑 ${t('idea.bookmark')}`}
             </button>
 
             {isCompany && (
               <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
-                <h3 className="font-semibold text-white">Company Interest</h3>
+                <h3 className="font-semibold text-white">{t('company.interest')}</h3>
                 <p className="text-sm text-gray-400 mt-1">
-                  Mark this idea as interesting and leave a message for the creator.
+                  {t('company.interestDescription')}
                 </p>
 
                 <textarea
                   className="mt-3 rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[90px] w-full"
-                  placeholder="Optional message (contact email / what you’re looking for...)"
+                  placeholder={t('company.messagePlaceholder')}
                   value={interestMsg}
                   onChange={(e) => setInterestMsg(e.target.value)}
                 />
@@ -514,16 +516,16 @@ export default function IdeaDetailPage() {
                     }`}
                   onClick={onToggleInterest}
                 >
-                  {interested ? "✅ Interested (click to remove)" : "⭐ Mark Interested"}
+                  {interested ? `✅ ${t('company.interested')}` : `⭐ ${t('company.markInterested')}`}
                 </button>
               </div>
             )}
 
-            {!user && <span className="text-xs text-gray-500 self-center">Login to like/bookmark/comment.</span>}
+            {!user && <span className="text-xs text-gray-500 self-center">{t('idea.loginToInteract')}</span>}
           </div>
 
           <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
-            <h3 className="font-semibold text-white">Comments</h3>
+            <h3 className="font-semibold text-white">{t('comment.title')}</h3>
 
             {user ? (
               <div className="mt-3 grid gap-2">
@@ -531,7 +533,7 @@ export default function IdeaDetailPage() {
                   <MentionTextarea
                     value={commentText}
                     onChange={setCommentText}
-                    placeholder="Write a comment... (use @username to mention)"
+                    placeholder={t('comment.placeholder')}
                     className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[90px] w-full text-gray-200"
                     maxLength={LIMITS.COMMENT}
                   />
@@ -542,15 +544,15 @@ export default function IdeaDetailPage() {
                   onClick={submitComment}
                   disabled={busy || !commentText.trim()}
                 >
-                  {busy ? "Posting..." : "Post Comment"}
+                  {busy ? t('comment.posting') : t('comment.submit')}
                 </button>
               </div>
             ) : (
-              <p className="text-sm text-gray-400 mt-2">Please login to post comments.</p>
+              <p className="text-sm text-gray-400 mt-2">{t('idea.loginToComment')}</p>
             )}
 
             <div className="mt-4 space-y-3">
-              {comments.length === 0 && <p className="text-gray-400 text-sm">No comments yet.</p>}
+              {comments.length === 0 && <p className="text-gray-400 text-sm">{t('comment.empty')}</p>}
               {comments.map((c) => {
                 const isCommentLiked = c.likes?.includes(userId);
                 return (
@@ -562,7 +564,7 @@ export default function IdeaDetailPage() {
                             <span className="text-white">{c.author.username}</span>
                           </UserHoverCard>
                         ) : (
-                          <span>unknown</span>
+                          <span>{t('home.unknownAuthor')}</span>
                         )}
                       </span>
                       <span>{new Date(c.createdAt).toLocaleString()}</span>
@@ -589,7 +591,7 @@ export default function IdeaDetailPage() {
 
           {isOwner && (
             <p className="text-sm text-green-400 mt-4">
-              You are the author (Edit/Delete UI comes in Phase 5/6).
+              {t('idea.authorNote')}
             </p>
           )}
         </div>
