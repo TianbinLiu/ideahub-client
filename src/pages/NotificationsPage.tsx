@@ -6,37 +6,39 @@ import {
   markNotificationRead,
   type NotificationItem,   //or import type { NotificationItem } from "../api";
 } from "../api";
-
-function renderText(n: NotificationItem) {
-  const actor = n.actorId?.username || "Someone";
-  const title = n.ideaId?.title || "an idea";
-
-  switch (n.type) {
-    case "LIKE":
-      return `${actor} liked "${title}"`;
-    case "COMMENT":
-      return `${actor} commented on "${title}"`;
-    case "BOOKMARK":
-      return `${actor} bookmarked "${title}"`;
-    case "INTEREST":
-      return `${actor} showed interest in "${title}"`;
-    case "MENTION":
-      return `${actor} mentioned you in a comment on "${title}"`;
-    case "INVITE":
-      return `${actor} invited you to view "${title}"`;
-    case "LIKE_COMMENT":
-      return `${actor} liked your comment on "${title}"`;
-    case "LIKE_POST":
-      return `${actor} liked your nomination "${n.payload?.postTitle || 'a post'}"`;
-    default:
-      return `${actor}: ${n.type}`;
-  }
-}
+import { useTranslation } from "react-i18next";
 
 export default function NotificationsPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function renderText(n: NotificationItem) {
+    const actor = n.actorId?.username || t('notifications.actorUnknown');
+    const title = n.ideaId?.title || t('notifications.ideaUnknown');
+
+    switch (n.type) {
+      case "LIKE":
+        return t('notifications.like', { actor, title });
+      case "COMMENT":
+        return t('notifications.comment', { actor, title });
+      case "BOOKMARK":
+        return t('notifications.bookmark', { actor, title });
+      case "INTEREST":
+        return t('notifications.interest', { actor, title });
+      case "MENTION":
+        return t('notifications.mention', { actor, title });
+      case "INVITE":
+        return t('notifications.invite', { actor, title });
+      case "LIKE_COMMENT":
+        return t('notifications.likeComment', { actor, title });
+      case "LIKE_POST":
+        return t('notifications.likePost', { actor, title: n.payload?.postTitle || t('notifications.postUnknown') });
+      default:
+        return t('notifications.typeFallback', { actor, type: n.type });
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -51,7 +53,7 @@ export default function NotificationsPage() {
       }
     } catch (e: any) {
       console.error("[NotificationsPage] Error loading notifications:", e);
-      setError(e.message || "Failed to load notifications");
+      setError(t('notifications.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -77,22 +79,22 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-3xl mx-auto p-4">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold text-white">Notifications</h1>
+        <h1 className="text-xl font-semibold text-white">{t('notifications.title')}</h1>
         <div className="flex gap-2">
           <button onClick={load} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200 text-sm">
-            ↻ Refresh
+            ↻ {t('notifications.refresh')}
           </button>
           <button onClick={markAll} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-900 text-gray-200">
-            Mark all read
+            {t('notifications.markAllRead')}
           </button>
         </div>
       </div>
 
-      {loading && <div className="text-gray-400 text-sm">Loading...</div>}
-      {error && <div className="text-red-400 text-sm mb-4">Error: {error}</div>}
+      {loading && <div className="text-gray-400 text-sm">{t('common.loading')}</div>}
+      {error && <div className="text-red-400 text-sm mb-4">{t('common.error')}: {error}</div>}
 
       <div className="space-y-2">
-        {items.length === 0 && !loading && <p className="text-gray-400 text-sm">No notifications yet.</p>}
+        {items.length === 0 && !loading && <p className="text-gray-400 text-sm">{t('notifications.empty')}</p>}
         {items.map(n => (
           <div
             key={n._id}
@@ -104,14 +106,14 @@ export default function NotificationsPage() {
               <div className="text-sm text-gray-100">{renderText(n)}</div>
               {n.ideaId?._id && (
                 <Link to={`/ideas/${n.ideaId._id}`} className="text-xs text-blue-400 hover:underline">
-                  Open idea
+                  {t('notifications.openIdea')}
                 </Link>
               )}
             </div>
 
             {!n.readAt && (
               <button onClick={() => markOne(n._id)} className="text-xs rounded-lg border border-gray-700 px-2 py-1 hover:bg-gray-950 text-gray-200">
-                Read
+                {t('notifications.read')}
               </button>
             )}
           </div>

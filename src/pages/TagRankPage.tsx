@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { useTranslation } from "react-i18next";
 
 export default function TagRankPage() {
   const nav = useNavigate();
+  const { t } = useTranslation();
 
   const [tagsInput, setTagsInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -58,7 +60,7 @@ export default function TagRankPage() {
         .map((s) => s.toLowerCase());
 
       if (tagsArr.length === 0) {
-        return toast.error("Please enter at least one tag");
+        return toast.error(t('tagRank.enterTag'));
       }
 
       setSearchLoading(true);
@@ -87,7 +89,7 @@ export default function TagRankPage() {
         .map((s) => s.toLowerCase());
 
       if (tagsArr.length === 0) {
-        return toast.error("Please enter at least one tag");
+        return toast.error(t('tagRank.enterTag'));
       }
 
       const res = await apiFetch(`/api/tag-rank/leaderboard`, {
@@ -115,19 +117,19 @@ export default function TagRankPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white">Tag Rank</h1>
+      <h1 className="text-2xl font-bold text-white">{t('nav.tagRank')}</h1>
       <p className="text-gray-400 text-sm mt-1">
-        Search or browse leaderboards by tags.
+        {t('tagRank.subtitle')}
       </p>
 
       {/* Search Section */}
       <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-        <h2 className="text-lg text-white mb-3">Search Leaderboards</h2>
+        <h2 className="text-lg text-white mb-3">{t('tagRank.searchLeaderboards')}</h2>
 
         <div className="grid gap-3">
           <input
             className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-            placeholder="tags, comma separated (e.g. novel,dark)"
+            placeholder={t('tagRank.tagsPlaceholder')}
             value={tagsInput}
             onChange={(e) => {
               setTagsInput(e.target.value);
@@ -161,7 +163,7 @@ export default function TagRankPage() {
               disabled={searchLoading}
               className="rounded-xl bg-white text-black px-3 py-2 font-semibold disabled:opacity-50"
             >
-              {searchLoading ? "Searching..." : "Search"}
+              {searchLoading ? t('tagRank.searching') : t('common.search')}
             </button>
             <button
               onClick={() => {
@@ -171,7 +173,7 @@ export default function TagRankPage() {
               }}
               className="rounded-xl border border-gray-700 px-3 py-2"
             >
-              Clear
+              {t('tagRank.clear')}
             </button>
           </div>
         </div>
@@ -180,13 +182,13 @@ export default function TagRankPage() {
       {/* Search Results */}
       {searchResults && (
         <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-          <h2 className="text-lg text-white mb-3">Search Results</h2>
+          <h2 className="text-lg text-white mb-3">{t('tagRank.searchResults')}</h2>
 
           {/* Exact Match */}
           {searchResults.exact && (
             <div className="mb-4">
               <p className="text-sm text-green-400 mb-2">
-                ✓ Found exact match:
+                {t('tagRank.foundExact')}
               </p>
               <div
                 className="rounded-xl border-2 border-green-700 bg-gray-950/50 p-3 cursor-pointer hover:bg-gray-950"
@@ -196,7 +198,7 @@ export default function TagRankPage() {
                   {searchResults.exact.tags?.join(", ")}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {searchResults.exact.postsCount || 0} nominations
+                  {searchResults.exact.postsCount || 0} {t('leaderboard.nominations')}
                 </div>
               </div>
             </div>
@@ -206,7 +208,7 @@ export default function TagRankPage() {
           {!searchResults.exact && searchResults.related && searchResults.related.length > 0 && (
             <div className="mb-4">
               <p className="text-sm text-gray-400 mb-2">
-                No exact match found. Here are related leaderboards:
+                {t('tagRank.noExact')}
               </p>
               <div className="grid gap-2">
                 {searchResults.related.map((board: any) => (
@@ -219,7 +221,7 @@ export default function TagRankPage() {
                       {board.tags?.join(", ")}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {board.postsCount || 0} nominations
+                      {board.postsCount || 0} {t('leaderboard.nominations')}
                     </div>
                   </div>
                 ))}
@@ -231,7 +233,7 @@ export default function TagRankPage() {
           {!searchResults.exact && (!searchResults.related || searchResults.related.length === 0) && (
             <div className="mb-4">
               <p className="text-sm text-gray-400 mb-2">
-                No matching leaderboards found for these tags.
+                {t('tagRank.noMatches')}
               </p>
             </div>
           )}
@@ -240,13 +242,13 @@ export default function TagRankPage() {
           {!searchResults.exact && (
             <div className="border-t border-gray-800 pt-3">
               <p className="text-sm text-gray-400 mb-3">
-                Would you like to create a new leaderboard for "{tagsInput}"?
+                {t('tagRank.createPrompt', { tags: tagsInput })}
               </p>
               <button
                 onClick={createNewLeaderboard}
                 className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700"
               >
-                Create New Leaderboard
+                {t('leaderboard.createNew')}
               </button>
             </div>
           )}
@@ -257,7 +259,7 @@ export default function TagRankPage() {
       {!searchResults && (
         <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg text-white">Discover Leaderboards</h2>
+            <h2 className="text-lg text-white">{t('tagRank.discoverLeaderboards')}</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setDiscoverySort("recent")}
@@ -267,7 +269,7 @@ export default function TagRankPage() {
                     : "border border-gray-700 text-gray-300"
                 }`}
               >
-                Recent
+                {t('leaderboard.recent')}
               </button>
               <button
                 onClick={() => setDiscoverySort("hottest")}
@@ -277,18 +279,18 @@ export default function TagRankPage() {
                     : "border border-gray-700 text-gray-300"
                 }`}
               >
-                Hottest
+                {t('leaderboard.hottest')}
               </button>
             </div>
           </div>
 
           {discoveryLoading ? (
-            <p className="text-gray-400">Loading leaderboards...</p>
+            <p className="text-gray-400">{t('tagRank.loadingLeaderboards')}</p>
           ) : (
             <div className="grid gap-3">
               {discoveryBoards.length === 0 ? (
                 <p className="text-gray-400 text-sm">
-                  No leaderboards yet. Search or create one!
+                  {t('tagRank.noLeaderboards')}
                 </p>
               ) : (
                 discoveryBoards.map((board: any) => (
@@ -301,7 +303,7 @@ export default function TagRankPage() {
                       {board.tags?.join(", ")}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {board.postsCount || 0} nominations ·{" "}
+                      {board.postsCount || 0} {t('leaderboard.nominations')} ·{" "}
                       {new Date(board.computedAt).toLocaleDateString()}
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
