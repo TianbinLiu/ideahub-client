@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
@@ -9,6 +10,7 @@ import { safeNext } from "../utils/safeNext";
 type Step = "START" | "VERIFY";
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const loc = useLocation();
   const rawNext = new URLSearchParams(loc.search).get("next");
@@ -31,7 +33,7 @@ export default function ResetPasswordPage() {
         method: "POST",
         body: JSON.stringify({ email }),
       });
-      toast.success("If the email exists, a reset code was sent.");
+      toast.success(t('auth.resetCodeSent'));
       setStep("VERIFY");
       setCooldown(DEFAULT_COOLDOWN);
     } catch (e: any) {
@@ -54,7 +56,7 @@ export default function ResetPasswordPage() {
       });
 
       await loginWithToken(res.token);
-      toast.success("Password reset and logged in");
+      toast.success(t('auth.resetSuccess'));
       nav(next, { replace: true });
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -96,13 +98,13 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="max-w-md mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white">Reset Password</h1>
-      <p className="text-gray-400 text-sm mt-1">Enter your email to receive a reset code.</p>
+      <h1 className="text-2xl font-bold text-white">{t('auth.resetPassword')}</h1>
+      <p className="text-gray-400 text-sm mt-1">{t('auth.resetPasswordDescription')}</p>
 
       <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4 grid gap-3">
         <input
           className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-          placeholder="email"
+          placeholder={t('auth.email')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={loading || step === "VERIFY"}
@@ -112,7 +114,7 @@ export default function ResetPasswordPage() {
           <>
             <input
               className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 tracking-widest"
-              placeholder="verification code (6 digits)"
+              placeholder={t('auth.verificationCodePlaceholder')}
               value={code}
               onChange={(e) => setCode(e.target.value)}
               disabled={loading}
@@ -120,7 +122,7 @@ export default function ResetPasswordPage() {
 
             <input
               className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-              placeholder="new password (>=6)"
+              placeholder={t('auth.newPassword')}
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -142,10 +144,10 @@ export default function ResetPasswordPage() {
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.2" />
                   <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                 </svg>
-                Sending...
+                {t('auth.sending')}
               </>
             ) : (
-              "Send reset code"
+              t('auth.sendResetCode')
             )}
           </button>
         ) : (
@@ -163,10 +165,10 @@ export default function ResetPasswordPage() {
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.2" />
                       <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                     </svg>
-                    Resetting...
+                    {t('auth.resetting')}
                   </>
                 ) : (
-                  "Reset password"
+                  t('auth.resetPasswordButton')
                 )}
               </button>
 
@@ -175,7 +177,7 @@ export default function ResetPasswordPage() {
                 disabled={loading}
                 className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-950 disabled:opacity-50"
               >
-                Back
+                {t('common.back')}
               </button>
             </div>
 
@@ -192,13 +194,13 @@ export default function ResetPasswordPage() {
                     <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
                 ) : null}
-                {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
+                {cooldown > 0 ? t('auth.resendCodeWait', { seconds: cooldown }) : t('auth.resendCode')}
               </button>
 
               <div className="text-gray-400 text-xs">
                 {cooldown > 0
                   ? humanizeError({ code: "OTP_RESEND_COOLDOWN", details: { retryAfter: cooldown } })
-                  : "You can resend the code."}
+                  : t('auth.canResendCode')}
               </div>
             </div>
           </div>
@@ -206,7 +208,7 @@ export default function ResetPasswordPage() {
 
         <div className="text-xs text-gray-500 mt-2">
           <Link to={`/login?next=${encodeURIComponent(next)}`} className="underline">
-            Back to login
+            {t('auth.backToLogin')}
           </Link>
         </div>
       </div>

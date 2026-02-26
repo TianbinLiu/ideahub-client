@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
 import { safeNext } from "../utils/safeNext";
 
 export default function OAuthCallbackPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const { loginWithToken } = useAuth();
@@ -33,7 +35,7 @@ export default function OAuthCallbackPage() {
         }
 
         if (!token) {
-          const msg = "Missing token in callback URL.";
+          const msg = t('auth.missingToken');
           setErr(msg);
           setStatus("error");
           toast.error(msg);
@@ -41,7 +43,7 @@ export default function OAuthCallbackPage() {
         }
 
         await loginWithToken(token);
-        toast.success("Logged in!");
+        toast.success(t('auth.loggedIn'));
         nav(next, { replace: true });
       } catch (e: any) {
         const msg = humanizeError(e);
@@ -54,29 +56,29 @@ export default function OAuthCallbackPage() {
 
   return (
     <div className="max-w-md mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white">Signing you in...</h1>
+      <h1 className="text-2xl font-bold text-white">{t('auth.signingIn')}</h1>
 
       {status === "loading" && (
         <p className="text-gray-400 text-sm mt-2">
-          Completing OAuth login. Please wait.
+          {t('auth.completingOAuthLogin')}
         </p>
       )}
 
       {status === "error" && (
         <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-          <p className="text-red-400 text-sm">Error: {err}</p>
+          <p className="text-red-400 text-sm">{t('common.error')}: {err}</p>
           <div className="mt-3 flex gap-2">
             <Link
               to={`/login?next=${encodeURIComponent(next)}`}
               className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-950"
             >
-              Back to Login
+              {t('auth.backToLogin')}
             </Link>
             <Link
               to="/register"
               className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-950"
             >
-              Register
+              {t('auth.registerTitle')}
             </Link>
           </div>
         </div>
