@@ -6,6 +6,7 @@ import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 import { CharCount } from "../components/CharCount";
 import { UserHoverCard } from "../components/UserHoverCard";
+import { useTranslation } from "react-i18next";
 
 const LIMITS = {
   NOMINATION_TITLE: 150,
@@ -16,6 +17,7 @@ export default function LeaderboardDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const userId = (user as any)?._id || (user as any)?.id;
 
   const [leaderboard, setLeaderboard] = useState<any>(null);
@@ -40,17 +42,17 @@ export default function LeaderboardDetailPage() {
       setLeaderboard((prev: any) =>
         prev ? { ...prev, bookmarked: res.bookmarked } : prev
       );
-      toast.success(res.bookmarked ? "Bookmarked" : "Bookmark removed");
+      toast.success(res.bookmarked ? t('leaderboard.bookmarked') : t('leaderboard.bookmarkRemoved'));
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
   }
 
   async function deleteLeaderboard() {
-    if (!confirm("Are you sure you want to delete this leaderboard?")) return;
+    if (!confirm(t('leaderboard.deleteConfirm'))) return;
     try {
       await apiFetch(`/api/tag-rank/leaderboards/${id}`, { method: "DELETE" });
-      toast.success("Leaderboard deleted");
+      toast.success(t('leaderboard.deleted'));
       nav("/tag-rank");
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -90,7 +92,7 @@ export default function LeaderboardDetailPage() {
 
   async function submitPost() {
     try {
-      if (!leaderboard?.tagsKey) return toast.error("No leaderboard selected");
+      if (!leaderboard?.tagsKey) return toast.error(t('leaderboard.noLeaderboardSelected'));
       const tagsKey = leaderboard.tagsKey;
       await apiFetch(`/api/tag-rank/posts`, {
         method: "POST",
@@ -98,7 +100,7 @@ export default function LeaderboardDetailPage() {
       });
       setNewPostTitle("");
       setNewPostBody("");
-      toast.success("Nomination posted");
+      toast.success(t('leaderboard.nominationPosted'));
       setPostsPage(1);
       loadPosts();
     } catch (e: any) {
@@ -145,7 +147,7 @@ export default function LeaderboardDetailPage() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <p className="text-gray-400">Loading leaderboard...</p>
+        <p className="text-gray-400">{t('leaderboard.loadingDetail')}</p>
       </div>
     );
   }
@@ -153,12 +155,12 @@ export default function LeaderboardDetailPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <div className="text-red-400 mb-4">Error: {error}</div>
+        <div className="text-red-400 mb-4">{t('common.error')}: {error}</div>
         <button
           onClick={() => nav("/tag-rank")}
           className="text-blue-400 hover:underline"
         >
-          Back to Tag Rank
+          {t('leaderboard.backToTagRank')}
         </button>
       </div>
     );
@@ -167,12 +169,12 @@ export default function LeaderboardDetailPage() {
   if (!leaderboard) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <p className="text-gray-400">Leaderboard not found</p>
+        <p className="text-gray-400">{t('leaderboard.notFound')}</p>
         <button
           onClick={() => nav("/tag-rank")}
           className="text-blue-400 hover:underline mt-4"
         >
-          Back to Tag Rank
+          {t('leaderboard.backToTagRank')}
         </button>
       </div>
     );
@@ -184,17 +186,17 @@ export default function LeaderboardDetailPage() {
         onClick={() => nav("/tag-rank")}
         className="text-sm text-gray-400 hover:text-white"
       >
-        ← Back to Tag Rank
+        {t('leaderboard.backToTagRankArrow')}
       </button>
 
       <div className="flex items-start justify-between mt-4">
         <div>
           <h1 className="text-2xl font-bold text-white">
-            Leaderboard: {leaderboard.tags?.join(", ")}
+            {t('leaderboard.label')}: {leaderboard.tags?.join(", ")}
           </h1>
           {leaderboard.author && (
             <p className="text-sm text-gray-400 mt-1">
-              Created by{" "}
+              {t('leaderboard.createdBy')} {" "}
               {leaderboard.author._id ? (
                 <UserHoverCard userId={leaderboard.author._id} username={leaderboard.author.username}>
                   <span className="text-white">{leaderboard.author.username}</span>
@@ -216,7 +218,7 @@ export default function LeaderboardDetailPage() {
                   : "border-gray-700 text-gray-400 hover:text-white"
               }`}
             >
-              {leaderboard.bookmarked ? "★ Bookmarked" : "☆ Bookmark"}
+              {leaderboard.bookmarked ? `★ ${t('leaderboard.bookmarked')}` : `☆ ${t('idea.bookmark')}`}
             </button>
           )}
           
@@ -225,7 +227,7 @@ export default function LeaderboardDetailPage() {
               onClick={deleteLeaderboard}
               className="rounded-xl border border-red-700 px-3 py-2 text-sm text-red-200 hover:bg-red-950"
             >
-              Delete
+              {t('common.delete')}
             </button>
           )}
         </div>
@@ -233,7 +235,7 @@ export default function LeaderboardDetailPage() {
 
       {/* Nominations/Posts Section */}
       <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-        <h2 className="text-lg text-white mb-3">Nominations</h2>
+        <h2 className="text-lg text-white mb-3">{t('leaderboard.nominationsTitle')}</h2>
 
         {user && (
           <div className="grid gap-2 mb-4">
@@ -241,7 +243,7 @@ export default function LeaderboardDetailPage() {
               <input
                 value={newPostTitle}
                 onChange={(e) => setNewPostTitle(e.target.value)}
-                placeholder="Nomination title"
+                placeholder={t('leaderboard.nominationTitlePlaceholder')}
                 className="px-3 py-2 rounded-xl bg-gray-950 border border-gray-800 w-full"
                 maxLength={LIMITS.NOMINATION_TITLE}
               />
@@ -251,7 +253,7 @@ export default function LeaderboardDetailPage() {
               <textarea
                 value={newPostBody}
                 onChange={(e) => setNewPostBody(e.target.value)}
-                placeholder="Why nominate this?"
+                placeholder={t('leaderboard.nominationBodyPlaceholder')}
                 className="px-3 py-2 rounded-xl bg-gray-950 border border-gray-800 min-h-20 w-full"
                 maxLength={LIMITS.NOMINATION_BODY}
               />
@@ -262,7 +264,7 @@ export default function LeaderboardDetailPage() {
                 onClick={submitPost}
                 className="rounded-xl bg-white text-black px-3 py-2 font-semibold"
               >
-                Post Nomination
+                {t('leaderboard.postNomination')}
               </button>
               <select
                 value={postsSort}
@@ -272,8 +274,8 @@ export default function LeaderboardDetailPage() {
                 }}
                 className="ml-auto bg-gray-950 border border-gray-800 px-2 py-1 rounded-md text-sm"
               >
-                <option value="popular">Popular</option>
-                <option value="recent">Recent</option>
+                <option value="popular">{t('leaderboard.popular')}</option>
+                <option value="recent">{t('leaderboard.recent')}</option>
               </select>
             </div>
           </div>
@@ -291,13 +293,13 @@ export default function LeaderboardDetailPage() {
                   <div>
                     <div className="text-white font-semibold">{p.title}</div>
                     <div className="text-xs text-gray-400">
-                      by{" "}
+                      {t('leaderboard.by')} {" "}
                       {p.author?._id ? (
                         <UserHoverCard userId={p.author._id} username={p.author.username}>
                           <span className="text-white">{p.author.username}</span>
                         </UserHoverCard>
                       ) : (
-                        <span>unknown</span>
+                        <span>{t('home.unknownAuthor')}</span>
                       )}{" "}
                       · {new Date(p.createdAt).toLocaleString()}
                     </div>
@@ -307,7 +309,7 @@ export default function LeaderboardDetailPage() {
                     <div className="text-white font-bold">
                       {p.likesCount || 0}
                     </div>
-                    <div className="text-xs text-gray-400">likes</div>
+                    <div className="text-xs text-gray-400">{t('leaderboard.likes')}</div>
                     {user && (
                       <button
                         onClick={() => toggleLike(p._id)}
