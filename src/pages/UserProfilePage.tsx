@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { CharCount } from "../components/CharCount";
@@ -65,6 +66,7 @@ type TabType = "ideas" | "bookmarks" | "likes" | "leaderboards" | "followers" | 
 export default function UserProfilePage() {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
+    const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
@@ -309,7 +311,7 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <p className="text-gray-400">Loading...</p>
+        <p className="text-gray-400">{t('common.loading')}</p>
       </div>
     );
   }
@@ -317,7 +319,7 @@ export default function UserProfilePage() {
   if (!profile) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <p className="text-red-400">User not found</p>
+        <p className="text-red-400">{t('profile.userNotFound')}</p>
       </div>
     );
   }
@@ -325,18 +327,18 @@ export default function UserProfilePage() {
   // Define available tabs based on whether viewing own profile
   const availableTabs: { key: TabType; label: string }[] = isOwnProfile
     ? [
-        { key: "ideas", label: "My Ideas" },
-        { key: "leaderboards", label: "My Leaderboards" },
-        { key: "bookmarks", label: "Bookmarks" },
-        { key: "likes", label: "Likes" },
-        { key: "interests", label: "Received Interests" },
-        { key: "followers", label: "Followers" },
-        { key: "following", label: "Following" },
+        { key: "ideas", label: t('profile.myIdeas') },
+        { key: "leaderboards", label: t('profile.myLeaderboards') },
+        { key: "bookmarks", label: t('profile.bookmarks') },
+        { key: "likes", label: t('profile.likes') },
+        { key: "interests", label: t('profile.receivedInterests') },
+        { key: "followers", label: t('profile.followers') },
+        { key: "following", label: t('profile.following') },
       ]
     : [
-        { key: "bookmarks", label: "Bookmarks" },
-        { key: "followers", label: "Followers" },
-        { key: "following", label: "Following" },
+        { key: "bookmarks", label: t('profile.bookmarks') },
+        { key: "followers", label: t('profile.followers') },
+        { key: "following", label: t('profile.following') },
       ];
 
   return (
@@ -349,7 +351,7 @@ export default function UserProfilePage() {
             <div
               onClick={handleAvatarClick}
               className={`relative ${isOwnProfile ? 'cursor-pointer group' : ''}`}
-              title={isOwnProfile ? 'Click to change avatar' : ''}
+              title={isOwnProfile ? t('profile.clickToChangeAvatar') : ''}
             >
               {profile.avatarUrl ? (
                 <img
@@ -367,7 +369,7 @@ export default function UserProfilePage() {
               {isOwnProfile && (
                 <div className="absolute inset-0 rounded-full bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
                   <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                    {uploadingAvatar ? 'Uploading...' : 'Change'}
+                    {uploadingAvatar ? t('profile.uploading') : t('profile.change')}
                   </span>
                 </div>
               )}
@@ -402,15 +404,13 @@ export default function UserProfilePage() {
                 onClick={() => setActiveTab("following")}
                 className="hover:underline"
               >
-                <span className="font-semibold text-white">{profile.followingCount}</span>{" "}
-                <span className="text-gray-400">Following</span>
+                <span className="font-semibold text-white">{profile.followingCount}</span> <span className="text-gray-400">{t('profile.following')}</span>
               </button>
               <button
                 onClick={() => setActiveTab("followers")}
                 className="hover:underline"
               >
-                <span className="font-semibold text-white">{profile.followerCount}</span>{" "}
-                <span className="text-gray-400">Followers</span>
+                <span className="font-semibold text-white">{profile.followerCount}</span> <span className="text-gray-400">{t('profile.followers')}</span>
               </button>
             </div>
 
@@ -420,7 +420,7 @@ export default function UserProfilePage() {
                   onClick={() => setEditing(!editing)}
                   className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
                 >
-                  {editing ? "Cancel Edit" : "Edit Profile"}
+                  {editing ? t('profile.cancelEdit') : t('profile.editProfile')}
                 </button>
               ) : currentUser ? (
                 <button
@@ -431,7 +431,7 @@ export default function UserProfilePage() {
                       : "bg-white text-black hover:bg-gray-200"
                   }`}
                 >
-                  {following ? "Following" : "Follow"}
+                  {following ? t('profile.following') : t('profile.follow')}
                 </button>
               ) : null}
             </div>
@@ -441,13 +441,10 @@ export default function UserProfilePage() {
         {/* Public Idea Limit Warning (only for own profile) */}
         {isOwnProfile && currentUser && currentUser.role !== "company" && currentUser.role !== "admin" && (
           <div className="mt-4 p-3 rounded-xl bg-gray-950/50 border border-gray-800 text-sm text-gray-300">
-            Public ideas: <span className="text-white font-semibold">{publicUsed}</span> /{" "}
-            <span className="text-white font-semibold">{FREE_PUBLIC_LIMIT}</span>
+            {t('profile.publicIdeas')}: <span className="text-white font-semibold">{publicUsed}</span> / <span className="text-white font-semibold">{FREE_PUBLIC_LIMIT}</span>
             {publicUsed >= FREE_PUBLIC_LIMIT && (
               <div className="mt-3 p-3 rounded-lg bg-red-950 border border-red-800 text-sm text-red-200">
-                <div>
-                  You have reached your public idea limit. Delete an existing public idea or upgrade to publish more.
-                </div>
+                <div>{t('profile.publicLimitWarning')}</div>
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => setActiveTab("ideas")}
@@ -470,7 +467,7 @@ export default function UserProfilePage() {
             <div>
               <input
                 className="w-full rounded-lg bg-gray-950/50 border border-gray-800 px-3 py-2"
-                placeholder="Display Name"
+                placeholder={t('profile.displayName')}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 maxLength={LIMITS.DISPLAY_NAME}
@@ -481,7 +478,7 @@ export default function UserProfilePage() {
             <div>
               <textarea
                 className="w-full rounded-lg bg-gray-950/50 border border-gray-800 px-3 py-2 min-h-[100px]"
-                placeholder="Bio"
+                placeholder={t('profile.bio')}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 maxLength={LIMITS.BIO}
@@ -499,13 +496,13 @@ export default function UserProfilePage() {
                 disabled={saving}
                 className="rounded-lg bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
               >
-                {saving ? "Saving..." : "Save"}
+                {saving ? t('profile.saving') : t('profile.save')}
               </button>
               <button
                 onClick={cancelEdit}
                 className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200"
               >
-                Cancel
+                {t('profile.cancel')}
               </button>
             </div>
           </div>
@@ -572,9 +569,9 @@ export default function UserProfilePage() {
             </div>
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
             <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-gray-500">visibility: private (local)</p>
+              <p className="text-xs text-gray-500">{t('profile.visibilityPrivateLocal')}</p>
               <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">
-                Local
+                {t('profile.local')}
               </span>
             </div>
           </Link>
@@ -594,16 +591,16 @@ export default function UserProfilePage() {
             </div>
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
             <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-gray-500">visibility: {it.visibility}</p>
+              <p className="text-xs text-gray-500">{t('profile.visibility')}: {it.visibility}</p>
               <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">
-                Server
+                {t('profile.server')}
               </span>
             </div>
           </Link>
         ))}
 
         {localIdeas.length === 0 && myIdeas.length === 0 && (
-          <p className="text-gray-400">No ideas yet</p>
+          <p className="text-gray-400">{t('profile.noIdeasYet')}</p>
         )}
       </div>
     );
@@ -615,7 +612,7 @@ export default function UserProfilePage() {
         {/* Ideas */}
         {bookmarkedIdeas.length > 0 && (
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3">Ideas</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">{t('profile.ideas')}</h3>
             <div className="grid gap-3">
               {bookmarkedIdeas.map((idea) => (
                 <Link
@@ -644,7 +641,7 @@ export default function UserProfilePage() {
         {/* Leaderboards */}
         {bookmarkedLeaderboards.length > 0 && (
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3">Leaderboards</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">{t('profile.leaderboards')}</h3>
             <div className="grid gap-3">
               {bookmarkedLeaderboards.map((board) => (
                 <Link
@@ -663,7 +660,7 @@ export default function UserProfilePage() {
                     ))}
                   </div>
                   <p className="text-gray-400 text-sm mt-2">
-                    {board.entries?.length || 0} nominations
+                    {board.entries?.length || 0} {t('profile.nominations')}
                   </p>
                 </Link>
               ))}
@@ -672,7 +669,7 @@ export default function UserProfilePage() {
         )}
 
         {bookmarkedIdeas.length === 0 && bookmarkedLeaderboards.length === 0 && (
-          <p className="text-gray-400">No bookmarks yet</p>
+          <p className="text-gray-400">{t('profile.noBookmarksYet')}</p>
         )}
       </div>
     );
@@ -683,7 +680,7 @@ export default function UserProfilePage() {
 
     return (
       <div className="grid gap-3">
-        {likedIdeas.length === 0 && <p className="text-gray-400">No liked ideas yet</p>}
+        {likedIdeas.length === 0 && <p className="text-gray-400">{t('profile.noLikedIdeasYet')}</p>}
         {likedIdeas.map((idea) => (
           <Link
             key={idea._id}
@@ -695,7 +692,7 @@ export default function UserProfilePage() {
                 <span className="text-white font-semibold">{idea.title}</span>
                 {idea.summary && <p className="text-gray-300 mt-1">{idea.summary}</p>}
               </div>
-              <span className="text-xs text-gray-500 ml-4">{idea.author?.username || "unknown"}</span>
+              <span className="text-xs text-gray-500 ml-4">{idea.author?.username || t('profile.unknown')}</span>
             </div>
           </Link>
         ))}
@@ -709,7 +706,7 @@ export default function UserProfilePage() {
     return (
       <div className="grid gap-3">
         {userLeaderboards.length === 0 && (
-          <p className="text-gray-400">No leaderboards yet</p>
+          <p className="text-gray-400">{t('profile.noLeaderboardsYet')}</p>
         )}
         {userLeaderboards.map((b) => (
           <Link
@@ -728,11 +725,11 @@ export default function UserProfilePage() {
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">(no tags)</span>
+                <span className="text-sm text-gray-400">{t('profile.noTags')}</span>
               )}
             </div>
             <p className="text-gray-400 text-sm mt-2">
-              entries: {b.entriesCount || 0} · nominations: {b.postsCount || 0}
+              {t('profile.entries')}: {b.entriesCount || 0} · {t('profile.nominations')}: {b.postsCount || 0}
             </p>
           </Link>
         ))}
@@ -743,7 +740,7 @@ export default function UserProfilePage() {
   function renderFollowers() {
     return (
       <div className="grid gap-3">
-        {followers.length === 0 && <p className="text-gray-400">No followers yet</p>}
+        {followers.length === 0 && <p className="text-gray-400">{t('profile.noFollowersYet')}</p>}
         {followers.map((follower) => (
           <Link
             key={follower._id}
@@ -776,7 +773,7 @@ export default function UserProfilePage() {
   function renderFollowing() {
     return (
       <div className="grid gap-3">
-        {followingUsers.length === 0 && <p className="text-gray-400">Not following anyone yet</p>}
+        {followingUsers.length === 0 && <p className="text-gray-400">{t('profile.notFollowingAnyoneYet')}</p>}
         {followingUsers.map((user) => (
           <Link
             key={user._id}
@@ -810,7 +807,7 @@ export default function UserProfilePage() {
     return (
       <div className="grid gap-3">
         {receivedInterests.length === 0 && (
-          <p className="text-gray-400">No company interests yet</p>
+          <p className="text-gray-400">{t('profile.noCompanyInterestsYet')}</p>
         )}
         {receivedInterests.map((r) => (
           <div key={r._id} className="rounded-xl border border-gray-800 bg-gray-900 p-4">
@@ -818,10 +815,10 @@ export default function UserProfilePage() {
               <div className="text-white font-semibold">
                 {r.idea ? (
                   <Link to={`/ideas/${r.idea._id}`} className="hover:underline">
-                    Idea: {r.idea.title}
+                    {t('profile.idea')}: {r.idea.title}
                   </Link>
                 ) : (
-                  "Idea: unknown"
+                  t('profile.ideaUnknown')
                 )}
               </div>
               <div className="text-xs text-gray-500">
@@ -830,7 +827,7 @@ export default function UserProfilePage() {
             </div>
 
             <div className="text-sm text-gray-300 mt-2">
-              Company: <span className="text-white">{r.companyUser?.username || "unknown"}</span>{" "}
+              {t('profile.company')}: <span className="text-white">{r.companyUser?.username || t('profile.unknown')}</span>{" "}
               {r.companyUser?.email && (
                 <span className="text-gray-500">({r.companyUser.email})</span>
               )}

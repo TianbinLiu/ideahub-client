@@ -4,6 +4,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { useTranslation } from "react-i18next";
 
 type UserCardProps = {
   userId: string;
@@ -25,6 +26,7 @@ type UserProfile = {
 
 export function UserHoverCard({ userId, children }: UserCardProps) {
   const { user: currentUser } = useAuth();
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -74,18 +76,15 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   }
 
   function handleCardLeave() {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = window.setTimeout(() => {
       setIsOpen(false);
     }, 300);
   }
 
   async function toggleFollow(e: React.MouseEvent) {
-    e.preventDefault();
     e.stopPropagation();
-    
     if (!currentUser) {
-      toast.error("Please login to follow users");
+      toast.error(t('profile.pleaseLoginToFollow'));
       return;
     }
 
@@ -101,7 +100,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           isFollowing: res.following,
         });
       }
-      toast.success(res.following ? "Followed" : "Unfollowed");
+      toast.success(res.following ? t('profile.followed') : t('profile.unfollowed'));
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
@@ -125,7 +124,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           className="absolute left-0 top-full mt-2 z-50 w-80 rounded-xl border border-gray-700 bg-gray-900 p-4 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {loading && <p className="text-gray-400 text-sm">Loading...</p>}
+          {loading && <p className="text-gray-400 text-sm">{t('common.loading')}</p>}
 
           {!loading && profile && (
             <div className="space-y-3">
@@ -160,11 +159,11 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
               <div className="flex gap-4 text-sm">
                 <Link to={`/users/${userId}/following`} className="hover:underline">
                   <span className="font-semibold text-white">{profile.followingCount}</span>{" "}
-                  <span className="text-gray-400">Following</span>
+                  <span className="text-gray-400">{t('profile.following')}</span>
                 </Link>
                 <Link to={`/users/${userId}/followers`} className="hover:underline">
                   <span className="font-semibold text-white">{profile.followerCount}</span>{" "}
-                  <span className="text-gray-400">Followers</span>
+                  <span className="text-gray-400">{t('profile.followers')}</span>
                 </Link>
               </div>
 
@@ -177,7 +176,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                       : "bg-white text-black hover:bg-gray-200"
                   }`}
                 >
-                  {following ? "Following" : "Follow"}
+                  {following ? t('profile.following') : t('profile.follow')}
                 </button>
               )}
 
@@ -187,13 +186,13 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                     to="/ideas/new"
                     className="block w-full text-center rounded-lg bg-white text-black px-4 py-2 font-semibold text-sm hover:bg-gray-200"
                   >
-                    New Idea
+                    {t('home.newIdea')}
                   </Link>
                   <Link
                     to="/me"
                     className="block w-full text-center rounded-lg border border-gray-600 px-4 py-2 font-semibold text-sm text-gray-200 hover:bg-gray-800"
                   >
-                    Edit Profile
+                    {t('profile.editProfile')}
                   </Link>
                 </div>
               )}
