@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
 import { apiFetch } from "../api";
+import { useTranslation } from "react-i18next";
 
 type AdminUserItem = {
   _id: string;
@@ -36,6 +37,7 @@ type AdminTab = "users" | "ideas" | "leaderboards";
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const isAdmin = user?.role === "admin";
 
   const [tab, setTab] = useState<AdminTab>("users");
@@ -46,9 +48,9 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(false);
 
   function placeholder() {
-    if (tab === "users") return "Search by username or email...";
-    if (tab === "ideas") return "Search by title, summary, content, or tag...";
-    return "Search by tags or tagsKey...";
+    if (tab === "users") return t('admin.searchByUsernameEmail');
+    if (tab === "ideas") return t('admin.searchByTitleContent');
+    return t('admin.searchByTags');
   }
 
   async function load() {
@@ -88,10 +90,10 @@ export default function AdminUsersPage() {
   }, [isAdmin, tab]);
 
   async function delUser(u: AdminUserItem) {
-    if (!confirm(`Delete user "${u.username}"? This will remove their ideas and related data.`)) return;
+    if (!confirm(t('admin.deleteUserConfirm', { username: u.username }))) return;
     try {
       await apiFetch(`/api/admin/users/${u._id}`, { method: "DELETE" });
-      toast.success("User deleted");
+      toast.success(t('admin.userDeleted'));
       setUserItems((prev) => prev.filter((x) => x._id !== u._id));
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -99,10 +101,10 @@ export default function AdminUsersPage() {
   }
 
   async function delIdea(i: AdminIdeaItem) {
-    if (!confirm(`Delete idea "${i.title}"? This will remove related data.`)) return;
+    if (!confirm(t('admin.deleteIdeaConfirm', { title: i.title }))) return;
     try {
       await apiFetch(`/api/admin/ideas/${i._id}`, { method: "DELETE" });
-      toast.success("Idea deleted");
+      toast.success(t('admin.ideaDeleted'));
       setIdeaItems((prev) => prev.filter((x) => x._id !== i._id));
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -111,22 +113,22 @@ export default function AdminUsersPage() {
 
   async function delLeaderboard(b: AdminLeaderboardItem) {
     const label = b.tags?.join(", ") || b.tagsKey || b._id;
-    if (!confirm(`Delete leaderboard "${label}"? This will remove related data.`)) return;
+    if (!confirm(t('admin.deleteLeaderboardConfirm', { label }))) return;
     try {
       await apiFetch(`/api/admin/leaderboards/${b._id}`, { method: "DELETE" });
-      toast.success("Leaderboard deleted");
+      toast.success(t('admin.leaderboardDeleted'));
       setLeaderboardItems((prev) => prev.filter((x) => x._id !== b._id));
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
   }
 
-  if (!user) return <div className="max-w-3xl mx-auto p-4 text-gray-300">Please login.</div>;
-  if (!isAdmin) return <div className="max-w-3xl mx-auto p-4 text-gray-300">Admin only.</div>;
+  if (!user) return <div className="max-w-3xl mx-auto p-4 text-gray-300">{t('admin.pleaseLogin')}</div>;
+  if (!isAdmin) return <div className="max-w-3xl mx-auto p-4 text-gray-300">{t('admin.adminDisabled')}</div>;
 
   return (
     <div className="max-w-5xl mx-auto p-4">
-      <h1 className="text-xl font-semibold text-white">Admin - Content</h1>
+      <h1 className="text-xl font-semibold text-white">{t('admin.usersManagement')}</h1>
 
       <div className="mt-4 flex gap-2 border-b border-gray-800">
         <button
@@ -135,7 +137,7 @@ export default function AdminUsersPage() {
             tab === "users" ? "text-white border-b-2 border-white" : "text-gray-400"
           }`}
         >
-          Users
+          {t('admin.users')}
         </button>
         <button
           onClick={() => setTab("ideas")}
@@ -143,7 +145,7 @@ export default function AdminUsersPage() {
             tab === "ideas" ? "text-white border-b-2 border-white" : "text-gray-400"
           }`}
         >
-          Ideas
+          {t('admin.ideas')}
         </button>
         <button
           onClick={() => setTab("leaderboards")}
@@ -151,7 +153,7 @@ export default function AdminUsersPage() {
             tab === "leaderboards" ? "text-white border-b-2 border-white" : "text-gray-400"
           }`}
         >
-          Leaderboards
+          {t('admin.leaderboards')}
         </button>
       </div>
 
@@ -166,11 +168,11 @@ export default function AdminUsersPage() {
           onClick={load}
           className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-900"
         >
-          Search
+          {t('common.search')}
         </button>
       </div>
 
-      {loading && <div className="text-sm text-gray-400 mt-3">Loading...</div>}
+      {loading && <div className="text-sm text-gray-400 mt-3">{t('common.loading')}</div>}
 
       {tab === "users" && (
         <div className="mt-4 space-y-2">
@@ -188,13 +190,13 @@ export default function AdminUsersPage() {
                 disabled={u.role === "admin"}
                 className="text-xs rounded-lg border border-red-800 px-3 py-1.5 text-red-200 hover:bg-red-950 disabled:opacity-40"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           ))}
 
           {userItems.length === 0 && !loading && (
-            <div className="text-sm text-gray-400">No users found.</div>
+            <div className="text-sm text-gray-400">{t('admin.noUsersFound')}</div>
           )}
         </div>
       )}
@@ -231,13 +233,13 @@ export default function AdminUsersPage() {
                 onClick={() => delIdea(i)}
                 className="text-xs rounded-lg border border-red-800 px-3 py-1.5 text-red-200 hover:bg-red-950"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           ))}
 
           {ideaItems.length === 0 && !loading && (
-            <div className="text-sm text-gray-400">No ideas found.</div>
+            <div className="text-sm text-gray-400">{t('admin.noIdeasFound')}</div>
           )}
         </div>
       )}
@@ -249,11 +251,11 @@ export default function AdminUsersPage() {
               <div className="flex-1">
                 <div className="text-gray-100 text-sm font-semibold">
                   <Link to={`/leaderboard/${b._id}`} className="hover:underline">
-                    {(b.tags && b.tags.length > 0) ? b.tags.join(", ") : (b.tagsKey || "(no tags)")}
+                    {(b.tags && b.tags.length > 0) ? b.tags.join(", ") : (b.tagsKey || `(${t('admin.noTags')})`)}
                   </Link>
                 </div>
                 <div className="text-gray-400 text-xs mt-1">
-                  entries: {b.entriesCount || 0} · posts: {b.postsCount || 0}
+                  {t('admin.entries')}: {b.entriesCount || 0} · {t('admin.posts')}: {b.postsCount || 0}
                 </div>
                 {b.tagsKey && <div className="text-gray-500 text-xs mt-1">{b.tagsKey}</div>}
               </div>
@@ -262,13 +264,13 @@ export default function AdminUsersPage() {
                 onClick={() => delLeaderboard(b)}
                 className="text-xs rounded-lg border border-red-800 px-3 py-1.5 text-red-200 hover:bg-red-950"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           ))}
 
           {leaderboardItems.length === 0 && !loading && (
-            <div className="text-sm text-gray-400">No leaderboards found.</div>
+            <div className="text-sm text-gray-400">{t('admin.noLeaderboardsFound')}</div>
           )}
         </div>
       )}

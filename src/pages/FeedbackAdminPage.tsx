@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -17,6 +18,7 @@ type FeedbackIdea = {
 };
 
 export default function FeedbackAdminPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<FeedbackIdea[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -50,7 +52,7 @@ export default function FeedbackAdminPage() {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      toast.success("Status updated");
+      toast.success(t('admin.statusUpdated'));
       loadFeedback();
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -66,15 +68,15 @@ export default function FeedbackAdminPage() {
   return (
     <div className="max-w-6xl mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Feedback Management</h1>
+        <h1 className="text-2xl font-bold text-white">{t('admin.feedbackManagement')}</h1>
         <div className="text-sm text-gray-400">
-          Total: {total} feedback submissions
+          {t('admin.totalFeedback')}: {total} {t('admin.feedbackTotal')}
         </div>
       </div>
 
       <div className="mb-4 flex gap-3 items-center flex-wrap">
         <div className="flex gap-2 items-center">
-          <label className="text-sm text-gray-400">Type:</label>
+          <label className="text-sm text-gray-400">{t('admin.type')}:</label>
           <select
             className="rounded-lg bg-gray-950/50 border border-gray-800 px-3 py-1.5 text-sm text-gray-200"
             value={typeFilter}
@@ -83,14 +85,14 @@ export default function FeedbackAdminPage() {
               setPage(1);
             }}
           >
-            <option value="all">All</option>
-            <option value="bug">Bug Reports</option>
-            <option value="suggestion">Feature Suggestions</option>
+            <option value="all">{t('admin.allTypes')}</option>
+            <option value="bug">{t('admin.bugReports')}</option>
+            <option value="suggestion">{t('admin.featureSuggestions')}</option>
           </select>
         </div>
 
         <div className="flex gap-2 items-center">
-          <label className="text-sm text-gray-400">Status:</label>
+          <label className="text-sm text-gray-400">{t('admin.status')}:</label>
           <select
             className="rounded-lg bg-gray-950/50 border border-gray-800 px-3 py-1.5 text-sm text-gray-200"
             value={statusFilter}
@@ -99,12 +101,12 @@ export default function FeedbackAdminPage() {
               setPage(1);
             }}
           >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="under_review">Under Review</option>
-            <option value="adopted">Adopted</option>
-            <option value="resolved">Resolved</option>
-            <option value="rejected">Rejected</option>
+            <option value="all">{t('admin.allStatuses')}</option>
+            <option value="pending">{t('idea.feedbackPending')}</option>
+            <option value="under_review">{t('idea.feedbackUnderReview')}</option>
+            <option value="adopted">{t('idea.feedbackAdopted')}</option>
+            <option value="resolved">{t('idea.feedbackResolved')}</option>
+            <option value="rejected">{t('idea.feedbackRejected')}</option>
           </select>
         </div>
 
@@ -116,11 +118,11 @@ export default function FeedbackAdminPage() {
           }}
           className="text-sm text-gray-400 hover:text-white ml-auto"
         >
-          Clear filters
+          {t('admin.filterClear')}
         </button>
       </div>
 
-      {loading && <p className="text-gray-400">Loading...</p>}
+      {loading && <p className="text-gray-400">{t('common.loading')}</p>}
 
       <div className="grid gap-3">
         {items.map((item) => (
@@ -138,7 +140,7 @@ export default function FeedbackAdminPage() {
                         : "bg-blue-900/30 border border-blue-800 text-blue-200"
                     }`}
                   >
-                    {item.feedbackType === "bug" ? "🐛 Bug" : "💡 Suggestion"}
+                    {item.feedbackType === "bug" ? t('admin.feedbackBug') : t('admin.feedbackSuggestion')}
                   </span>
 
                   <span
@@ -155,14 +157,14 @@ export default function FeedbackAdminPage() {
                     }`}
                   >
                     {item.feedbackStatus === "pending"
-                      ? "⏳ Pending"
+                      ? `⏳ ${t('idea.feedbackPending')}`
                       : item.feedbackStatus === "under_review"
-                      ? "🔍 Review"
+                      ? `🔍 ${t('idea.feedbackUnderReview')}`
                       : item.feedbackStatus === "adopted"
-                      ? "✅ Adopted"
+                      ? `✅ ${t('idea.feedbackAdopted')}`
                       : item.feedbackStatus === "resolved"
-                      ? "✔️ Resolved"
-                      : "❌ Rejected"}
+                      ? `✔️ ${t('idea.feedbackResolved')}`
+                      : `❌ ${t('idea.feedbackRejected')}`}
                   </span>
                 </div>
 
@@ -175,7 +177,7 @@ export default function FeedbackAdminPage() {
 
                 {item.aiSummary && (
                   <p className="text-sm text-blue-200 bg-blue-950/20 border border-blue-900 rounded-lg px-2 py-1 mb-2">
-                    📝 {item.aiSummary}
+                    {t('admin.aiSummary')} {item.aiSummary}
                   </p>
                 )}
 
@@ -185,11 +187,11 @@ export default function FeedbackAdminPage() {
 
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span>
-                    by{" "}
+                    {t('admin.by')}{" "}
                     {item.author?.username ? (
                       <span className="text-gray-300">{item.author.username}</span>
                     ) : (
-                      "unknown"
+                      t('admin.unknown')
                     )}
                   </span>
                   <span>·</span>
@@ -211,18 +213,18 @@ export default function FeedbackAdminPage() {
                   value={item.feedbackStatus || "pending"}
                   onChange={(e) => updateStatus(item._id, e.target.value)}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="under_review">Under Review</option>
-                  <option value="adopted">Adopted</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="pending">{t('idea.feedbackPending')}</option>
+                  <option value="under_review">{t('idea.feedbackUnderReview')}</option>
+                  <option value="adopted">{t('idea.feedbackAdopted')}</option>
+                  <option value="resolved">{t('idea.feedbackResolved')}</option>
+                  <option value="rejected">{t('idea.feedbackRejected')}</option>
                 </select>
 
                 <Link
                   to={`/ideas/${item._id}`}
                   className="text-xs text-center rounded-lg border border-gray-700 px-2 py-1 hover:bg-gray-800 text-gray-300"
                 >
-                  View Details
+                  {t('admin.viewDetails')}
                 </Link>
               </div>
             </div>
@@ -232,7 +234,7 @@ export default function FeedbackAdminPage() {
 
       {!loading && items.length === 0 && (
         <div className="text-center py-12 text-gray-500">
-          No feedback submissions found.
+          {t('admin.noFeedbackFound')}
         </div>
       )}
 
@@ -243,17 +245,17 @@ export default function FeedbackAdminPage() {
             disabled={page === 1}
             className="rounded-lg border border-gray-800 px-3 py-1.5 text-sm disabled:opacity-50 hover:bg-gray-900"
           >
-            Previous
+            {t('admin.previousPage')}
           </button>
           <span className="px-3 py-1.5 text-sm text-gray-400">
-            Page {page} of {totalPages}
+            {t('admin.pageOf', { page, total: totalPages })}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="rounded-lg border border-gray-800 px-3 py-1.5 text-sm disabled:opacity-50 hover:bg-gray-900"
           >
-            Next
+            {t('admin.nextPage')}
           </button>
         </div>
       )}
