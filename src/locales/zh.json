@@ -21,8 +21,7 @@
     "notifications": "通知",
     "company": "公司",
     "admin": "管理",
-    "feedback": "反馈",
-    "login": "登录",
+    "feedback": "反馈",    "docs": "文档",    "login": "登录",
     "register": "注册",
     "logout": "退出登录"
   },
@@ -214,7 +213,10 @@
     "bug": "Bug",
     "suggestion": "建议",
     "by": "来自",
-    "viewDetails": "查看详情"
+    "viewDetails": "查看详情",
+    "projectDocs": "项目文档",
+    "projectDocsDescription": "完整的项目结构、功能和开发指南",
+    "viewOnGitHub": "在 GitHub 查看"
   },
   "leaderboard": {
     "title": "标签排行榜",

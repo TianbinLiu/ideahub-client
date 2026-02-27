@@ -13,6 +13,7 @@ import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import FeedbackAdminPage from "./pages/FeedbackAdminPage";
+import DocsAdminPage from "./pages/DocsAdminPage";
 import EditIdeaPage from "./pages/EditIdeaPage";
 import PhoneLoginPage from "./pages/PhoneLoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -116,7 +117,14 @@ export default function App() {
           }
         />
 
-
+        <Route
+          path="/admin/docs"
+          element={
+            <AdminRoute>
+              <DocsAdminPage />
+            </AdminRoute>
+          }
+        />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
