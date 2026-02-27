@@ -1,6 +1,6 @@
 // src/pages/LoginPage.tsx
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
@@ -54,6 +54,13 @@ export default function LoginPage() {
     }
   }
 
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!loading && emailOrUsername.trim() && password) {
+      submit();
+    }
+  }
+
   return (
     <div className="max-w-md mx-auto p-4">
       <h1 className="text-2xl font-bold text-white">{t('auth.loginTitle')}</h1>
@@ -82,7 +89,7 @@ export default function LoginPage() {
         </div>
 
         {/* ===== password login ===== */}
-        <div className="grid gap-3">
+        <form className="grid gap-3" onSubmit={handleSubmit}>
           <input
             className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
             placeholder={t('auth.emailOrUsername')}
@@ -103,7 +110,7 @@ export default function LoginPage() {
           />
 
           <button
-            onClick={submit}
+            type="submit"
             disabled={loading || !emailOrUsername.trim() || !password}
             className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
           >
@@ -122,7 +129,7 @@ export default function LoginPage() {
           </div>
 
           {err && <p className="text-red-400 text-sm">{t('common.error')}: {err}</p>}
-        </div>
+        </form>
       </div>
     </div>
   );
