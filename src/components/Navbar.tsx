@@ -1,4 +1,36 @@
-//Navbar.tsx
+/**
+ * @file Navbar.tsx - 全局导航栏组件
+ * @category Component
+ * @i18n yes
+ * 
+ * 📖 [AI] 修改前必读: /.ai-instructions.md #新建组件必备功能清单
+ * 🔄 [AI] 修改后必须: 同步更新 PROJECT_STRUCTURE.md 组件列表
+ * 
+ * 职责:
+ * - 显示全局导航链接（Home, Tag Rank, Notifications等）
+ * - 集成语言切换器（中英文）
+ * - 显示未读通知徽章
+ * - 用户登录状态显示
+ * - 登录/注册/登出按钮
+ * - 移动端响应式菜单
+ * 
+ * 依赖文件:
+ * @uses ../authContext.tsx - 获取用户状态和登出方法
+ * @uses ../api.ts - 获取未读通知数 (getUnreadCount)
+ * @uses ./UserHoverCard.tsx - 用户悬浮卡片
+ * @uses ./LanguageSwitcher.tsx - 语言切换组件
+ * 
+ * 被使用于:
+ * @used_in App.tsx - 所有页面的头部
+ * 
+ * 可复用性: 高 - 全局导航组件，独立自成
+ * 
+ * 必备功能检查:
+ * ✅ TypeScript类型定义
+ * ✅ 国际化支持 (useTranslation)
+ * ✅ 无业务逻辑耦合
+ * ✅ 响应式设计
+ */
 
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../authContext";

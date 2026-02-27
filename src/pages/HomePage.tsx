@@ -1,3 +1,37 @@
+/**
+ * @file HomePage.tsx - 创意列表首页
+ * @category Page
+ * @requires_auth no
+ * @i18n_module idea
+ * @route /
+ * 
+ * 📖 [AI] 修改前必读: /.ai-instructions.md #新建页面必备功能清单
+ * 🔄 [AI] 修改后必须: 同步更新 PROJECT_STRUCTURE.md 创意管理页面组章节
+ * 
+ * 职责:
+ * - 显示所有公开创意列表（分页）
+ * - 支持搜索功能（@用户名、#标签、关键词）
+ * - 支持排序（最新、最热、点赞最多）
+ * - 显示创意卡片（标题、摘要、作者、统计）
+ * - 显示AI评审状态和摘要
+ * 
+ * 依赖文件:
+ * @uses ../api.ts - 获取创意列表 (GET /api/ideas)
+ * @uses ../authContext.tsx - 获取当前用户状态
+ * @uses ../utils/humanizeError.ts - 错误信息国际化
+ * 
+ * 被使用于:
+ * @used_in App.tsx - 根路由 "/"
+ * 
+ * 必备功能检查:
+ * ✅ 国际化 (useTranslation)
+ * ✅ 错误处理 (try-catch + humanizeError)
+ * ✅ 加载状态 (loading state)
+ * ✅ 空状态处理 (无创意提示)
+ * ✅ 统一UI样式 (Tailwind)
+ * ✅ 响应式设计 (grid responsive)
+ */
+
 import { useEffect, useState, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
