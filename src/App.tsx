@@ -1,3 +1,15 @@
+/**
+ * App.tsx - 根组件和路由配置中心
+ * 
+ * 📖 AI开发规范：修改前必读 /.ai-instructions.md 和 PROJECT_STRUCTURE.md
+ * 🔄 修改后同步更新：PROJECT_STRUCTURE.md 的路由表章节
+ * 
+ * 重要提示：
+ * - 新增页面必须在此注册路由
+ * - 需要权限的页面用 ProtectedRoute 包裹
+ * - 管理员页面用 AdminRoute 包裹
+ */
+
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";

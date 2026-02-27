@@ -1,3 +1,16 @@
+/**
+ * api.ts - 统一HTTP请求封装
+ * 
+ * 📖 AI开发规范：修改前必读 /.ai-instructions.md 和 PROJECT_STRUCTURE.md
+ * 🔄 修改后同步更新：PROJECT_STRUCTURE.md 相关章节
+ * 
+ * 重要：
+ * - 所有API调用必须使用 apiFetch() 而非原生 fetch()
+ * - 自动携带JWT token
+ * - 统一错误处理
+ * - 不要绕过此封装
+ */
+
 import { API_BASE } from "./config";
 import { getToken } from "./auth";
 

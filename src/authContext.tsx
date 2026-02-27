@@ -1,4 +1,14 @@
-//authContext.tsx
+/**
+ * authContext.tsx - 全局认证状态管理
+ * 
+ * 📖 AI开发规范：修改前必读 /.ai-instructions.md 和 PROJECT_STRUCTURE.md
+ * 🔄 修改后同步更新：PROJECT_STRUCTURE.md 相关章节
+ * 
+ * 职责：
+ * - 提供全局用户状态（user, loading）
+ * - 提供认证方法（login, logout, refreshUser）
+ * - 所有页面通过 useAuth() hook 获取用户状态
+ */
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { apiFetch } from "./api";
