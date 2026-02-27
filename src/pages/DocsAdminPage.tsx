@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
+import { GITHUB_DOCS_URL, GITHUB_REPO_URL } from "../config";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import ReactMarkdown from "react-markdown";
@@ -18,6 +19,11 @@ export default function DocsAdminPage() {
   const { t } = useTranslation();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
+  const githubDocsUrl =
+    GITHUB_DOCS_URL ||
+    (GITHUB_REPO_URL
+      ? `${GITHUB_REPO_URL.replace(/\/$/, "")}/blob/main/PROJECT_STRUCTURE.md`
+      : "");
 
   useEffect(() => {
     (async () => {
@@ -40,14 +46,16 @@ export default function DocsAdminPage() {
           <h1 className="text-2xl font-bold text-white">{t('admin.projectDocs')}</h1>
           <p className="text-gray-400 text-sm mt-1">{t('admin.projectDocsDescription')}</p>
         </div>
-        <a
-          href="https://github.com/yourusername/ideahub/blob/main/PROJECT_STRUCTURE.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-blue-400 hover:text-blue-300 underline"
-        >
-          {t('admin.viewOnGitHub')}
-        </a>
+        {githubDocsUrl && (
+          <a
+            href={githubDocsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-400 hover:text-blue-300 underline"
+          >
+            {t('admin.viewOnGitHub')}
+          </a>
+        )}
       </div>
 
       {loading && (
