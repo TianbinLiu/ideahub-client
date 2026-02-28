@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 
 type UserCardProps = {
   userId: string;
-  username: string; // for fallback display before profile loads
+  username: string;
   children: React.ReactNode;
 };
 
@@ -46,16 +46,19 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
 
   async function loadProfile() {
     if (profile || loading) return;
-    setLoadi[profileRes, reputationRes] = await Promise.all([
+    setLoading(true);
+    try {
+      const [profileRes, reputationRes] = await Promise.all([
         apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${userId}`),
-        getUserReputation(userId).catch(() => ({ stats: { likes: 0, dislikes: 0, badge: null }, myVote: null })),
+        getUserReputation(userId).catch(() => ({ 
+          stats: { likes: 0, dislikes: 0, badge: null }, 
+          myVote: null 
+        })),
       ]);
       setProfile(profileRes.user);
       setFollowing(profileRes.user.isFollowing);
       setReputation(reputationRes.stats);
-      setMyVote(reputationRes.myVotetrue; user: UserProfile }>(`/api/users/${userId}`);
-      setProfile(res.user);
-      setFollowing(res.user.isFollowing);
+      setMyVote(reputationRes.myVote);
     } catch (e) {
       console.error("Failed to load profile", e);
     } finally {
@@ -106,7 +109,12 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           followerCount: profile.followerCount + (res.following ? 1 : -1),
           isFollowing: res.following,
         });
-   
+      }
+      toast.success(res.following ? t('profile.followed') : t('profile.unfollowed'));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
 
   async function handleVote(vote: 1 | -1) {
     if (!currentUser) {
@@ -118,7 +126,6 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       const res = await voteUser(userId, vote);
       setReputation(res.stats);
       
-      // 如果是取消投票，设置为null；否则设置为当前vote
       if (res.action === "removed") {
         setMyVote(null);
       } else {
@@ -131,11 +138,6 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
         updated: vote === 1 ? t('profile.changedToLike') : t('profile.changedToDislike'),
       };
       toast.success(messages[res.action]);
-    } catch (e: any) {
-      toast.error(humanizeError(e));
-    }
-  }   }
-      toast.success(res.following ? t('profile.followed') : t('profile.unfollowed'));
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
