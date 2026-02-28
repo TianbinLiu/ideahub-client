@@ -78,7 +78,16 @@ export default function Navbar() {
     // 简单轮询（MVP）：每 20s 更新一次
     if (user) timer = setInterval(load, 20000);
 
-    return () => timer && clearInterval(timer);
+    // 监听通知更新事件
+    function handleNotificationsUpdate() {
+      load();
+    }
+    window.addEventListener('notificationsUpdated', handleNotificationsUpdate);
+
+    return () => {
+      timer && clearInterval(timer);
+      window.removeEventListener('notificationsUpdated', handleNotificationsUpdate);
+    };
   }, [user]);
 
   return (

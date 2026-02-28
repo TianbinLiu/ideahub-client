@@ -8,7 +8,7 @@ import {
 } from "../api";
 import { useTranslation } from "react-i18next";
 
-type TabType = "all" | "system" | "mentions" | "likes";
+type TabType = "all" | "system" | "mentions" | "likes" | "messages";
 
 export default function NotificationsPage() {
   const { t } = useTranslation();
@@ -24,6 +24,7 @@ export default function NotificationsPage() {
     { key: "system", label: t("notifications.tabSystem") },
     { key: "mentions", label: t("notifications.tabMentions") },
     { key: "likes", label: t("notifications.tabLikes") },
+    { key: "messages", label: t("notifications.myMessages") },
   ];
 
   function filterByTab(item: NotificationItem, tab: TabType): boolean {
@@ -34,6 +35,8 @@ export default function NotificationsPage() {
         return item.type === "MENTION";
       case "likes":
         return ["LIKE", "LIKE_COMMENT", "LIKE_POST"].includes(item.type);
+      case "messages":
+        return false; // Messages are shown separately from notifications
       case "all":
       default:
         return true;
@@ -102,6 +105,8 @@ export default function NotificationsPage() {
   async function markAll() {
     await markAllNotificationsRead();
     setItems(prev => prev.map(n => ({ ...n, readAt: new Date().toISOString() })));
+    // Trigger navbar update event
+    window.dispatchEvent(new Event('notificationsUpdated'));
   }
 
   return (
@@ -139,30 +144,38 @@ export default function NotificationsPage() {
       {error && <div className="text-red-400 text-sm mb-4">{t('common.error')}: {error}</div>}
 
       <div className="space-y-2">
-        {filteredItems.length === 0 && !loading && <p className="text-gray-400 text-sm">{t('notifications.empty')}</p>}
-        {filteredItems.map(n => (
-          <div
-            key={n._id}
-            className={`rounded-lg border border-gray-800 p-3 flex items-center justify-between ${
-              n.readAt ? "bg-gray-950" : "bg-gray-900"
-            }`}
-          >
-            <div className="pr-4">
-              <div className="text-sm text-gray-100">{renderText(n)}</div>
-              {n.ideaId?._id && (
-                <Link to={`/ideas/${n.ideaId._id}`} className="text-xs text-blue-400 hover:underline">
-                  {t('notifications.openIdea')}
-                </Link>
-              )}
-            </div>
-
-            {!n.readAt && (
-              <button onClick={() => markOne(n._id)} className="text-xs rounded-lg border border-gray-700 px-2 py-1 hover:bg-gray-950 text-gray-200">
-                {t('notifications.read')}
-              </button>
-            )}
+        {activeTab === "messages" ? (
+          <div className="text-gray-400 text-sm p-4 rounded-lg bg-gray-900 border border-gray-800">
+            {t('notifications.messagesTab')} → <Link to="/message-requests" className="text-blue-400 hover:underline">{t('messages.messageRequests')}</Link>
           </div>
-        ))}
+        ) : (
+          <>
+            {filteredItems.length === 0 && !loading && <p className="text-gray-400 text-sm">{t('notifications.empty')}</p>}
+            {filteredItems.map(n => (
+              <div
+                key={n._id}
+                className={`rounded-lg border border-gray-800 p-3 flex items-center justify-between ${
+                  n.readAt ? "bg-gray-950" : "bg-gray-900"
+                }`}
+              >
+                <div className="pr-4">
+                  <div className="text-sm text-gray-100">{renderText(n)}</div>
+                  {n.ideaId?._id && (
+                    <Link to={`/ideas/${n.ideaId._id}`} className="text-xs text-blue-400 hover:underline">
+                      {t('notifications.openIdea')}
+                    </Link>
+                  )}
+                </div>
+
+                {!n.readAt && (
+                  <button onClick={() => markOne(n._id)} className="text-xs rounded-lg border border-gray-700 px-2 py-1 hover:bg-gray-950 text-gray-200">
+                    {t('notifications.read')}
+                  </button>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

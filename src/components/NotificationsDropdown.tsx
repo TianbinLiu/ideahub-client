@@ -31,6 +31,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { listNotifications } from "../api";
 
 type NotificationsDropdownProps = {
   unreadCount: number;
@@ -47,35 +48,77 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   const { t } = useTranslation();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; likes: number; messages: number }>({ system: 0, mentions: 0, likes: 0, messages: 0 });
   const timeoutRef = useRef<number | null>(null);
 
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
+  // Load unread count by type when dropdown opens, and listen for updates
+  useEffect(() => {
+    async function loadUnreadByType() {
+      try {
+        const res = await listNotifications({ unread: 1, limit: 100 });
+        const items = res.items || [];
+        
+        const systemTypes = ["COMMENT", "BOOKMARK", "INTEREST", "INVITE"];
+        const mentionTypes = ["MENTION"];
+        const likeTypes = ["LIKE", "LIKE_COMMENT", "LIKE_POST"];
+        
+        const systemCount = items.filter(n => systemTypes.includes(n.type)).length;
+        const mentionsCount = items.filter(n => mentionTypes.includes(n.type)).length;
+        const likesCount = items.filter(n => likeTypes.includes(n.type)).length;
+        
+        setUnreadByType({
+          system: systemCount,
+          mentions: mentionsCount,
+          likes: likesCount,
+          messages: 0, // TODO: Get unread message requests count
+        });
+      } catch (e) {
+        console.error("Failed to load unread by type", e);
+      }
+    }
+
+    // Always listen for notifications updates
+    window.addEventListener('notificationsUpdated', loadUnreadByType);
+    
+    // Load counts when dropdown opens
+    if (isOpen) {
+      loadUnreadByType();
+    }
+
+    return () => window.removeEventListener('notificationsUpdated', loadUnreadByType);
+  }, [isOpen]);
+
   const menuItems: NotificationMenuItem[] = [
     {
       key: "messages",
       label: t("notifications.myMessages"),
-      path: "/messages",
-      unread: 0, // TODO: 实际未读消息数
+      path: "/message-requests",
+      unread: unreadByType.messages,
     },
     {
       key: "system",
       label: t("notifications.system"),
       path: "/notifications?tab=system",
+      unread: unreadByType.system,
     },
     {
       key: "mentions",
       label: t("notifications.mentions"),
       path: "/notifications?tab=mentions",
+      unread: unreadByType.mentions,
     },
     {
       key: "likes",
       label: t("notifications.likesReceived"),
       path: "/notifications?tab=likes",
+      unread: unreadByType.likes,
     },
   ];
 
