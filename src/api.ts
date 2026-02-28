@@ -115,3 +115,59 @@ export function getUserReputation(userId: string) {
   );
 }
 
+// Messages API
+export function sendMessageRequest(toUserId: string, initialMessage: string) {
+  return apiFetch<{ ok: true; request: any }>(
+    `/api/messages/request`,
+    {
+      method: "POST",
+      body: JSON.stringify({ toUserId, initialMessage }),
+    }
+  );
+}
+
+export function listMessageRequests(status?: string) {
+  const params = status ? `?status=${status}` : "";
+  return apiFetch<{ ok: true; requests: any[] }>(`/api/messages/request${params}`);
+}
+
+export function viewMessageRequest(requestId: string) {
+  return apiFetch<{ ok: true }>(`/api/messages/request/${requestId}/view`, {
+    method: "PATCH",
+  });
+}
+
+export function acceptMessageRequest(requestId: string) {
+  return apiFetch<{ ok: true; conversationId: string }>(
+    `/api/messages/request/${requestId}/accept`,
+    { method: "PATCH" }
+  );
+}
+
+export function rejectMessageRequest(requestId: string) {
+  return apiFetch<{ ok: true }>(`/api/messages/request/${requestId}/reject`, {
+    method: "PATCH",
+  });
+}
+
+export function listConversations() {
+  return apiFetch<{ ok: true; conversations: any[] }>(`/api/messages/conversations`);
+}
+
+export function getConversationMessages(conversationId: string, page = 1, limit = 50) {
+  return apiFetch<{ ok: true; messages: any[]; total: number; page: number; limit: number }>(
+    `/api/messages/conversations/${conversationId}?page=${page}&limit=${limit}`
+  );
+}
+
+export function sendDirectMessage(conversationId: string, toUserId: string, content: string) {
+  return apiFetch<{ ok: true; message: any }>(
+    `/api/messages/send`,
+    {
+      method: "POST",
+      body: JSON.stringify({ conversationId, toUserId, content }),
+    }
+  );
+}
+
+

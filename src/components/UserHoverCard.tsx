@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { apiFetch, getUserReputation, voteUser, type ReputationStats } from "../api";
+import { apiFetch, getUserReputation, voteUser, sendMessageRequest, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -33,6 +33,9 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   const [following, setFollowing] = useState(false);
   const [reputation, setReputation] = useState<ReputationStats | null>(null);
   const [myVote, setMyVote] = useState<1 | -1 | null>(null);
+  const [showDMModal, setShowDMModal] = useState(false);
+  const [dmMessage, setDmMessage] = useState("");
+  const [sendingDM, setSendingDM] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +146,30 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
     }
   }
 
+  async function handleSendDM() {
+    if (!currentUser) {
+      toast.error(t('auth.pleaseLogin'));
+      return;
+    }
+
+    if (dmMessage.trim().length === 0) {
+      toast.error(t('messages.enterInitialMessage'));
+      return;
+    }
+
+    setSendingDM(true);
+    try {
+      await sendMessageRequest(userId, dmMessage);
+      toast.success(t('messages.requestSent'));
+      setShowDMModal(false);
+      setDmMessage("");
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setSendingDM(false);
+    }
+  }
+
   return (
     <div className="relative inline-block">
       <span
@@ -226,16 +253,24 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
 
               {!isOwnProfile && currentUser && (
                 <div className="space-y-2">
-                  <button
-                    onClick={toggleFollow}
-                    className={`w-full rounded-lg px-4 py-2 font-semibold text-sm ${
-                      following
-                        ? "border border-gray-600 text-gray-200 hover:bg-gray-800"
-                        : "bg-white text-black hover:bg-gray-200"
-                    }`}
-                  >
-                    {following ? t('profile.following') : t('profile.follow')}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={toggleFollow}
+                      className={`flex-1 rounded-lg px-4 py-2 font-semibold text-sm ${
+                        following
+                          ? "border border-gray-600 text-gray-200 hover:bg-gray-800"
+                          : "bg-white text-black hover:bg-gray-200"
+                      }`}
+                    >
+                      {following ? t('profile.following') : t('profile.follow')}
+                    </button>
+                    <button
+                      onClick={() => setShowDMModal(true)}
+                      className="flex-1 rounded-lg px-4 py-2 font-semibold text-sm border border-gray-600 text-gray-200 hover:bg-gray-800"
+                    >
+                      💬 {t('messages.directMessage')}
+                    </button>
+                  </div>
 
                   {/* Like/Dislike Buttons */}
                   <div className="flex gap-2">
@@ -283,6 +318,46 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           )}
         </div>
       )}
+
+      {/* DM Modal */}
+      {showDMModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+          onClick={() => setShowDMModal(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {t('messages.directMessage')} - {profile?.displayName || profile?.username}
+            </h3>
+
+            <textarea
+              value={dmMessage}
+              onChange={(e) => setDmMessage(e.target.value)}
+              placeholder={t('messages.initialMessagePlaceholder')}
+              className="w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2 mb-4 focus:outline-none focus:border-blue-500 resize-none"
+              rows={4}
+            />
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDMModal(false)}
+                className="rounded-lg px-4 py-2 border border-gray-600 text-gray-200 hover:bg-gray-800"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleSendDM}
+                disabled={sendingDM || dmMessage.trim().length === 0}
+                className="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed"
+              >
+                {sendingDM ? t('common.sending') : t('messages.sendMessage')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}

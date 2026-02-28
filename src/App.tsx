@@ -23,6 +23,8 @@ import NewIdeaPage from "./pages/NewIdeaPage";
 import IdeaDetailPage from "./pages/IdeaDetailPage";
 import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import MessagesPage from "./pages/MessagesPage";
+import MessageRequestsPage from "./pages/MessageRequestsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import FeedbackAdminPage from "./pages/FeedbackAdminPage";
 import DocsAdminPage from "./pages/DocsAdminPage";
@@ -107,6 +109,24 @@ export default function App() {
           element={
             <ProtectedRoute>
               <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/message-requests"
+          element={
+            <ProtectedRoute>
+              <MessageRequestsPage />
             </ProtectedRoute>
           }
         />
