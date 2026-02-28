@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { apiFetch } from "../api";
+import { apiFetch, getUserReputation, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -70,6 +70,8 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
+  const [reputation, setReputation] = useState<ReputationStats | null>(null);
+  const [myVote, setMyVote] = useState<1 | -1 | null>(null);
 
   const [bookmarkedIdeas, setBookmarkedIdeas] = useState<Idea[]>([]);
   const [bookmarkedLeaderboards, setBookmarkedLeaderboards] = useState<Leaderboard[]>([]);
@@ -117,11 +119,19 @@ export default function UserProfilePage() {
 
   async function loadProfile() {
     if (!id) return;
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${id}`);
-      setProfile(res.user);
-      setFollowing(res.user.isFollowing);
+    setLoadi[profileRes, reputationRes] = await Promise.all([
+        apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${id}`),
+        getUserReputation(id).catch(() => ({ 
+          stats: { likes: 0, dislikes: 0, badge: null }, 
+          myVote: null 
+        })),
+      ]);
+      setProfile(profileRes.user);
+      setFollowing(profileRes.user.isFollowing);
+      setDisplayName(profileRes.user.displayName || "");
+      setBio(profileRes.user.bio || "");
+      setReputation(reputationRes.stats);
+      setMyVote(reputationRes.myVoteollowing);
       setDisplayName(res.user.displayName || "");
       setBio(res.user.bio || "");
     } catch (e: any) {
@@ -225,6 +235,33 @@ export default function UserProfilePage() {
       }
       toast.success(res.following ? "Followed" : "Unfollowed");
       loadFollowers();
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  async function handleVote(vote: 1 | -1) {
+    if (!currentUser) {
+      toast.error(t('profile.pleaseLoginToVote'));
+      return;
+    }
+
+    try {
+      const res = await voteUser(id!, vote);
+      setReputation(res.stats);
+      
+      if (res.action === "removed") {
+        setMyVote(null);
+      } else {
+        setMyVote(vote);
+      }
+
+      const messages = {
+        voted: vote === 1 ? t('profile.votedLike') : t('profile.votedDislike'),
+        removed: t('profile.voteRemoved'),
+        updated: vote === 1 ? t('profile.changedToLike') : t('profile.changedToDislike'),
+      };
+      toast.success(messages[res.action]);
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
@@ -414,6 +451,20 @@ export default function UserProfilePage() {
               </button>
             </div>
 
+            {/* Reputation Stats */}
+            {reputation && (reputation.likes > 0 || reputation.dislikes > 0) && (
+              <div className="flex gap-4 mt-3 text-sm text-gray-400">
+                <span>👍 <span className="font-semibold text-white">{reputation.likes}</span></span>
+                <span>👎 <span className="font-semibold text-white">{reputation.dislikes}</span></span>
+                {reputation.badge === "popular" && (
+                  <span className="text-green-400">⭐ {t('profile.popularUser')}</span>
+                )}
+                {reputation.badge === "malicious" && (
+                  <span className="text-red-400">⚠️ {t('profile.maliciousUser')}</span>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 flex gap-2">
               {isOwnProfile ? (
                 <button
@@ -423,16 +474,40 @@ export default function UserProfilePage() {
                   {editing ? t('profile.cancelEdit') : t('profile.editProfile')}
                 </button>
               ) : currentUser ? (
-                <button
-                  onClick={toggleFollow}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                    following
-                      ? "border border-gray-600 text-gray-200 hover:bg-gray-800"
-                      : "bg-white text-black hover:bg-gray-200"
-                  }`}
-                >
-                  {following ? t('profile.following') : t('profile.follow')}
-                </button>
+                <>
+                  <button
+                    onClick={toggleFollow}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                      following
+                        ? "border border-gray-600 text-gray-200 hover:bg-gray-800"
+                        : "bg-white text-black hover:bg-gray-200"
+                    }`}
+                  >
+                    {following ? t('profile.following') : t('profile.follow')}
+                  </button>
+
+                  {/* Like/Dislike Buttons */}
+                  <button
+                    onClick={() => handleVote(1)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      myVote === 1
+                        ? "bg-green-600 text-white"
+                        : "border border-gray-700 text-gray-300 hover:bg-gray-800"
+                    }`}
+                  >
+                    👍 {t('profile.like')}
+                  </button>
+                  <button
+                    onClick={() => handleVote(-1)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      myVote === -1
+                        ? "bg-red-600 text-white"
+                        : "border border-gray-700 text-gray-300 hover:bg-gray-800"
+                    }`}
+                  >
+                    👎 {t('profile.dislike')}
+                  </button>
+                </>
               ) : null}
             </div>
           </div>
