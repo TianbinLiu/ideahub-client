@@ -31,7 +31,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { listNotifications } from "../api";
+import { listNotifications, listMessageRequests } from "../api";
 
 type NotificationsDropdownProps = {
   unreadCount: number;
@@ -62,6 +62,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   useEffect(() => {
     async function loadUnreadByType() {
       try {
+        // Load notifications
         const res = await listNotifications({ unread: 1, limit: 100 });
         const items = res.items || [];
         
@@ -73,25 +74,30 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         const mentionsCount = items.filter(n => mentionTypes.includes(n.type)).length;
         const likesCount = items.filter(n => likeTypes.includes(n.type)).length;
         
+        // Load unread message requests
+        const msgRes = await listMessageRequests("pending");
+        const messageRequests = msgRes.requests || [];
+        const unreadMessageCount = messageRequests.filter(r => !r.viewedAt).length;
+        
         setUnreadByType({
           system: systemCount,
           mentions: mentionsCount,
           likes: likesCount,
-          messages: 0, // TODO: Get unread message requests count
+          messages: unreadMessageCount,
         });
       } catch (e) {
         console.error("Failed to load unread by type", e);
       }
     }
 
-    // Always listen for notifications updates
-    window.addEventListener('notificationsUpdated', loadUnreadByType);
-    
-    // Load counts when dropdown opens
+    // Load immediately on mount and when dropdown opens
     if (isOpen) {
       loadUnreadByType();
     }
 
+    // Also listen for notifications updates
+    window.addEventListener('notificationsUpdated', loadUnreadByType);
+    
     return () => window.removeEventListener('notificationsUpdated', loadUnreadByType);
   }, [isOpen]);
 

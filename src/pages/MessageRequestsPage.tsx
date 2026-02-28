@@ -68,6 +68,8 @@ export default function MessageRequestsPage() {
       setExpandedIds((prev) => new Set([...prev, requestId]));
       // Reload to get updated viewedAt
       await loadRequests();
+      // Trigger navbar update to refresh notification badge
+      window.dispatchEvent(new Event('notificationsUpdated'));
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
@@ -79,6 +81,8 @@ export default function MessageRequestsPage() {
       await acceptMessageRequest(requestId);
       toast.success(t("messages.acceptedRequest"));
       await loadRequests();
+      // Trigger navbar update to refresh notification badge
+      window.dispatchEvent(new Event('notificationsUpdated'));
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -92,6 +96,8 @@ export default function MessageRequestsPage() {
       await rejectMessageRequest(requestId);
       toast.success(t("messages.rejectedRequest"));
       await loadRequests();
+      // Trigger navbar update to refresh notification badge
+      window.dispatchEvent(new Event('notificationsUpdated'));
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
