@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { apiFetch, getUserReputation, voteUser, type ReputationStats } from "../api";
+import { apiFetch, getUserReputation, voteUser, sendMessageRequest, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -72,6 +72,9 @@ export default function UserProfilePage() {
   const [following, setFollowing] = useState(false);
   const [reputation, setReputation] = useState<ReputationStats | null>(null);
   const [myVote, setMyVote] = useState<1 | -1 | null>(null);
+  const [showDMModal, setShowDMModal] = useState(false);
+  const [dmMessage, setDmMessage] = useState("");
+  const [sendingDM, setSendingDM] = useState(false);
 
   const [bookmarkedIdeas, setBookmarkedIdeas] = useState<Idea[]>([]);
   const [bookmarkedLeaderboards, setBookmarkedLeaderboards] = useState<Leaderboard[]>([]);
@@ -267,6 +270,30 @@ export default function UserProfilePage() {
     }
   }
 
+  async function handleSendDM() {
+    if (!currentUser) {
+      toast.error(t('auth.pleaseLogin'));
+      return;
+    }
+
+    if (dmMessage.trim().length === 0) {
+      toast.error(t('messages.enterInitialMessage'));
+      return;
+    }
+
+    setSendingDM(true);
+    try {
+      await sendMessageRequest(id!, dmMessage);
+      toast.success(t('messages.requestSent'));
+      setShowDMModal(false);
+      setDmMessage("");
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setSendingDM(false);
+    }
+  }
+
   async function handleAvatarClick() {
     if (isOwnProfile && avatarInputRef.current) {
       avatarInputRef.current.click();
@@ -382,7 +409,16 @@ export default function UserProfilePage() {
     <div className="max-w-4xl mx-auto p-4">
       {/* Profile Header */}
       <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
-        <div className="flex items-start gap-6">
+        <div className="flex items-start gap-6 relative">
+          {/* Direct Message Button - Top Right */}
+          {!isOwnProfile && currentUser && (
+            <button
+              onClick={() => setShowDMModal(true)}
+              className="absolute top-0 right-0 rounded-lg px-4 py-2 text-sm font-semibold border border-gray-600 text-gray-200 hover:bg-gray-800 flex items-center gap-2"
+            >
+              💬 {t('messages.directMessage')}
+            </button>
+          )}
           {/* Avatar */}
           <div className="relative">
             <div
@@ -603,6 +639,47 @@ export default function UserProfilePage() {
 
       {/* Tab Content */}
       <div className="mt-4">{renderTabContent()}</div>
+
+      {/* DM Modal */}
+      {showDMModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+          onClick={() => setShowDMModal(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {t('messages.directMessage')} - {profile?.displayName || profile?.username}
+            </h3>
+
+            <textarea
+              value={dmMessage}
+              onChange={(e) => setDmMessage(e.target.value)}
+              placeholder={t('messages.initialMessagePlaceholder')}
+              className="w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2 mb-4 focus:outline-none focus:border-blue-500 resize-none"
+              rows={4}
+            />
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDMModal(false)}
+                className="rounded-lg px-4 py-2 border border-gray-600 text-gray-200 hover:bg-gray-800"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleSendDM}
+                disabled={sendingDM || dmMessage.trim().length === 0}
+                className="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed"
+              >
+                {sendingDM ? t('common.sending') : t('messages.sendMessage')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
