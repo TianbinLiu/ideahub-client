@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { apiFetch, getUserReputation, voteUser, sendMessageRequest, type ReputationStats } from "../api";
+import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -36,6 +36,8 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   const [showDMModal, setShowDMModal] = useState(false);
   const [dmMessage, setDmMessage] = useState("");
   const [sendingDM, setSendingDM] = useState(false);
+  const [dmBlocked, setDmBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -62,6 +64,11 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       setFollowing(profileRes.user.isFollowing);
       setReputation(reputationRes.stats);
       setMyVote(reputationRes.myVote);
+
+      if (!isOwnProfile && currentUser) {
+        const blockRes = await getDmBlockStatus(userId).catch(() => ({ blocked: false } as any));
+        setDmBlocked(!!(blockRes as any).blocked);
+      }
     } catch (e) {
       console.error("Failed to load profile", e);
     } finally {
@@ -157,6 +164,11 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       return;
     }
 
+    if (dmBlocked) {
+      toast.error(t('messages.blockedByMeHint'));
+      return;
+    }
+
     setSendingDM(true);
     try {
       await sendMessageRequest(userId, dmMessage);
@@ -167,6 +179,26 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       toast.error(humanizeError(e));
     } finally {
       setSendingDM(false);
+    }
+  }
+
+  async function handleToggleBlockDm() {
+    if (!currentUser || isOwnProfile) return;
+    setBlockLoading(true);
+    try {
+      if (dmBlocked) {
+        await unblockDmUser(userId);
+        setDmBlocked(false);
+        toast.success(t('messages.unblockedUser'));
+      } else {
+        await blockDmUser(userId);
+        setDmBlocked(true);
+        toast.success(t('messages.blockedUser'));
+      }
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setBlockLoading(false);
     }
   }
 
@@ -266,11 +298,28 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                     </button>
                     <button
                       onClick={() => setShowDMModal(true)}
+                      disabled={dmBlocked}
                       className="flex-1 rounded-lg px-4 py-2 font-semibold text-sm border border-gray-600 text-gray-200 hover:bg-gray-800"
                     >
                       💬 {t('messages.directMessage')}
                     </button>
                   </div>
+
+                  <button
+                    onClick={handleToggleBlockDm}
+                    disabled={blockLoading}
+                    className={`w-full rounded-lg px-4 py-2 text-sm font-semibold border ${
+                      dmBlocked
+                        ? "border-red-600 text-red-300 hover:bg-red-900/20"
+                        : "border-gray-600 text-gray-200 hover:bg-gray-800"
+                    } disabled:bg-gray-700 disabled:cursor-not-allowed`}
+                  >
+                    {blockLoading
+                      ? t('common.loading')
+                      : dmBlocked
+                        ? t('messages.unblockDm')
+                        : t('messages.blockDm')}
+                  </button>
 
                   {/* Like/Dislike Buttons */}
                   <div className="flex gap-2">
@@ -311,6 +360,12 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                     className="block w-full text-center rounded-lg border border-gray-600 px-4 py-2 font-semibold text-sm text-gray-200 hover:bg-gray-800"
                   >
                     {t('profile.editProfile')}
+                  </Link>
+                  <Link
+                    to="/blacklist"
+                    className="block w-full text-center rounded-lg border border-red-700 px-4 py-2 font-semibold text-sm text-red-300 hover:bg-red-900/20"
+                  >
+                    {t('messages.blacklistManage')}
                   </Link>
                 </div>
               )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { apiFetch, getUserReputation, voteUser, sendMessageRequest, type ReputationStats } from "../api";
+import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -75,6 +75,8 @@ export default function UserProfilePage() {
   const [showDMModal, setShowDMModal] = useState(false);
   const [dmMessage, setDmMessage] = useState("");
   const [sendingDM, setSendingDM] = useState(false);
+  const [dmBlocked, setDmBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
 
   const [bookmarkedIdeas, setBookmarkedIdeas] = useState<Idea[]>([]);
   const [bookmarkedLeaderboards, setBookmarkedLeaderboards] = useState<Leaderboard[]>([]);
@@ -137,6 +139,11 @@ export default function UserProfilePage() {
       setBio(profileRes.user.bio || "");
       setReputation(reputationRes.stats);
       setMyVote(reputationRes.myVote);
+
+      if (!isOwnProfile && currentUser && id) {
+        const blockRes = await getDmBlockStatus(id).catch(() => ({ blocked: false } as any));
+        setDmBlocked(!!(blockRes as any).blocked);
+      }
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -281,6 +288,11 @@ export default function UserProfilePage() {
       return;
     }
 
+    if (dmBlocked) {
+      toast.error(t('messages.blockedByMeHint'));
+      return;
+    }
+
     setSendingDM(true);
     try {
       await sendMessageRequest(id!, dmMessage);
@@ -291,6 +303,26 @@ export default function UserProfilePage() {
       toast.error(humanizeError(e));
     } finally {
       setSendingDM(false);
+    }
+  }
+
+  async function handleToggleBlockDm() {
+    if (!currentUser || !id || isOwnProfile) return;
+    setBlockLoading(true);
+    try {
+      if (dmBlocked) {
+        await unblockDmUser(id);
+        setDmBlocked(false);
+        toast.success(t('messages.unblockedUser'));
+      } else {
+        await blockDmUser(id);
+        setDmBlocked(true);
+        toast.success(t('messages.blockedUser'));
+      }
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setBlockLoading(false);
     }
   }
 
@@ -414,6 +446,7 @@ export default function UserProfilePage() {
           {!isOwnProfile && currentUser && (
             <button
               onClick={() => setShowDMModal(true)}
+              disabled={dmBlocked}
               className="absolute top-0 right-0 rounded-lg px-4 py-2 text-sm font-semibold border border-gray-600 text-gray-200 hover:bg-gray-800 flex items-center gap-2"
             >
               💬 {t('messages.directMessage')}
@@ -503,12 +536,20 @@ export default function UserProfilePage() {
 
             <div className="mt-4 flex gap-2">
               {isOwnProfile ? (
-                <button
-                  onClick={() => setEditing(!editing)}
-                  className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
-                >
-                  {editing ? t('profile.cancelEdit') : t('profile.editProfile')}
-                </button>
+                <>
+                  <button
+                    onClick={() => setEditing(!editing)}
+                    className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+                  >
+                    {editing ? t('profile.cancelEdit') : t('profile.editProfile')}
+                  </button>
+                  <Link
+                    to="/blacklist"
+                    className="rounded-lg border border-red-700 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/20"
+                  >
+                    {t('messages.blacklistManage')}
+                  </Link>
+                </>
               ) : currentUser ? (
                 <>
                   <button
@@ -542,6 +583,22 @@ export default function UserProfilePage() {
                     }`}
                   >
                     👎 {t('profile.dislike')}
+                  </button>
+
+                  <button
+                    onClick={handleToggleBlockDm}
+                    disabled={blockLoading}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      dmBlocked
+                        ? "border border-red-600 text-red-300 hover:bg-red-900/20"
+                        : "border border-gray-700 text-gray-300 hover:bg-gray-800"
+                    } disabled:bg-gray-700 disabled:cursor-not-allowed`}
+                  >
+                    {blockLoading
+                      ? t('common.loading')
+                      : dmBlocked
+                        ? t('messages.unblockDm')
+                        : t('messages.blockDm')}
                   </button>
                 </>
               ) : null}

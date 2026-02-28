@@ -35,6 +35,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import TagRankPage from "./pages/TagRankPage";
 import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import BlacklistPage from "./pages/BlacklistPage";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
@@ -127,6 +128,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <MessageRequestsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/blacklist"
+          element={
+            <ProtectedRoute>
+              <BlacklistPage />
             </ProtectedRoute>
           }
         />

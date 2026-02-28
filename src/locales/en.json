@@ -465,6 +465,20 @@
     "youAcceptedThis": "You accepted this request",
     "youRejectedThis": "You rejected this request",
     "pendingRequests": "Pending Requests",
-    "respondedRequests": "Responded Requests"
+    "respondedRequests": "Responded Requests",
+    "blockedByMeHint": "You have blacklisted this user. Remove from blacklist before sending DM requests.",
+    "blockedUser": "User added to blacklist",
+    "unblockedUser": "User removed from blacklist",
+    "blockDm": "Block DM",
+    "unblockDm": "Remove from blacklist",
+    "blacklistManage": "Blacklist Management",
+    "blacklistEmpty": "No blacklisted users.",
+    "conversationDeleted": "Conversation deleted",
+    "conversationDeletedAndBlocked": "Conversation deleted and user added to blacklist",
+    "conversationActionTitle": "Conversation Actions",
+    "conversationActionDesc": "You can delete your conversation with {{name}}, or delete and add this user to blacklist (reversible).",
+    "deleteOnly": "Delete only",
+    "deleteAndBlock": "Delete and blacklist",
+    "openOnly": "Open conversation"
   }
 }

@@ -160,6 +160,32 @@ export function getConversationMessages(conversationId: string, page = 1, limit 
   );
 }
 
+export function deleteConversation(conversationId: string) {
+  return apiFetch<{ ok: true }>(`/api/messages/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+}
+
+export function listDmBlacklist() {
+  return apiFetch<{ ok: true; items: any[] }>(`/api/messages/blacklist`);
+}
+
+export function getDmBlockStatus(userId: string) {
+  return apiFetch<{ ok: true; blocked: boolean }>(`/api/messages/blacklist/${userId}/status`);
+}
+
+export function blockDmUser(userId: string) {
+  return apiFetch<{ ok: true }>(`/api/messages/blacklist/${userId}`, {
+    method: "POST",
+  });
+}
+
+export function unblockDmUser(userId: string) {
+  return apiFetch<{ ok: true }>(`/api/messages/blacklist/${userId}`, {
+    method: "DELETE",
+  });
+}
+
 export function sendDirectMessage(conversationId: string, toUserId: string, content: string) {
   return apiFetch<{ ok: true; message: any }>(
     `/api/messages/send`,
