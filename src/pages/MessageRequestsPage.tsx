@@ -204,9 +204,8 @@ export default function MessageRequestsPage() {
     rejected: t("messages.statusRejected"),
   };
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
-  const acceptedRequests = requests.filter((r) => r.status === "accepted");
-  const respondedRequests = requests.filter((r) => r.status !== "pending");
+    const pendingRequests = requests.filter((r) => r.status === "pending");
+    const respondedRequests = requests.filter((r) => r.status !== "pending");
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
