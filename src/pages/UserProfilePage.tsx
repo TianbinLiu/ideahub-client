@@ -119,7 +119,9 @@ export default function UserProfilePage() {
 
   async function loadProfile() {
     if (!id) return;
-    setLoadi[profileRes, reputationRes] = await Promise.all([
+    setLoading(true);
+    try {
+      const [profileRes, reputationRes] = await Promise.all([
         apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${id}`),
         getUserReputation(id).catch(() => ({ 
           stats: { likes: 0, dislikes: 0, badge: null }, 
@@ -131,9 +133,7 @@ export default function UserProfilePage() {
       setDisplayName(profileRes.user.displayName || "");
       setBio(profileRes.user.bio || "");
       setReputation(reputationRes.stats);
-      setMyVote(reputationRes.myVoteollowing);
-      setDisplayName(res.user.displayName || "");
-      setBio(res.user.bio || "");
+      setMyVote(reputationRes.myVote);
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
