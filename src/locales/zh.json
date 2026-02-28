@@ -421,6 +421,7 @@
   },
   "messages": {
     "myMessages": "我的消息",
+    "myConversations": "最近消息",
     "startConversation": "开始对话",
     "directMessage": "私信",
     "sendRequest": "发送私信请求",
@@ -440,6 +441,8 @@
     "conversations": "对话",
     "noConversations": "还没有对话",
     "sendMessage": "发送",
+    "send": "发送",
+    "typeMessage": "输入消息...",
     "requestAccepted": "请求已接受！",
     "requestRejected": "请求已拒绝",
     "messageSent": "消息已发送",

@@ -425,6 +425,7 @@
   },
   "messages": {
     "myMessages": "My Messages",
+    "myConversations": "Recent Messages",
     "startConversation": "Start a Conversation",
     "directMessage": "Direct Message",
     "sendRequest": "Send DM Request",
@@ -444,6 +445,8 @@
     "conversations": "Conversations",
     "noConversations": "No conversations yet",
     "sendMessage": "Send",
+    "send": "Send",
+    "typeMessage": "Type a message...",
     "requestAccepted": "Request accepted!",
     "requestRejected": "Request rejected",
     "messageSent": "Message sent",
