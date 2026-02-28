@@ -361,3 +361,4 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       )}
     </div>
   );
+}
