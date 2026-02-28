@@ -91,3 +91,27 @@ export function searchUsers(query: string, limit: number = 8) {
   const suffix = q.toString() ? `?${q.toString()}` : "";
   return apiFetch<{ users: { _id: string; username: string }[] }>(`/api/users/search${suffix}`);
 }
+
+// User Reputation API
+export type ReputationStats = {
+  likes: number;
+  dislikes: number;
+  badge: "popular" | "malicious" | null;
+};
+
+export function voteUser(userId: string, vote: 1 | -1) {
+  return apiFetch<{ ok: true; action: "voted" | "removed" | "updated"; stats: ReputationStats }>(
+    `/api/users/${userId}/reputation`,
+    {
+      method: "POST",
+      body: JSON.stringify({ vote }),
+    }
+  );
+}
+
+export function getUserReputation(userId: string) {
+  return apiFetch<{ ok: true; stats: ReputationStats; myVote: 1 | -1 | null }>(
+    `/api/users/${userId}/reputation`
+  );
+}
+

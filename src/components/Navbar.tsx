@@ -39,6 +39,7 @@ import { getUnreadCount } from "../api";
 import { UserHoverCard } from "./UserHoverCard";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./LanguageSwitcher";
+import NotificationsDropdown from "./NotificationsDropdown";
 
 
 function cls(isActive: boolean) {
@@ -89,18 +90,7 @@ export default function Navbar() {
           <NavLink to="/" className={({ isActive }) => cls(isActive)}>{t('nav.home')}</NavLink>
           <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>{t('nav.tagRank')}</NavLink>
 
-          {user && (
-            <NavLink to="/notifications" className={({ isActive }) => cls(isActive)}>
-              <span className="relative inline-flex items-center">
-                {t('nav.notifications')}
-                {unread > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] min-w-5 h-5 px-1">
-                    {unread > 99 ? "99+" : unread}
-                  </span>
-                )}
-              </span>
-            </NavLink>
-          )}
+          {user && <NotificationsDropdown unreadCount={unread} />}
 
           {user?.role === "company" && (
             <NavLink to="/company" className={({ isActive }) => cls(isActive)}>{t('nav.company')}</NavLink>

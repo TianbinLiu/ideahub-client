@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { apiFetch } from "../api";
+import { apiFetch, getUserReputation, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -31,6 +31,8 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [following, setFollowing] = useState(false);
+  const [reputation, setReputation] = useState<ReputationStats | null>(null);
+  const [myVote, setMyVote] = useState<1 | -1 | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -44,9 +46,14 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
 
   async function loadProfile() {
     if (profile || loading) return;
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${userId}`);
+    setLoadi[profileRes, reputationRes] = await Promise.all([
+        apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${userId}`),
+        getUserReputation(userId).catch(() => ({ stats: { likes: 0, dislikes: 0, badge: null }, myVote: null })),
+      ]);
+      setProfile(profileRes.user);
+      setFollowing(profileRes.user.isFollowing);
+      setReputation(reputationRes.stats);
+      setMyVote(reputationRes.myVotetrue; user: UserProfile }>(`/api/users/${userId}`);
       setProfile(res.user);
       setFollowing(res.user.isFollowing);
     } catch (e) {
@@ -99,7 +106,35 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           followerCount: profile.followerCount + (res.following ? 1 : -1),
           isFollowing: res.following,
         });
+   
+
+  async function handleVote(vote: 1 | -1) {
+    if (!currentUser) {
+      toast.error(t('profile.pleaseLoginToVote'));
+      return;
+    }
+
+    try {
+      const res = await voteUser(userId, vote);
+      setReputation(res.stats);
+      
+      // 如果是取消投票，设置为null；否则设置为当前vote
+      if (res.action === "removed") {
+        setMyVote(null);
+      } else {
+        setMyVote(vote);
       }
+
+      const messages = {
+        voted: vote === 1 ? t('profile.votedLike') : t('profile.votedDislike'),
+        removed: t('profile.voteRemoved'),
+        updated: vote === 1 ? t('profile.changedToLike') : t('profile.changedToDislike'),
+      };
+      toast.success(messages[res.action]);
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }   }
       toast.success(res.following ? t('profile.followed') : t('profile.unfollowed'));
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -149,11 +184,31 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                     {profile.displayName || profile.username}
                   </Link>
                   <p className="text-sm text-gray-400">@{profile.username}</p>
+                  
+                  {/* Reputation Badge */}
+                  {reputation?.badge === "popular" && (
+                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-green-900/30 border border-green-600 rounded text-xs text-green-400">
+                      ⭐ {t('profile.popularUser')}
+                    </span>
+                  )}
+                  {reputation?.badge === "malicious" && (
+                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-900/30 border border-red-600 rounded text-xs text-red-400">
+                      ⚠️ {t('profile.maliciousUser')}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {profile.bio && (
                 <p className="text-sm text-gray-300 line-clamp-3">{profile.bio}</p>
+              )}
+
+              {/* Reputation Stats */}
+              {reputation && (reputation.likes > 0 || reputation.dislikes > 0) && (
+                <div className="flex gap-3 text-xs text-gray-400">
+                  <span>👍 {reputation.likes}</span>
+                  <span>👎 {reputation.dislikes}</span>
+                </div>
               )}
 
               <div className="flex gap-4 text-sm">
@@ -168,16 +223,42 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
               </div>
 
               {!isOwnProfile && currentUser && (
-                <button
-                  onClick={toggleFollow}
-                  className={`w-full rounded-lg px-4 py-2 font-semibold text-sm ${
-                    following
-                      ? "border border-gray-600 text-gray-200 hover:bg-gray-800"
-                      : "bg-white text-black hover:bg-gray-200"
-                  }`}
-                >
-                  {following ? t('profile.following') : t('profile.follow')}
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={toggleFollow}
+                    className={`w-full rounded-lg px-4 py-2 font-semibold text-sm ${
+                      following
+                        ? "border border-gray-600 text-gray-200 hover:bg-gray-800"
+                        : "bg-white text-black hover:bg-gray-200"
+                    }`}
+                  >
+                    {following ? t('profile.following') : t('profile.follow')}
+                  </button>
+
+                  {/* Like/Dislike Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleVote(1)}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        myVote === 1
+                          ? "bg-green-600 text-white"
+                          : "border border-gray-700 text-gray-300 hover:bg-gray-800"
+                      }`}
+                    >
+                      👍 {t('profile.like')}
+                    </button>
+                    <button
+                      onClick={() => handleVote(-1)}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        myVote === -1
+                          ? "bg-red-600 text-white"
+                          : "border border-gray-700 text-gray-300 hover:bg-gray-800"
+                      }`}
+                    >
+                      👎 {t('profile.dislike')}
+                    </button>
+                  </div>
+                </div>
               )}
 
               {isOwnProfile && (
