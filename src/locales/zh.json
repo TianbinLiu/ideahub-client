@@ -126,6 +126,7 @@
     "bookmarked": "已收藏",
     "bookmark": "收藏",
     "feedback": "反馈网站问题或建议",
+    "submitAsFeedback": "Submit As Feedback",
     "feedbackDescription": "您正在提交网站bug报告或功能建议。AI将验证内容并自动分类。请详细描述问题或建议。",
     "feedbackBug": "Bug报告",
     "feedbackSuggestion": "功能建议",

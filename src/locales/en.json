@@ -128,6 +128,7 @@
     "bookmarked": "Bookmarked",
     "bookmark": "Bookmark",
     "feedback": "Feedback for bug or feature",
+    "submitAsFeedback": "Submit As Feedback",
     "feedbackDescription": "You are submitting website bug report or feature suggestion. AI will validate content and automatically categorize. Please describe the issue or suggestion in detail.",
     "feedbackBug": "Bug Report",
     "feedbackSuggestion": "Feature Suggestion",

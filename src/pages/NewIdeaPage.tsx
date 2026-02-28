@@ -137,13 +137,12 @@ export default function NewIdeaPage() {
               checked={isFeedback}
               onChange={(e) => setIsFeedback(e.target.checked)}
             />
-            {t('idea.feedbackCheckbox')}
+            {t('idea.submitAsFeedback')}
           </label>
         </div>
 
         {isFeedback && (
           <div className="bg-blue-900/20 border border-blue-800 rounded-xl p-3 text-sm text-blue-200">
-            <p className="font-semibold mb-1">📋 {t('idea.feedbackTitle')}</p>
             <p>{t('idea.feedbackDescription')}</p>
           </div>
         )}
