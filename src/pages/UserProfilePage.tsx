@@ -93,6 +93,10 @@ export default function UserProfilePage() {
 
   const [activeTab, setActiveTab] = useState<TabType>("bookmarks");
 
+  // Search and mutual following
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentUserFollowing, setCurrentUserFollowing] = useState<any[]>([]);
+  
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -111,6 +115,11 @@ export default function UserProfilePage() {
     loadUserLeaderboards();
     loadFollowers();
     loadFollowing();
+    
+    // Load current user's following list for mutual following comparison
+    if (userId && !isOwnProfile) {
+      loadCurrentUserFollowing();
+    }
     
     if (isOwnProfile) {
       loadMyIdeas();
@@ -193,6 +202,16 @@ export default function UserProfilePage() {
       setFollowingUsers(res.following || []);
     } catch (e) {
       console.error("Failed to load following", e);
+    }
+  }
+
+  async function loadCurrentUserFollowing() {
+    if (!userId) return;
+    try {
+      const res = await apiFetch<{ ok: true; following: any[] }>(`/api/users/${userId}/following`);
+      setCurrentUserFollowing(res.following || []);
+    } catch (e) {
+      console.error("Failed to load current user following", e);
     }
   }
 
@@ -507,13 +526,19 @@ export default function UserProfilePage() {
 
             <div className="flex gap-4 mt-3 text-sm">
               <button
-                onClick={() => setActiveTab("following")}
+                onClick={() => {
+                  setActiveTab("following");
+                  setSearchQuery("");
+                }}
                 className="hover:underline"
               >
                 <span className="font-semibold text-white">{profile.followingCount}</span> <span className="text-gray-400">{t('profile.following')}</span>
               </button>
               <button
-                onClick={() => setActiveTab("followers")}
+                onClick={() => {
+                  setActiveTab("followers");
+                  setSearchQuery("");
+                }}
                 className="hover:underline"
               >
                 <span className="font-semibold text-white">{profile.followerCount}</span> <span className="text-gray-400">{t('profile.followers')}</span>
@@ -947,65 +972,149 @@ export default function UserProfilePage() {
   }
 
   function renderFollowers() {
+    const filtered = followers.filter(
+      (f) =>
+        f.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (f.displayName && f.displayName.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    // Sort: mutual followers first if viewing other's followers
+    let sorted = filtered;
+    if (!isOwnProfile && currentUserFollowing.length > 0) {
+      const mutualIds = new Set(currentUserFollowing.map((u) => u._id));
+      sorted = filtered.sort((a, b) => {
+        const aIsMutual = mutualIds.has(a._id);
+        const bIsMutual = mutualIds.has(b._id);
+        return aIsMutual === bIsMutual ? 0 : aIsMutual ? -1 : 1;
+      });
+    }
+
     return (
-      <div className="grid gap-3">
-        {followers.length === 0 && <p className="text-gray-400">{t('profile.noFollowersYet')}</p>}
-        {followers.map((follower) => (
-          <Link
-            key={follower._id}
-            to={`/users/${follower._id}`}
-            className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
-          >
-            {follower.avatarUrl ? (
-              <img
-                src={follower.avatarUrl}
-                alt={follower.username}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold">
-                {follower.username[0].toUpperCase()}
-              </div>
-            )}
-            <div>
-              <p className="font-semibold text-white">
-                {follower.displayName || follower.username}
-              </p>
-              <p className="text-sm text-gray-400">@{follower.username}</p>
-            </div>
-          </Link>
-        ))}
+      <div>
+        {/* Search Bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder={t('profile.searchFollowers')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div className="grid gap-3">
+          {sorted.length === 0 && <p className="text-gray-400">{searchQuery ? t('profile.noFollowersFound') : t('profile.noFollowersYet')}</p>}
+          {sorted.map((follower) => {
+            const isMutual =
+              !isOwnProfile &&
+              currentUserFollowing.some((u) => u._id === follower._id);
+            return (
+              <Link
+                key={follower._id}
+                to={`/users/${follower._id}`}
+                className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
+              >
+                {follower.avatarUrl ? (
+                  <img
+                    src={follower.avatarUrl}
+                    alt={follower.username}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold">
+                    {follower.username[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-white">
+                      {follower.displayName || follower.username}
+                    </p>
+                    {isMutual && (
+                      <span className="text-xs bg-blue-900/30 border border-blue-600 text-blue-300 px-2 py-0.5 rounded">
+                        {t('profile.mutualFollowing')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-400">@{follower.username}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     );
   }
 
   function renderFollowing() {
+    const filtered = followingUsers.filter(
+      (u) =>
+        u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.displayName && u.displayName.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    // Sort: mutual following first if viewing other's following
+    let sorted = filtered;
+    if (!isOwnProfile && currentUserFollowing.length > 0) {
+      const mutualIds = new Set(currentUserFollowing.map((u) => u._id));
+      sorted = filtered.sort((a, b) => {
+        const aIsMutual = mutualIds.has(a._id);
+        const bIsMutual = mutualIds.has(b._id);
+        return aIsMutual === bIsMutual ? 0 : aIsMutual ? -1 : 1;
+      });
+    }
+
     return (
-      <div className="grid gap-3">
-        {followingUsers.length === 0 && <p className="text-gray-400">{t('profile.notFollowingAnyoneYet')}</p>}
-        {followingUsers.map((user) => (
-          <Link
-            key={user._id}
-            to={`/users/${user._id}`}
-            className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
-          >
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.username}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold">
-                {user.username[0].toUpperCase()}
-              </div>
-            )}
-            <div>
-              <p className="font-semibold text-white">{user.displayName || user.username}</p>
-              <p className="text-sm text-gray-400">@{user.username}</p>
-            </div>
-          </Link>
-        ))}
+      <div>
+        {/* Search Bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder={t('profile.searchFollowing')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div className="grid gap-3">
+          {sorted.length === 0 && <p className="text-gray-400">{searchQuery ? t('profile.noFollowingFound') : t('profile.notFollowingAnyoneYet')}</p>}
+          {sorted.map((user) => {
+            const isMutual =
+              !isOwnProfile &&
+              currentUserFollowing.some((u) => u._id === user._id);
+            return (
+              <Link
+                key={user._id}
+                to={`/users/${user._id}`}
+                className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
+              >
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.username}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold">
+                    {user.username[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-white">{user.displayName || user.username}</p>
+                    {isMutual && (
+                      <span className="text-xs bg-blue-900/30 border border-blue-600 text-blue-300 px-2 py-0.5 rounded">
+                        {t('profile.mutualFollowing')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-400">@{user.username}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     );
   }
