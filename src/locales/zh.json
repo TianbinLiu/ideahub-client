@@ -374,6 +374,8 @@
     "noFollowersFound": "未找到粉丝",
     "noFollowingFound": "未找到关注",
     "mutualFollowing": "共同关注",
+    "searchUsers": "按用户名搜索用户...",
+    "noUsersFound": "未找到用户",
     "visibilityPrivateLocal": "可见性：私密（本地）",
     "local": "本地",
     "server": "服务器",

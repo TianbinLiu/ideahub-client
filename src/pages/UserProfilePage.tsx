@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
+import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -96,6 +96,11 @@ export default function UserProfilePage() {
   // Search and mutual following
   const [searchQuery, setSearchQuery] = useState("");
   const [currentUserFollowing, setCurrentUserFollowing] = useState<any[]>([]);
+  
+  // Global user search
+  const [searchUsersQuery, setSearchUsersQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -212,6 +217,25 @@ export default function UserProfilePage() {
       setCurrentUserFollowing(res.following || []);
     } catch (e) {
       console.error("Failed to load current user following", e);
+    }
+  }
+
+  async function handleSearchUsers(query: string) {
+    setSearchUsersQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const res = await searchUsers(query, 10);
+      setSearchResults(res.users || []);
+    } catch (e) {
+      console.error("Failed to search users", e);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
   }
 
@@ -458,6 +482,63 @@ export default function UserProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
+      {/* Global User Search */}
+      <div className="mb-6 relative">
+        <input
+          type="text"
+          placeholder={t('profile.searchUsers')}
+          value={searchUsersQuery}
+          onChange={(e) => handleSearchUsers(e.target.value)}
+          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+        />
+        {isSearching && (
+          <div className="absolute right-3 top-2.5 text-gray-400 text-sm">{t('common.loading')}</div>
+        )}
+
+        {/* Search Results Dropdown */}
+        {searchUsersQuery.trim() && searchResults.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-40">
+            <div className="max-h-96 overflow-y-auto p-2">
+              {searchResults.map((user) => (
+                <Link
+                  key={user._id}
+                  to={`/users/${user._id}`}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 transition-colors"
+                  onClick={() => {
+                    setSearchUsersQuery("");
+                    setSearchResults([]);
+                  }}
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.username}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
+                      {user.username[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-white font-semibold">{user.displayName || user.username}</p>
+                    <p className="text-xs text-gray-400">@{user.username}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {searchUsersQuery.trim() && searchResults.length === 0 && !isSearching && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-40">
+            <div className="p-4 text-center text-gray-400 text-sm">
+              {t('profile.noUsersFound')}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Profile Header */}
       <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
         <div className="flex items-start gap-6 relative">

@@ -376,6 +376,8 @@
     "noFollowersFound": "No followers found",
     "noFollowingFound": "No following found",
     "mutualFollowing": "Mutual following",
+    "searchUsers": "Search users by username...",
+    "noUsersFound": "No users found",
     "visibilityPrivateLocal": "visibility: private (local)",
     "local": "Local",
     "server": "Server",
