@@ -441,6 +441,7 @@
     "requestFrom": "来自 {{name}} 的请求",
     "accept": "接受",
     "reject": "拒绝",
+    "rejectMessagePlaceholder": "添加拒绝理由（可选）...",
     "accepted": "已接受",
     "rejected": "已拒绝",
     "acceptedRequest": "你已接受这个请求",

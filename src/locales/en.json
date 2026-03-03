@@ -445,6 +445,7 @@
     "requestFrom": "Request from {{name}}",
     "accept": "Accept",
     "reject": "Reject",
+    "rejectMessagePlaceholder": "Add a message with your rejection (optional)...",
     "accepted": "Accepted",
     "rejected": "Rejected",
     "acceptedRequest": "You accepted this request",

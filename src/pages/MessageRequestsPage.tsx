@@ -21,6 +21,7 @@ type MessageRequest = {
   };
   toUserId: string;
   initialMessage: string;
+  responseMessage?: string;
   status: "pending" | "accepted" | "rejected";
   viewedAt?: string;
   respondedAt?: string;
@@ -35,6 +36,8 @@ export default function MessageRequestsPage() {
   const [loading, setLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectWithMessage, setRejectWithMessage] = useState<{ [key: string]: string }>({});
+  const [showRejectInput, setShowRejectInput] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (currentUser) {
@@ -88,8 +91,19 @@ export default function MessageRequestsPage() {
   async function handleReject(requestId: string) {
     setActionLoading(requestId);
     try {
-      await rejectMessageRequest(requestId);
+      const message = rejectWithMessage[requestId] || "";
+      await rejectMessageRequest(requestId, message);
       toast.success(t("messages.rejectedRequest"));
+      setRejectWithMessage((prev) => {
+        const newState = { ...prev };
+        delete newState[requestId];
+        return newState;
+      });
+      setShowRejectInput((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
       await loadRequests();
       window.dispatchEvent(new Event("notificationsUpdated"));
     } catch (e: any) {
@@ -171,6 +185,27 @@ export default function MessageRequestsPage() {
                           )}
                         </div>
 
+                        {showRejectInput.has(req._id) && (
+                          <div className="mb-4">
+                            <textarea
+                              placeholder={t("messages.rejectMessagePlaceholder")}
+                              value={rejectWithMessage[req._id] || ""}
+                              onChange={(e) =>
+                                setRejectWithMessage((prev) => ({
+                                  ...prev,
+                                  [req._id]: e.target.value,
+                                }))
+                              }
+                              maxLength={500}
+                              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-red-500 resize-none text-sm"
+                              rows={3}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              {(rejectWithMessage[req._id] || "").length}/500
+                            </p>
+                          </div>
+                        )}
+
                         <div className="flex gap-3">
                           {!isViewed && !isExpanded ? (
                             <button onClick={() => handleViewMessage(req._id)} className="flex-1 rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 font-semibold text-sm">
@@ -187,11 +222,21 @@ export default function MessageRequestsPage() {
                           </button>
 
                           <button
-                            onClick={() => handleReject(req._id)}
+                            onClick={() => {
+                              if (!showRejectInput.has(req._id)) {
+                                setShowRejectInput((prev) => new Set([...prev, req._id]));
+                              } else {
+                                handleReject(req._id);
+                              }
+                            }}
                             disabled={actionLoading === req._id}
                             className="flex-1 rounded-lg bg-red-600 text-white px-4 py-2 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed font-semibold text-sm"
                           >
-                            {actionLoading === req._id ? t("common.loading") : t("messages.reject")}
+                            {actionLoading === req._id
+                              ? t("common.loading")
+                              : showRejectInput.has(req._id)
+                              ? t("messages.send")
+                              : t("messages.reject")}
                           </button>
                         </div>
                       </div>
@@ -225,6 +270,9 @@ export default function MessageRequestsPage() {
                           <p className="text-sm text-gray-500">
                             {req.status === "accepted" ? t("messages.youAcceptedThis") : t("messages.youRejectedThis")}
                           </p>
+                          {req.status === "rejected" && req.responseMessage && (
+                            <p className="text-sm text-gray-400 mt-1 italic">"{req.responseMessage}"</p>
+                          )}
                         </div>
                       </div>
 

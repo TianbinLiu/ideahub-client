@@ -144,9 +144,10 @@ export function acceptMessageRequest(requestId: string) {
   );
 }
 
-export function rejectMessageRequest(requestId: string) {
+export function rejectMessageRequest(requestId: string, responseMessage?: string) {
   return apiFetch<{ ok: true }>(`/api/messages/request/${requestId}/reject`, {
     method: "PATCH",
+    body: JSON.stringify({ responseMessage: responseMessage || "" }),
   });
 }
 
