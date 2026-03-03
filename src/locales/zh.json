@@ -475,6 +475,8 @@
     "unblockedUser": "已移出黑名单",
     "blockDm": "拉黑私信",
     "unblockDm": "移出黑名单",
+    "requestRejectedCannotMessage": "您的私信申请已被拒绝，无法向该用户发送消息。",
+    "requestPendingCannotMessage": "您的私信申请待处理中，请等待用户接受后再发送消息。",
     "blacklistManage": "黑名单管理",
     "blacklistEmpty": "当前没有黑名单成员。",
     "conversationDeleted": "对话已删除",

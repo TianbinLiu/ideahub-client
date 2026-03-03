@@ -479,6 +479,8 @@
     "unblockedUser": "User removed from blacklist",
     "blockDm": "Block DM",
     "unblockDm": "Remove from blacklist",
+    "requestRejectedCannotMessage": "Your message request was rejected. You cannot send messages to this user.",
+    "requestPendingCannotMessage": "Your message request is pending. Wait for the user to accept before sending messages.",
     "blacklistManage": "Blacklist Management",
     "blacklistEmpty": "No blacklisted users.",
     "conversationDeleted": "Conversation deleted",

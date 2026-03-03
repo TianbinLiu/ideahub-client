@@ -32,6 +32,8 @@ type Conversation = {
     createdAt: string;
   };
   unreadCount: number;
+  requestStatus?: "pending" | "accepted" | "rejected" | null;
+  isRequestInitiator?: boolean;
 };
 
 type DirectMessage = {
@@ -372,28 +374,38 @@ export default function NotificationsPage() {
                     </div>
 
                     <div className="border-t border-gray-800 p-3">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={messageInput}
-                          onChange={(e) => setMessageInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleSendMessage();
-                            }
-                          }}
-                          placeholder={t("messages.typeMessage")}
-                          className="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-                        />
-                        <button
-                          onClick={handleSendMessage}
-                          disabled={sendingMessage || !messageInput.trim()}
-                          className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed"
-                        >
-                          {sendingMessage ? t("common.loading") : t("messages.send")}
-                        </button>
-                      </div>
+                      {selectedConversation.requestStatus === "rejected" && selectedConversation.isRequestInitiator ? (
+                        <div className="text-sm text-red-400 text-center py-2">
+                          {t("messages.requestRejectedCannotMessage")}
+                        </div>
+                      ) : selectedConversation.requestStatus === "pending" && selectedConversation.isRequestInitiator ? (
+                        <div className="text-sm text-yellow-400 text-center py-2">
+                          {t("messages.requestPendingCannotMessage")}
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={messageInput}
+                            onChange={(e) => setMessageInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                            placeholder={t("messages.typeMessage")}
+                            className="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                          />
+                          <button
+                            onClick={handleSendMessage}
+                            disabled={sendingMessage || !messageInput.trim()}
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed"
+                          >
+                            {sendingMessage ? t("common.loading") : t("messages.send")}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
