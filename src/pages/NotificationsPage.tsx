@@ -117,6 +117,10 @@ export default function NotificationsPage() {
         return t("notifications.likeComment", { actor, title });
       case "LIKE_POST":
         return t("notifications.likePost", { actor, title: n.payload?.postTitle || t("notifications.postUnknown") });
+      case "MESSAGE_REQUEST_ACCEPTED":
+        return t("notifications.messageRequestAccepted", { actor });
+      case "MESSAGE_REQUEST_REJECTED":
+        return t("notifications.messageRequestRejected", { actor });
       default:
         return t("notifications.typeFallback", { actor, type: n.type });
     }

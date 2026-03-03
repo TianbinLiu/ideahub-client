@@ -32,7 +32,8 @@ export default function MessageRequestsPage() {
   const { user: currentUser } = useAuth();
   const { t } = useTranslation();
 
-  const [requests, setRequests] = useState<MessageRequest[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<MessageRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<MessageRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -52,7 +53,8 @@ export default function MessageRequestsPage() {
     setLoading(true);
     try {
       const res = await listMessageRequests();
-      setRequests(res.requests || []);
+      setReceivedRequests(res.receivedRequests || []);
+      setSentRequests(res.sentRequests || []);
     } catch (e: any) {
       console.error("[MessageRequestsPage] Error loading requests:", e);
       if (e.message && !e.message.includes("fetch")) {
@@ -125,25 +127,27 @@ export default function MessageRequestsPage() {
     rejected: t("messages.statusRejected"),
   };
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
-  const respondedRequests = requests.filter((r) => r.status !== "pending");
+  const pendingReceivedRequests = receivedRequests.filter((r) => r.status === "pending");
+  const respondedReceivedRequests = receivedRequests.filter((r) => r.status !== "pending");
+  const allRequests = [...receivedRequests, ...sentRequests];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">{t("messages.messageRequests")}</h1>
 
-        {loading && requests.length === 0 ? (
+        {loading && allRequests.length === 0 ? (
           <div className="text-center text-gray-400 py-8">{t("common.loading")}</div>
-        ) : requests.length === 0 ? (
+        ) : allRequests.length === 0 ? (
           <div className="text-center text-gray-400 py-8">{t("messages.noRequests")}</div>
         ) : (
           <div className="space-y-6">
-            {pendingRequests.length > 0 && (
+            {/* RECEIVED REQUESTS SECTION */}
+            {pendingReceivedRequests.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4 text-white">{t("messages.pendingRequests")}</h2>
                 <div className="space-y-4">
-                  {pendingRequests.map((req) => {
+                  {pendingReceivedRequests.map((req) => {
                     const isExpanded = expandedIds.has(req._id);
                     const isViewed = !!req.viewedAt;
 
@@ -246,11 +250,11 @@ export default function MessageRequestsPage() {
               </div>
             )}
 
-            {respondedRequests.length > 0 && (
+            {respondedReceivedRequests.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4 text-gray-400">{t("messages.respondedRequests")}</h2>
                 <div className="space-y-3">
-                  {respondedRequests.map((req) => (
+                  {respondedReceivedRequests.map((req) => (
                     <div key={req._id} className="border border-gray-700 rounded-lg bg-gray-900/50 p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
                         {req.fromUserId.avatarUrl ? (
@@ -279,6 +283,76 @@ export default function MessageRequestsPage() {
                       <span className={`text-sm font-semibold ml-4 ${statusColor[req.status]}`}>{statusLabel[req.status]}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* SENT REQUESTS SECTION */}
+            {sentRequests.length > 0 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4 text-blue-400">{t("messages.sentMessageRequests")}</h2>
+                <div className="space-y-4">
+                  {sentRequests.map((req) => {
+                    const isExpanded = expandedIds.has(req._id);
+                    const toUser = (req.toUserId as any);
+
+                    return (
+                      <div key={req._id} className={`border rounded-lg p-4 transition-colors ${
+                        req.status === "pending" 
+                          ? "border-gray-700 bg-gray-900 hover:bg-gray-800" 
+                          : "border-gray-700 bg-gray-900/50"
+                      }`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3 flex-1">
+                            {toUser?.avatarUrl ? (
+                              <img src={toUser.avatarUrl} alt={toUser.username} className="w-10 h-10 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold">
+                                {toUser?.username?.[0]?.toUpperCase() || "?"}
+                              </div>
+                            )}
+
+                            <div className="min-w-0 flex-1">
+                              <UserHoverCard userId={toUser?._id} username={toUser?.username || "Unknown"}>
+                                <p className="font-semibold hover:underline cursor-pointer truncate">
+                                  {t("messages.requestTo", { name: toUser?.displayName || toUser?.username || "Unknown" })}
+                                </p>
+                              </UserHoverCard>
+                              <p className="text-sm text-gray-400">
+                                {new Date(req.createdAt).toLocaleDateString()} at{" "}
+                                {new Date(req.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className={`text-sm font-semibold ml-4 ${statusColor[req.status]}`}>{statusLabel[req.status]}</span>
+                        </div>
+
+                        <div className="mb-3">
+                          {!isExpanded ? (
+                            <div className="bg-gray-800 border border-gray-700 rounded p-3 text-gray-300 text-sm max-h-20 overflow-y-auto">
+                              {req.initialMessage}
+                            </div>
+                          ) : (
+                            <div className="bg-gray-800 border border-gray-700 rounded p-3 text-gray-200">{req.initialMessage}</div>
+                          )}
+                        </div>
+
+                        {req.status === "rejected" && req.responseMessage && (
+                          <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded text-sm">
+                            <p className="text-red-300 font-semibold mb-1">{t("messages.rejectionReason")}:</p>
+                            <p className="text-red-200">{req.responseMessage}</p>
+                          </div>
+                        )}
+
+                        {req.status === "pending" && (
+                          <div className="text-xs text-yellow-400">
+                            {t("messages.waitingForResponse")}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

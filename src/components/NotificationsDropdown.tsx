@@ -76,8 +76,8 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         
         // Load unread message requests
         const msgRes = await listMessageRequests("pending");
-        const messageRequests = msgRes.requests || [];
-        const unreadMessageCount = messageRequests.filter(r => !r.viewedAt).length;
+        const messageRequests = [...(msgRes.receivedRequests || []), ...(msgRes.sentRequests || [])];
+        const unreadMessageCount = messageRequests.filter((r: any) => !r.viewedAt).length;
         
         setUnreadByType({
           system: systemCount,

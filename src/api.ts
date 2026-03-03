@@ -49,7 +49,7 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   return json as T;
 }
 
-export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "LIKE_POST";
+export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED";
 
 export type NotificationItem = {
   _id: string;
@@ -128,7 +128,7 @@ export function sendMessageRequest(toUserId: string, initialMessage: string) {
 
 export function listMessageRequests(status?: string) {
   const params = status ? `?status=${status}` : "";
-  return apiFetch<{ ok: true; requests: any[] }>(`/api/messages/request${params}`);
+  return apiFetch<{ ok: true; receivedRequests: any[]; sentRequests: any[] }>(`/api/messages/request${params}`);
 }
 
 export function viewMessageRequest(requestId: string) {
