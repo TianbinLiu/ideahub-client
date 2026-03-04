@@ -16,7 +16,7 @@ import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 
-type TabType = "all" | "system" | "mentions" | "likes" | "messages";
+type TabType = "all" | "system" | "mentions" | "likes" | "replies" | "messages";
 
 type Conversation = {
   conversationId: string;
@@ -75,17 +75,23 @@ export default function NotificationsPage() {
     { key: "system", label: t("notifications.tabSystem") },
     { key: "mentions", label: t("notifications.tabMentions") },
     { key: "likes", label: t("notifications.tabLikes") },
+    { key: "replies", label: t("notifications.tabReplies") },
     { key: "messages", label: t("notifications.myMessages") },
   ];
 
   function filterByTab(item: NotificationItem, tab: TabType): boolean {
     switch (tab) {
       case "system":
-        return ["COMMENT", "BOOKMARK", "INTEREST", "INVITE"].includes(item.type);
+        // 顶级评论（参与系统，但不包括回复）
+        return ["BOOKMARK", "INTEREST", "INVITE"].includes(item.type) || 
+               (item.type === "COMMENT" && !item.payload?.parentCommentId);
       case "mentions":
         return item.type === "MENTION";
       case "likes":
         return ["LIKE", "LIKE_COMMENT", "LIKE_POST"].includes(item.type);
+      case "replies":
+        // 只显示回复通知（COMMENT 类型且有 parentCommentId）
+        return item.type === "COMMENT" && !!item.payload?.parentCommentId;
       case "messages":
         return false;
       case "all":
@@ -104,6 +110,10 @@ export default function NotificationsPage() {
       case "LIKE":
         return t("notifications.like", { actor, title });
       case "COMMENT":
+        // 区分顶级评论和回复
+        if (n.payload?.parentCommentId) {
+          return t("notifications.reply", { actor, title });
+        }
         return t("notifications.comment", { actor, title });
       case "BOOKMARK":
         return t("notifications.bookmark", { actor, title });

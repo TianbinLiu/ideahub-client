@@ -107,19 +107,10 @@ export default function IdeaDetailPage() {
     if (!replyText.trim()) return;
     try {
       setBusy(true);
-      console.log('[submitReply] Submitting reply to parent:', parentCommentId);
-      
-      const res = await apiFetch<{ comment: Comment }>(`/api/ideas/${id}/comments`, {
+      await apiFetch<{ comment: Comment }>(`/api/ideas/${id}/comments`, {
         method: "POST",
         body: JSON.stringify({ content: replyText, parentCommentId }),
       });
-      
-      console.log('[submitReply] Response:', res);
-      
-      if (!res.comment) {
-        throw new Error('No comment returned from server');
-      }
-      
       setReplyText("");
       setReplyingTo(null);
       
@@ -132,18 +123,13 @@ export default function IdeaDetailPage() {
       
       // 立即加载并展开回复列表，这样用户能看到新回复
       try {
-        console.log('[submitReply] Loading replies for:', parentCommentId);
         const repliesRes = await apiFetch<{ replies: Comment[] }>(`/api/ideas/${id}/comments/${parentCommentId}/replies`);
-        console.log('[submitReply] Replies loaded:', repliesRes.replies?.length);
-        
         setReplies((prev) => ({ ...prev, [parentCommentId]: repliesRes.replies || [] }));
         setExpandedReplies((prev) => new Set([...prev, parentCommentId]));
       } catch (e: any) {
-        console.error("[submitReply] Failed to load replies:", e);
-        toast.error("Failed to load replies: " + humanizeError(e));
+        console.error("Failed to load replies after submission:", e);
       }
     } catch (e: any) {
-      console.error("[submitReply] Failed:", e);
       toast.error("Failed to submit reply: " + humanizeError(e));
     } finally {
       setBusy(false);
