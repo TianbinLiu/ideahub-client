@@ -107,24 +107,27 @@ export default function IdeaDetailPage() {
     if (!replyText.trim()) return;
     try {
       setBusy(true);
-      const res = await apiFetch<{ comment: Comment }>(`/api/ideas/${id}/comments`, {
+      await apiFetch<{ comment: Comment }>(`/api/ideas/${id}/comments`, {
         method: "POST",
         body: JSON.stringify({ content: replyText, parentCommentId }),
       });
       setReplyText("");
       setReplyingTo(null);
+      
       // 更新父评论的回复数
       setComments((prev) =>
         prev.map((c) =>
           c._id === parentCommentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c
         )
       );
-      // 如果回复列表已展开，添加新回复
-      if (expandedReplies.has(parentCommentId)) {
-        setReplies((prev) => ({
-          ...prev,
-          [parentCommentId]: [...(prev[parentCommentId] || []), res.comment],
-        }));
+      
+      // 立即加载并展开回复列表，这样用户能看到新回复
+      try {
+        const repliesRes = await apiFetch<{ replies: Comment[] }>(`/api/ideas/${id}/comments/${parentCommentId}/replies`);
+        setReplies((prev) => ({ ...prev, [parentCommentId]: repliesRes.replies || [] }));
+        setExpandedReplies((prev) => new Set([...prev, parentCommentId]));
+      } catch (e: any) {
+        console.error("Failed to load replies after submission:", e);
       }
     } finally {
       setBusy(false);
