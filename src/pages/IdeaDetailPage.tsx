@@ -48,6 +48,8 @@ type Comment = {
   author?: { _id: string; username: string; role: string };
   likes?: string[];
   likesCount?: number;
+  parentCommentId?: string | null;
+  replyCount?: number;
 };
 export default function IdeaDetailPage() {
   const { t } = useTranslation();
@@ -63,6 +65,10 @@ export default function IdeaDetailPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  const [replies, setReplies] = useState<{ [commentId: string]: Comment[] }>({});
 
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
@@ -94,6 +100,56 @@ export default function IdeaDetailPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submitReply(parentCommentId: string) {
+    if (!replyText.trim()) return;
+    try {
+      setBusy(true);
+      const res = await apiFetch<{ comment: Comment }>(`/api/ideas/${id}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ content: replyText, parentCommentId }),
+      });
+      setReplyText("");
+      setReplyingTo(null);
+      // 更新父评论的回复数
+      setComments((prev) =>
+        prev.map((c) =>
+          c._id === parentCommentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c
+        )
+      );
+      // 如果回复列表已展开，添加新回复
+      if (expandedReplies.has(parentCommentId)) {
+        setReplies((prev) => ({
+          ...prev,
+          [parentCommentId]: [...(prev[parentCommentId] || []), res.comment],
+        }));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadReplies(commentId: string) {
+    try {
+      const res = await apiFetch<{ replies: Comment[] }>(`/api/ideas/${id}/comments/${commentId}/replies`);
+      setReplies((prev) => ({ ...prev, [commentId]: res.replies || [] }));
+      setExpandedReplies((prev) => new Set([...prev, commentId]));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  function toggleReplies(commentId: string) {
+    if (expandedReplies.has(commentId)) {
+      setExpandedReplies((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(commentId);
+        return newSet;
+      });
+    } else {
+      loadReplies(commentId);
     }
   }
 
@@ -555,6 +611,10 @@ export default function IdeaDetailPage() {
               {comments.length === 0 && <p className="text-gray-400 text-sm">{t('comment.empty')}</p>}
               {comments.map((c) => {
                 const isCommentLiked = c.likes?.includes(userId);
+                const hasReplies = (c.replyCount || 0) > 0;
+                const isExpanded = expandedReplies.has(c._id);
+                const commentReplies = replies[c._id] || [];
+                
                 return (
                   <div key={c._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
                     <div className="flex items-center justify-between text-xs text-gray-400">
@@ -570,17 +630,111 @@ export default function IdeaDetailPage() {
                       <span>{new Date(c.createdAt).toLocaleString()}</span>
                     </div>
                     <p className="text-gray-200 mt-2 whitespace-pre-wrap">{c.content}</p>
-                    {user && (
-                      <button
-                        onClick={() => toggleCommentLike(c._id)}
-                        className={`mt-2 text-xs px-2 py-1 rounded border ${
-                          isCommentLiked
-                            ? "border-white text-white"
-                            : "border-gray-700 text-gray-400 hover:text-gray-200"
-                        }`}
-                      >
-                        {isCommentLiked ? "❤️" : "🤍"} {c.likesCount || 0}
-                      </button>
+                    
+                    <div className="flex items-center gap-2 mt-2">
+                      {user && (
+                        <>
+                          <button
+                            onClick={() => toggleCommentLike(c._id)}
+                            className={`text-xs px-2 py-1 rounded border ${
+                              isCommentLiked
+                                ? "border-white text-white"
+                                : "border-gray-700 text-gray-400 hover:text-gray-200"
+                            }`}
+                          >
+                            {isCommentLiked ? "❤️" : "🤍"} {c.likesCount || 0}
+                          </button>
+                          
+                          <button
+                            onClick={() => setReplyingTo(replyingTo === c._id ? null : c._id)}
+                            className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 hover:text-gray-200"
+                          >
+                            💬 {t('comment.reply')}
+                          </button>
+                        </>
+                      )}
+                      
+                      {hasReplies && (
+                        <button
+                          onClick={() => toggleReplies(c._id)}
+                          className="text-xs px-2 py-1 text-blue-400 hover:text-blue-300"
+                        >
+                          {isExpanded ? '▼' : '▶'} {c.replyCount} {t('comment.replies')}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 回复输入框 */}
+                    {replyingTo === c._id && (
+                      <div className="mt-3 pl-4 border-l-2 border-gray-700">
+                        <textarea
+                          className="w-full rounded-lg bg-gray-800 border border-gray-700 p-2 text-sm text-white resize-none"
+                          rows={2}
+                          placeholder={t('comment.replyPlaceholder')}
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          maxLength={LIMITS.COMMENT}
+                        />
+                        <div className="flex justify-between items-center mt-1">
+                          <CharCount current={replyText.length} max={LIMITS.COMMENT} className="" />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setReplyingTo(null);
+                                setReplyText("");
+                              }}
+                              className="text-xs px-3 py-1 rounded border border-gray-700 text-gray-400 hover:text-gray-200"
+                            >
+                              {t('common.cancel')}
+                            </button>
+                            <button
+                              onClick={() => submitReply(c._id)}
+                              disabled={busy || !replyText.trim()}
+                              className="text-xs px-3 py-1 rounded bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700"
+                            >
+                              {busy ? t('comment.posting') : t('comment.submit')}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 回复列表 */}
+                    {isExpanded && commentReplies.length > 0 && (
+                      <div className="mt-3 pl-4 space-y-2 border-l-2 border-gray-700">
+                        {commentReplies.map((reply) => {
+                          const isReplyLiked = reply.likes?.includes(userId);
+                          return (
+                            <div key={reply._id} className="rounded-lg bg-gray-800 p-2">
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>
+                                  {reply.author?._id ? (
+                                    <UserHoverCard userId={reply.author._id} username={reply.author.username}>
+                                      <span className="text-white">{reply.author.username}</span>
+                                    </UserHoverCard>
+                                  ) : (
+                                    <span>{t('home.unknownAuthor')}</span>
+                                  )}
+                                </span>
+                                <span>{new Date(reply.createdAt).toLocaleString()}</span>
+                              </div>
+                              <p className="text-gray-200 mt-1 text-sm whitespace-pre-wrap">{reply.content}</p>
+                              {user && (
+                                <button
+                                  onClick={() => toggleCommentLike(reply._id)}
+                                  className={`mt-1 text-xs px-2 py-0.5 rounded border ${
+                                    isReplyLiked
+                                      ? "border-white text-white"
+                                      : "border-gray-700 text-gray-400 hover:text-gray-200"
+                                  }`}
+                                >
+                                  {isReplyLiked ? "❤️" : "🤍"} {reply.likesCount || 0}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 );

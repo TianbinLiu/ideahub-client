@@ -158,7 +158,10 @@
     "placeholder": "Write a comment...",
     "submit": "Post Comment",
     "posting": "Posting...",
-    "empty": "No comments yet. Be the first to comment!"
+    "empty": "No comments yet. Be the first to comment!",
+    "reply": "Reply",
+    "replies": "replies",
+    "replyPlaceholder": "Write a reply..."
   },
   "aiReview": {
     "title": "AI Review",

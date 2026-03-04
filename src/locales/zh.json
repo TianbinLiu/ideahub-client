@@ -156,7 +156,10 @@
     "placeholder": "写评论...",
     "submit": "发表评论",
     "posting": "发表中...",
-    "empty": "还没有评论。快来抢沙发！"
+    "empty": "还没有评论。快来抢沙发！",
+    "reply": "回复",
+    "replies": "条回复",
+    "replyPlaceholder": "写回复..."
   },
   "aiReview": {
     "title": "AI 评估",
