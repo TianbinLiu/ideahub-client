@@ -48,7 +48,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   const { t } = useTranslation();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; likes: number; messages: number }>({ system: 0, mentions: 0, likes: 0, messages: 0 });
+  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; likes: number; replies: number; messages: number }>({ system: 0, mentions: 0, likes: 0, replies: 0, messages: 0 });
   const timeoutRef = useRef<number | null>(null);
 
   // Cleanup timeout on unmount
@@ -66,11 +66,21 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         const res = await listNotifications({ unread: 1, limit: 100 });
         const items = res.items || [];
         
-        const systemTypes = ["COMMENT", "BOOKMARK", "INTEREST", "INVITE"];
         const mentionTypes = ["MENTION"];
         const likeTypes = ["LIKE", "LIKE_COMMENT", "LIKE_POST"];
         
-        const systemCount = items.filter(n => systemTypes.includes(n.type)).length;
+        // 区分 system 和 replies：
+        // - system: 顶级评论（COMMENT 且无 parentCommentId）+ BOOKMARK + INTEREST + INVITE
+        // - replies: 回复（COMMENT 且有 parentCommentId）
+        const systemCount = items.filter(n => 
+          ["BOOKMARK", "INTEREST", "INVITE"].includes(n.type) ||
+          (n.type === "COMMENT" && !n.payload?.parentCommentId)
+        ).length;
+        
+        const repliesCount = items.filter(n => 
+          n.type === "COMMENT" && n.payload?.parentCommentId
+        ).length;
+        
         const mentionsCount = items.filter(n => mentionTypes.includes(n.type)).length;
         const likesCount = items.filter(n => likeTypes.includes(n.type)).length;
         
@@ -83,6 +93,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
           system: systemCount,
           mentions: mentionsCount,
           likes: likesCount,
+          replies: repliesCount,
           messages: unreadMessageCount,
         });
       } catch (e) {
@@ -119,6 +130,12 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
       label: t("notifications.mentions"),
       path: "/notifications?tab=mentions",
       unread: unreadByType.mentions,
+    },
+    {
+      key: "replies",
+      label: t("notifications.tabReplies"),
+      path: "/notifications?tab=replies",
+      unread: unreadByType.replies,
     },
     {
       key: "likes",
