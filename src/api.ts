@@ -197,4 +197,11 @@ export function sendDirectMessage(conversationId: string, toUserId: string, cont
   );
 }
 
+// User Account Management
+export function deleteAccount(userId: string) {
+  return apiFetch<{ ok: true; message: string }>(`/api/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
 

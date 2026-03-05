@@ -396,7 +396,14 @@
     "idea": "想法",
     "ideaUnknown": "想法：未知",
     "company": "公司",
-    "userNotFound": "未找到用户"
+    "userNotFound": "未找到用户",
+    "deleteAccount": "删除账号",
+    "deleteAccountConfirm": "确认删除你的账号吗？",
+    "deleteAccountWarning": "此操作不可撤销。你的所有数据、想法、评论和账户信息将被永久删除。",
+    "deleteAccountButton": "永久删除",
+    "accountDeleted": "账号已成功删除。正在重定向到登录页面...",
+    "userDeletedOrNotFound": "无法访问此用户。账号可能已被删除或不存在。",
+    "loadProfileError": "加载用户信息失败。请稍后重试。"
   },  "company": {
     "interest": "公司兴趣",
     "interestDescription": "将此想法标记为感兴趣并给创作者留言。",

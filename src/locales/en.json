@@ -398,7 +398,14 @@
     "idea": "Idea",
     "ideaUnknown": "Idea: unknown",
     "company": "Company",
-    "userNotFound": "User not found"
+    "userNotFound": "User not found",
+    "deleteAccount": "Delete Account",
+    "deleteAccountConfirm": "Are you sure you want to delete your account?",
+    "deleteAccountWarning": "This action is irreversible. All your data, ideas, comments, and account information will be permanently deleted.",
+    "deleteAccountButton": "Delete Permanently",
+    "accountDeleted": "Your account has been deleted successfully. Redirecting to login...",
+    "userDeletedOrNotFound": "Unable to access this user. The account may have been deleted or does not exist.",
+    "loadProfileError": "Failed to load user profile. Please try again later."
   },
   "company": {
     "interest": "Company Interest",

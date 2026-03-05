@@ -30,6 +30,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [following, setFollowing] = useState(false);
   const [reputation, setReputation] = useState<ReputationStats | null>(null);
   const [myVote, setMyVote] = useState<1 | -1 | null>(null);
@@ -52,6 +53,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   async function loadProfile() {
     if (profile || loading) return;
     setLoading(true);
+    setError(null);
     try {
       const [profileRes, reputationRes] = await Promise.all([
         apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${userId}`),
@@ -69,8 +71,13 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
         const blockRes = await getDmBlockStatus(userId).catch(() => ({ blocked: false } as any));
         setDmBlocked(!!(blockRes as any).blocked);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to load profile", e);
+      if ((e as any).code === 'USER_NOT_FOUND') {
+        setError(t('profile.userDeletedOrNotFound'));
+      } else {
+        setError(t('profile.loadProfileError'));
+      }
     } finally {
       setLoading(false);
     }
@@ -221,6 +228,12 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           onClick={(e) => e.stopPropagation()}
         >
           {loading && <p className="text-gray-400 text-sm">{t('common.loading')}</p>}
+
+          {!loading && error && (
+            <div className="text-center py-4">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
 
           {!loading && profile && (
             <div className="space-y-3">

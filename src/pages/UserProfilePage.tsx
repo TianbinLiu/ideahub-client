@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { apiFetch, blockDmUser, deleteAccount, getDmBlockStatus, getUserReputation, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { CharCount } from "../components/CharCount";
 import { listLocalIdeas } from "../utils/localIdeas";
+import { clearToken } from "../auth";
 
 const LIMITS = {
   DISPLAY_NAME: 50,
@@ -66,7 +67,8 @@ type TabType = "ideas" | "bookmarks" | "likes" | "leaderboards" | "followers" | 
 export default function UserProfilePage() {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
-    const { t } = useTranslation();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
@@ -107,6 +109,8 @@ export default function UserProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,7 +163,14 @@ export default function UserProfilePage() {
         setDmBlocked(!!(blockRes as any).blocked);
       }
     } catch (e: any) {
-      toast.error(humanizeError(e));
+      // Set profile to null to show the "user not found" message
+      setProfile(null);
+      // Show error toast for better feedback
+      if ((e as any).code === 'USER_NOT_FOUND') {
+        toast.error(t('profile.userDeletedOrNotFound'));
+      } else {
+        toast.error(humanizeError(e));
+      }
     } finally {
       setLoading(false);
     }
@@ -447,6 +458,24 @@ export default function UserProfilePage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await deleteAccount(id!);
+      toast.success(t('profile.accountDeleted'));
+      // Clear token and redirect to login
+      clearToken();
+      setTimeout(() => {
+        navigate('/login');
+      }, 1000);
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-4">
@@ -640,7 +669,7 @@ export default function UserProfilePage() {
               </div>
             )}
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex gap-2 flex-wrap">
               {isOwnProfile ? (
                 <>
                   <button
@@ -655,6 +684,12 @@ export default function UserProfilePage() {
                   >
                     {t('messages.blacklistManage')}
                   </Link>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="rounded-lg border border-red-600 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/20"
+                  >
+                    {t('profile.deleteAccount')}
+                  </button>
                 </>
               ) : currentUser ? (
                 <>
@@ -838,6 +873,46 @@ export default function UserProfilePage() {
                 className="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed"
               >
                 {sendingDM ? t('common.sending') : t('messages.sendMessage')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-gray-900 border border-red-700 rounded-xl p-6 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {t('profile.deleteAccountConfirm')}
+            </h3>
+            
+            <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 mb-6">
+              <p className="text-red-300 text-sm">
+                {t('profile.deleteAccountWarning')}
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="rounded-lg px-4 py-2 border border-gray-600 text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="rounded-lg px-4 py-2 bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed"
+              >
+                {deleting ? t('common.loading') : t('profile.deleteAccountButton')}
               </button>
             </div>
           </div>
