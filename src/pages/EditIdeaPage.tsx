@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
+import type { ExternalSource } from "../api";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
 import { CharCount } from "../components/CharCount";
+import { PLATFORMS, detectPlatformFromUrl, getPlatformByName } from "../utils/platformConfig";
 
 const LIMITS = {
   TITLE: 150,
@@ -24,6 +26,12 @@ type Idea = {
   isMonetizable: boolean;
   licenseType: string;
   author?: { _id: string; username: string; role: string };
+  externalSource?: {
+    platform?: string;
+    url?: string;
+    originalAuthor?: string;
+    sourceCreatedAt?: string;
+  };
 };
 
 export default function EditIdeaPage() {
@@ -48,6 +56,12 @@ export default function EditIdeaPage() {
   const [isMonetizable, setIsMonetizable] = useState(false);
   const [licenseType, setLicenseType] = useState("default");
 
+  // External source fields
+  const [isFromExternal, setIsFromExternal] = useState(false);
+  const [externalPlatform, setExternalPlatform] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [externalOriginalAuthor, setExternalOriginalAuthor] = useState("");
+
   const canEdit = useMemo(() => {
     if (!idea || !userId) return false;
     const isOwner = !!idea.author?._id && idea.author._id === userId;
@@ -70,6 +84,14 @@ export default function EditIdeaPage() {
       setVisibility((i.visibility as any) || "public");
       setIsMonetizable(!!i.isMonetizable);
       setLicenseType(i.licenseType || "default");
+
+      // init external source values
+      if (i.externalSource?.platform) {
+        setIsFromExternal(true);
+        setExternalPlatform(i.externalSource.platform || "");
+        setExternalUrl(i.externalSource.url || "");
+        setExternalOriginalAuthor(i.externalSource.originalAuthor || "");
+      }
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -82,6 +104,28 @@ export default function EditIdeaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  function isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Auto-detect platform from URL
+  function handleUrlChange(url: string) {
+    setExternalUrl(url);
+    
+    if (url && isValidUrl(url)) {
+      const detected = detectPlatformFromUrl(url);
+      if (detected && !externalPlatform) {
+        setExternalPlatform(detected.name);
+        toast.success(t('idea.platformDetected', { platform: detected.name }));
+      }
+    }
+  }
+
   async function onSave() {
     if (!id) return;
     if (!title.trim()) {
@@ -93,8 +137,33 @@ export default function EditIdeaPage() {
       return;
     }
 
+    // Validate external source if enabled
+    if (isFromExternal) {
+      if (!externalPlatform.trim()) {
+        toast.error(t('idea.externalSourcePlatformRequired'));
+        return;
+      }
+      if (!externalUrl.trim()) {
+        toast.error(t('idea.externalSourceUrlRequired'));
+        return;
+      }
+      if (!isValidUrl(externalUrl)) {
+        toast.error(t('idea.externalSourceUrlInvalid'));
+        return;
+      }
+    }
+
     setSaving(true);
     try {
+      // Build externalSource object if enabled
+      const externalSource: ExternalSource | undefined = isFromExternal
+        ? {
+            platform: externalPlatform.trim(),
+            url: externalUrl.trim(),
+            originalAuthor: externalOriginalAuthor.trim() || undefined,
+          }
+        : undefined;
+
       await apiFetch(`/api/ideas/${id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -105,6 +174,7 @@ export default function EditIdeaPage() {
           visibility,
           isMonetizable,
           licenseType,
+          externalSource,
         }),
       });
 
@@ -227,6 +297,66 @@ export default function EditIdeaPage() {
                 {t('idea.monetizable')}
               </label>
             </div>
+
+            <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
+              <input
+                type="checkbox"
+                checked={isFromExternal}
+                onChange={(e) => setIsFromExternal(e.target.checked)}
+                disabled={!canEdit || saving}
+              />
+              {t('idea.fromExternalSource')}
+            </label>
+
+            {isFromExternal && (
+              <div className="bg-purple-900/20 border border-purple-800 rounded-xl p-4 grid gap-3">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">
+                    {t('idea.externalSourceUrl')} *
+                  </label>
+                  <input
+                    type="url"
+                    className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
+                    placeholder={getPlatformByName(externalPlatform)?.placeholder || t('idea.externalSourceUrlPlaceholder')}
+                    value={externalUrl}
+                    onChange={(e) => handleUrlChange(e.target.value)}
+                    disabled={!canEdit || saving}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourceUrlHint')}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">{t('idea.externalSourcePlatform')} *</label>
+                  <select
+                    className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
+                    value={externalPlatform}
+                    onChange={(e) => setExternalPlatform(e.target.value)}
+                    disabled={!canEdit || saving}
+                  >
+                    <option value="">{t('idea.selectPlatform')}</option>
+                    {PLATFORMS.map((platform) => (
+                      <option key={platform.name} value={platform.name}>
+                        {platform.icon} {platform.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourcePlatformHint')}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">{t('idea.externalSourceAuthor')}</label>
+                  <input
+                    type="text"
+                    className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
+                    placeholder={t('idea.externalSourceAuthorPlaceholder')}
+                    value={externalOriginalAuthor}
+                    onChange={(e) => setExternalOriginalAuthor(e.target.value)}
+                    disabled={!canEdit || saving}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourceAuthorHint')}</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 mt-2">
               <button

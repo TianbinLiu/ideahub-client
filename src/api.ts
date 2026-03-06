@@ -204,4 +204,48 @@ export function deleteAccount(userId: string) {
   });
 }
 
+// Ideas API - Type definitions
+export type ExternalSource = {
+  platform?: string;      // e.g. "贴吧", "Facebook", "Twitter"
+  url?: string;            // link to original post
+  originalAuthor?: string; // author name from original platform
+  sourceCreatedAt?: string; // when original post was created (ISO date string)
+};
+
+export type IdeaStats = {
+  likeCount?: number;
+  commentCount?: number;
+  bookmarkCount?: number;
+  viewCount?: number;
+};
+
+export type AiReview = {
+  feasibilityScore?: number;
+  profitPotentialScore?: number;
+  analysisText?: string;
+  model?: string;
+  createdAt?: string;
+};
+
+export type Idea = {
+  _id: string;
+  title: string;
+  summary: string;
+  content: string;
+  author?: { _id: string; username: string; role: string };
+  tags?: string[];
+  visibility?: "public" | "private" | "unlisted";
+  isMonetizable?: boolean;
+  licenseType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  stats?: IdeaStats;
+  aiReview?: AiReview;
+  isFeedback?: boolean;
+  feedbackType?: string;
+  feedbackStatus?: string;
+  aiSummary?: string;
+  externalSource?: ExternalSource;
+};
+
 

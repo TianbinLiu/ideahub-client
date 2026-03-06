@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { getPlatformIcon } from "../utils/platformConfig";
 
 type Idea = {
   _id: string;
@@ -47,6 +48,11 @@ type Idea = {
   createdAt: string;
   author?: { username: string; role: string };
   stats?: { likeCount?: number; viewCount?: number };
+  externalSource?: {
+    platform?: string;
+    url?: string;
+    originalAuthor?: string;
+  };
 };
 
 export default function HomePage() {
@@ -337,9 +343,15 @@ export default function HomePage() {
             {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
 
             <div className="flex flex-wrap gap-2 mt-3 text-xs text-gray-400">
-              <span className="px-2 py-1 rounded-full border border-gray-800">
-                {it.author?.username || t('home.unknownAuthor')}
-              </span>
+              {it.externalSource ? (
+                <span className="px-2 py-1 rounded-full border border-purple-700 bg-purple-900/20 text-purple-300">
+                  {getPlatformIcon(it.externalSource.platform)} {it.externalSource.platform}
+                </span>
+              ) : (
+                <span className="px-2 py-1 rounded-full border border-gray-800">
+                  {it.author?.username || t('home.unknownAuthor')}
+                </span>
+              )}
               {(it.tags || []).map((t) => (
                 <span key={t} className="px-2 py-1 rounded-full border border-gray-800">
                   #{t}

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import type { ExternalSource } from "../api";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { saveLocalIdea } from "../utils/localIdeas";
 import { MentionTextarea } from "../components/MentionTextarea";
 import { CharCount } from "../components/CharCount";
+import { PLATFORMS, detectPlatformFromUrl, getPlatformByName } from "../utils/platformConfig";
 
 const LIMITS = {
   TITLE: 150,
@@ -29,13 +31,104 @@ export default function NewIdeaPage() {
   const [requestAI, setRequestAI] = useState(false);
   const [isFeedback, setIsFeedback] = useState(false);
 
+  // External source fields
+  const [isFromExternal, setIsFromExternal] = useState(false);
+  const [externalPlatform, setExternalPlatform] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [externalOriginalAuthor, setExternalOriginalAuthor] = useState("");
+  const [autoFetching, setAutoFetching] = useState(false);
+
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Auto-detect platform from URL
+  function handleUrlChange(url: string) {
+    setExternalUrl(url);
+    
+    if (url && isValidUrl(url)) {
+      const detected = detectPlatformFromUrl(url);
+      if (detected && !externalPlatform) {
+        setExternalPlatform(detected.name);
+        toast.success(t('idea.platformDetected', { platform: detected.name }));
+      }
+    }
+  }
+
+  // Try to auto-fetch title from URL (using backend API)
+  async function tryAutoFetch() {
+    if (!externalUrl || !isValidUrl(externalUrl)) {
+      toast.error(t('idea.externalSourceUrlInvalid'));
+      return;
+    }
+
+    setAutoFetching(true);
+    try {
+      const result = await apiFetch<{
+        ok: boolean;
+        success: boolean;
+        title: string;
+        content: string;
+        author: string;
+        error?: string;
+        message: string;
+      }>('/api/scraper/fetch', {
+        method: 'POST',
+        body: JSON.stringify({ url: externalUrl }),
+      });
+
+      if (result.success) {
+        // Successfully fetched content
+        if (result.title && !title) {
+          setTitle(result.title);
+        }
+        if (result.content && !content) {
+          setContent(result.content);
+        }
+        if (result.author && !externalOriginalAuthor) {
+          setExternalOriginalAuthor(result.author);
+        }
+        toast.success(t('idea.autoFetchSuccess'));
+      } else {
+        // Failed to fetch - show user-friendly message
+        toast.error(result.error || result.message || t('idea.autoFetchFailed'), {
+          duration: 6000,
+        });
+      }
+    } catch (e: any) {
+      const msg = humanizeError(e);
+      toast.error(t('idea.autoFetchFailed') + ': ' + msg);
+    } finally {
+      setAutoFetching(false);
+    }
+  }
 
   async function submit() {
     try {
       setErr("");
       setLoading(true);
+
+      // Validate external source if enabled
+      if (isFromExternal) {
+        if (!externalPlatform.trim()) {
+          throw new Error(t('idea.externalSourcePlatformRequired'));
+        }
+        if (!externalUrl.trim()) {
+          throw new Error(t('idea.externalSourceUrlRequired'));
+        }
+        if (!isValidUrl(externalUrl)) {
+          throw new Error(t('idea.externalSourceUrlInvalid'));
+        }
+      }
+
       if (visibility === "private") {
         const local = saveLocalIdea({ title, summary, content, tags: tags.split(",").map((s) => s.trim()).filter(Boolean) });
         toast.success(t('idea.savedLocally'));
@@ -43,9 +136,18 @@ export default function NewIdeaPage() {
         return;
       }
 
+      // Build externalSource object if enabled
+      const externalSource: ExternalSource | undefined = isFromExternal
+        ? {
+            platform: externalPlatform.trim(),
+            url: externalUrl.trim(),
+            originalAuthor: externalOriginalAuthor.trim() || undefined,
+          }
+        : undefined;
+
       const res = await apiFetch<{ idea: { _id: string } }>(`/api/ideas`, {
         method: "POST",
-        body: JSON.stringify({ title, summary, content, tags, visibility, isMonetizable, licenseType, isFeedback }),
+        body: JSON.stringify({ title, summary, content, tags, visibility, isMonetizable, licenseType, isFeedback, externalSource }),
       });
 
       const ideaId = res.idea._id;
@@ -144,6 +246,72 @@ export default function NewIdeaPage() {
         {isFeedback && (
           <div className="bg-blue-900/20 border border-blue-800 rounded-xl p-3 text-sm text-blue-200">
             <p>{t('idea.feedbackDescription')}</p>
+          </div>
+        )}
+
+        <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
+          <input
+            type="checkbox"
+            checked={isFromExternal}
+            onChange={(e) => setIsFromExternal(e.target.checked)}
+          />
+          {t('idea.fromExternalSource')}
+        </label>
+
+        {isFromExternal && (
+          <div className="bg-purple-900/20 border border-purple-800 rounded-xl p-4 grid gap-3">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">
+                {t('idea.externalSourceUrl')} *
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  className="flex-1 rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-gray-200 focus:outline-none focus:border-purple-600"
+                  placeholder={getPlatformByName(externalPlatform)?.placeholder || t('idea.externalSourceUrlPlaceholder')}
+                  value={externalUrl}
+                  onChange={(e) => handleUrlChange(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={tryAutoFetch}
+                  disabled={!externalUrl || autoFetching}
+                  className="rounded-xl bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 text-sm disabled:opacity-50 whitespace-nowrap"
+                >
+                  {autoFetching ? t('idea.fetching') : t('idea.autoFetch')}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourceUrlHint')}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">{t('idea.externalSourcePlatform')} *</label>
+              <select
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
+                value={externalPlatform}
+                onChange={(e) => setExternalPlatform(e.target.value)}
+              >
+                <option value="">{t('idea.selectPlatform')}</option>
+                {PLATFORMS.map((platform) => (
+                  <option key={platform.name} value={platform.name}>
+                    {platform.icon} {platform.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourcePlatformHint')}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">{t('idea.externalSourceAuthor')}</label>
+              <input
+                type="text"
+                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
+                placeholder={t('idea.externalSourceAuthorPlaceholder')}
+                value={externalOriginalAuthor}
+                onChange={(e) => setExternalOriginalAuthor(e.target.value)}
+              />
+              <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourceAuthorHint')}</p>
+            </div>
           </div>
         )}
 

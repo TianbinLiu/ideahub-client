@@ -9,6 +9,7 @@ import { getLocalIdea, deleteLocalIdea, saveLocalIdea } from "../utils/localIdea
 import { MentionTextarea } from "../components/MentionTextarea";
 import { CharCount } from "../components/CharCount";
 import { UserHoverCard } from "../components/UserHoverCard";
+import { getPlatformIcon } from "../utils/platformConfig";
 
 const LIMITS = {
   COMMENT: 2000,
@@ -39,6 +40,12 @@ type Idea = {
   feedbackType?: string;
   feedbackStatus?: string;
   aiSummary?: string;
+  externalSource?: {
+    platform?: string;
+    url?: string;
+    originalAuthor?: string;
+    sourceCreatedAt?: string;
+  };
 };
 
 type Comment = {
@@ -333,13 +340,33 @@ export default function IdeaDetailPage() {
             <div>
               <h1 className="text-2xl font-bold text-white">{idea.title}</h1>
               <p className="text-gray-400 text-sm mt-1">
-                {t('idea.by')}{" "}
-                {idea.author?._id ? (
-                  <UserHoverCard userId={idea.author._id} username={idea.author.username}>
-                    <span className="text-white">{idea.author.username}</span>
-                  </UserHoverCard>
+                {idea.externalSource ? (
+                  <>
+                    <span className="text-purple-400">{getPlatformIcon(idea.externalSource.platform)} {idea.externalSource.platform}</span>
+                    {" · "}
+                    <a
+                      href={idea.externalSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      {t('idea.viewOriginal')}
+                    </a>
+                    {idea.externalSource.originalAuthor && (
+                      <span className="text-gray-500"> · {t('idea.originalAuthor')}: {idea.externalSource.originalAuthor}</span>
+                    )}
+                  </>
                 ) : (
-                  <span>{t('home.unknownAuthor')}</span>
+                  <>
+                    {t('idea.by')}{" "}
+                    {idea.author?._id ? (
+                      <UserHoverCard userId={idea.author._id} username={idea.author.username}>
+                        <span className="text-white">{idea.author.username}</span>
+                      </UserHoverCard>
+                    ) : (
+                      <span>{t('home.unknownAuthor')}</span>
+                    )}
+                  </>
                 )}{" "}
                 · {new Date(idea.createdAt).toLocaleString()}
               </p>
