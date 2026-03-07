@@ -290,6 +290,25 @@ export default function IdeaDetailPage() {
     }
   }
 
+  async function handleAnnotateToggle() {
+    // If not in fullscreen, enter fullscreen first
+    if (!document.fullscreenElement && previewRef.current) {
+      try {
+        await previewRef.current.requestFullscreen();
+        setIsFullscreen(true);
+        // Wait for fullscreen transition
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (e) {
+        console.error('Failed to enter fullscreen:', e);
+        return; // Don't toggle annotate mode if fullscreen failed
+      }
+    }
+    
+    // Toggle annotate mode
+    setAnnotateMode((v) => !v);
+    setPendingPoint(null);
+  }
+
   async function focusLinkNote(noteId?: string, x?: number, y?: number) {
     if (!noteId && (x === undefined || y === undefined)) return;
     let resolvedNoteId: string | undefined;
@@ -726,22 +745,17 @@ export default function IdeaDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {isFullscreen && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAnnotateMode((v) => !v);
-                        setPendingPoint(null);
-                      }}
-                      className={`rounded-lg border px-3 py-1.5 text-xs ${
-                        annotateMode
-                          ? "border-purple-400 text-purple-100 bg-purple-900/40"
-                          : "border-gray-700 text-gray-300 hover:bg-gray-900"
-                      }`}
-                    >
-                      {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleAnnotateToggle}
+                    className={`rounded-lg border px-3 py-1.5 text-xs ${
+                      annotateMode
+                        ? "border-purple-400 text-purple-100 bg-purple-900/40"
+                        : "border-gray-700 text-gray-300 hover:bg-gray-900"
+                    }`}
+                  >
+                    {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
+                  </button>
 
                   <button
                     type="button"
