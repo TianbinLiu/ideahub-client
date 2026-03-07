@@ -745,17 +745,15 @@ export default function IdeaDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAnnotateToggle}
-                    className={`rounded-lg border px-3 py-1.5 text-xs ${
+                  <span
+                    className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
                       annotateMode
-                        ? "border-purple-400 text-purple-100 bg-purple-900/40"
-                        : "border-gray-700 text-gray-300 hover:bg-gray-900"
+                        ? "border-purple-300 text-purple-50 bg-purple-800/60"
+                        : "border-gray-700 text-gray-300 bg-gray-900/60"
                     }`}
                   >
                     {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
-                  </button>
+                  </span>
 
                   <button
                     type="button"
@@ -780,6 +778,20 @@ export default function IdeaDetailPage() {
                 ref={previewRef}
                 className="relative mt-3 overflow-hidden rounded-xl border border-purple-900 bg-gray-950"
               >
+                {isFullscreen && (
+                  <button
+                    type="button"
+                    onClick={handleAnnotateToggle}
+                    className={`absolute right-3 top-3 z-20 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                      annotateMode
+                        ? "border-purple-300 text-purple-50 bg-purple-800/80"
+                        : "border-purple-500/80 text-purple-100 bg-purple-900/60 hover:bg-purple-900/80"
+                    }`}
+                  >
+                    {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
+                  </button>
+                )}
+
                 <iframe
                   title="external-link-preview"
                   src={idea.externalSource.url}
