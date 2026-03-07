@@ -41,6 +41,7 @@ export default function NewIdeaPage() {
 
   // External source fields
   const [externalPlatform, setExternalPlatform] = useState("");
+  const [customExternalPlatform, setCustomExternalPlatform] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [externalOriginalAuthor, setExternalOriginalAuthor] = useState("");
   const [autoFetching, setAutoFetching] = useState(false);
@@ -55,6 +56,7 @@ export default function NewIdeaPage() {
   const showTagsInput = !isFeedbackMode;
   const externalEnabled = isExternalMode;
   const fixedFeedbackTag = "反馈bug/网站建议";
+  const OTHER_PLATFORM_VALUE = "__other__";
 
   const modeBadgeClass = isBusinessMode
     ? "border-emerald-400/70 bg-emerald-500/20 text-emerald-100"
@@ -104,6 +106,20 @@ export default function NewIdeaPage() {
     } catch {
       return false;
     }
+  }
+
+  function splitTags(input: string): string[] {
+    return input
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function mergeTags(base: string, extra?: string): string {
+    const list = splitTags(base);
+    const cleaned = list.filter((tag) => tag !== "其他");
+    if (extra) cleaned.push(extra.trim());
+    return Array.from(new Set(cleaned)).join(",");
   }
 
   // Auto-detect platform from URL
@@ -172,10 +188,18 @@ export default function NewIdeaPage() {
       setErr("");
       setLoading(true);
 
+      const isOtherPlatform = externalPlatform.trim() === OTHER_PLATFORM_VALUE;
+      const effectiveExternalPlatform = isOtherPlatform
+        ? customExternalPlatform.trim()
+        : externalPlatform.trim();
+
       // Validate external source if enabled
       if (externalEnabled) {
         if (!externalPlatform.trim()) {
           throw new Error(t('idea.externalSourcePlatformRequired'));
+        }
+        if (isOtherPlatform && !effectiveExternalPlatform) {
+          throw new Error(t('idea.externalSourceCustomPlatformRequired'));
         }
         if (!externalUrl.trim()) {
           throw new Error(t('idea.externalSourceUrlRequired'));
@@ -185,8 +209,13 @@ export default function NewIdeaPage() {
         }
       }
 
+      const submitTagsBase = isFeedbackMode ? fixedFeedbackTag : tags;
+      const submitTags = externalEnabled
+        ? mergeTags(submitTagsBase, effectiveExternalPlatform)
+        : submitTagsBase;
+
       if (visibility === "private") {
-        const local = saveLocalIdea({ title, summary, content, tags: tags.split(",").map((s) => s.trim()).filter(Boolean) });
+        const local = saveLocalIdea({ title, summary, content, tags: splitTags(submitTags) });
         toast.success(t('idea.savedLocally'));
         nav(`/ideas/${local._id}`);
         return;
@@ -195,13 +224,12 @@ export default function NewIdeaPage() {
       // Build externalSource object if enabled
       const externalSource: ExternalSource | undefined = externalEnabled
         ? {
-            platform: externalPlatform.trim(),
+            platform: effectiveExternalPlatform,
             url: externalUrl.trim(),
             originalAuthor: externalOriginalAuthor.trim() || undefined,
           }
         : undefined;
 
-      const submitTags = isFeedbackMode ? fixedFeedbackTag : tags;
       const submitIsFeedback = isFeedbackMode ? true : false;
       const submitRequestAI = isBusinessMode ? requestAI : false;
 
@@ -344,7 +372,10 @@ export default function NewIdeaPage() {
                 <input
                   type="url"
                   className="flex-1 rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-gray-200 focus:outline-none focus:border-purple-600"
-                  placeholder={getPlatformByName(externalPlatform)?.placeholder || t('idea.externalSourceUrlPlaceholder')}
+                  placeholder={
+                    getPlatformByName(externalPlatform === OTHER_PLATFORM_VALUE ? "其他" : externalPlatform)?.placeholder ||
+                    t('idea.externalSourceUrlPlaceholder')
+                  }
                   value={externalUrl}
                   onChange={(e) => handleUrlChange(e.target.value)}
                 />
@@ -365,17 +396,36 @@ export default function NewIdeaPage() {
               <select
                 className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
                 value={externalPlatform}
-                onChange={(e) => setExternalPlatform(e.target.value)}
+                onChange={(e) => {
+                  const selected = e.target.value;
+                  setExternalPlatform(selected);
+                  if (selected !== OTHER_PLATFORM_VALUE) {
+                    setCustomExternalPlatform("");
+                  }
+                }}
               >
                 <option value="">{t('idea.selectPlatform')}</option>
                 {PLATFORMS.map((platform) => (
-                  <option key={platform.name} value={platform.name}>
-                    {platform.icon} {platform.name}
+                  <option key={platform.name} value={platform.name === "其他" ? OTHER_PLATFORM_VALUE : platform.name}>
+                    {platform.icon} {platform.name === "其他" ? t('idea.platformOther') : platform.name}
                   </option>
                 ))}
               </select>
               <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourcePlatformHint')}</p>
             </div>
+
+            {externalPlatform === OTHER_PLATFORM_VALUE && (
+              <div>
+                <label className="block text-sm text-gray-300 mb-2">{t('idea.externalSourceCustomPlatform')} *</label>
+                <input
+                  type="text"
+                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full text-gray-200 focus:outline-none focus:border-purple-600"
+                  placeholder={t('idea.externalSourceCustomPlatformPlaceholder')}
+                  value={customExternalPlatform}
+                  onChange={(e) => setCustomExternalPlatform(e.target.value)}
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm text-gray-300 mb-2">{t('idea.externalSourceAuthor')}</label>
