@@ -829,6 +829,89 @@ export default function IdeaDetailPage() {
                     />
                   )}
                 </div>
+
+                {isFullscreen && (
+                  <div className="absolute inset-x-0 bottom-0 z-30 p-3 pointer-events-none">
+                    <div className="pointer-events-auto rounded-xl border border-gray-800 bg-gray-950/85 p-3 backdrop-blur max-h-[45vh] overflow-y-auto">
+                      {annotateMode && (
+                        <p className="text-xs text-yellow-300">{t("idea.linkWidgetClickToPlace")}</p>
+                      )}
+
+                      {!user && (
+                        <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetLoginToAnnotate")}</p>
+                      )}
+
+                      {pendingPoint && user && (
+                        <div className="mt-2 rounded-xl border border-purple-800/80 bg-gray-950/70 p-3">
+                          <p className="text-xs text-gray-400 mb-2">
+                            {t("idea.linkWidgetPointLabel", {
+                              x: pendingPoint.x.toFixed(1),
+                              y: pendingPoint.y.toFixed(1),
+                            })}
+                          </p>
+                          <textarea
+                            className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-sm text-white"
+                            rows={3}
+                            placeholder={t("idea.linkWidgetNotePlaceholder")}
+                            value={noteContent}
+                            onChange={(e) => setNoteContent(e.target.value)}
+                            maxLength={500}
+                          />
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingPoint(null);
+                                  setNoteContent("");
+                                }}
+                                className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
+                              >
+                                {t("common.cancel")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={submitLinkNote}
+                                disabled={submittingNote || !noteContent.trim()}
+                                className="rounded-lg bg-purple-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                              >
+                                {submittingNote ? t("comment.posting") : t("idea.linkWidgetSubmitNote")}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
+                        <h4 className="text-sm font-semibold text-gray-200">
+                          {t("idea.linkWidgetNotes")} ({linkNotes.length})
+                        </h4>
+                        {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
+                        {!linkNotesLoading && linkNotes.length === 0 && (
+                          <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetNoNotes")}</p>
+                        )}
+                        <div className="mt-2 space-y-2">
+                          {linkNotes.map((note, idx) => (
+                            <div
+                              key={note._id}
+                              className={`rounded-lg border p-2 text-xs ${
+                                activeNoteId === note._id ? "border-purple-500 bg-purple-950/30" : "border-gray-800 bg-gray-900/70"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-gray-400">
+                                <span>#{idx + 1} · ({note.x.toFixed(1)}%, {note.y.toFixed(1)}%)</span>
+                              </div>
+                              <p className="text-gray-200 mt-1 whitespace-pre-wrap">{note.content}</p>
+                              <p className="text-gray-500 mt-1">
+                                {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })} · {new Date(note.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <p className="mt-2 text-xs text-purple-300/80">{t("idea.linkWidgetFrameHint")}</p>
@@ -837,84 +920,7 @@ export default function IdeaDetailPage() {
                 <p className="mt-2 text-xs text-yellow-300">💡 {t("idea.linkWidgetFullscreenRequired")}</p>
               )}
 
-              {isFullscreen && annotateMode && (
-                <p className="mt-2 text-xs text-yellow-300">{t("idea.linkWidgetClickToPlace")}</p>
-              )}
 
-              {isFullscreen && !user && (
-                <p className="mt-2 text-xs text-gray-400">{t("idea.linkWidgetLoginToAnnotate")}</p>
-              )}
-
-              {isFullscreen && pendingPoint && user && (
-                <div className="mt-3 rounded-xl border border-purple-800/80 bg-gray-950/70 p-3">
-                  <p className="text-xs text-gray-400 mb-2">
-                    {t("idea.linkWidgetPointLabel", {
-                      x: pendingPoint.x.toFixed(1),
-                      y: pendingPoint.y.toFixed(1),
-                    })}
-                  </p>
-                  <textarea
-                    className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-sm text-white"
-                    rows={3}
-                    placeholder={t("idea.linkWidgetNotePlaceholder")}
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    maxLength={500}
-                  />
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingPoint(null);
-                          setNoteContent("");
-                        }}
-                        className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
-                      >
-                        {t("common.cancel")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={submitLinkNote}
-                        disabled={submittingNote || !noteContent.trim()}
-                        className="rounded-lg bg-purple-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                      >
-                        {submittingNote ? t("comment.posting") : t("idea.linkWidgetSubmitNote")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isFullscreen && (
-                <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
-                  <h4 className="text-sm font-semibold text-gray-200">
-                    {t("idea.linkWidgetNotes")} ({linkNotes.length})
-                  </h4>
-                  {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
-                  {!linkNotesLoading && linkNotes.length === 0 && (
-                    <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetNoNotes")}</p>
-                  )}
-                  <div className="mt-2 space-y-2">
-                    {linkNotes.map((note, idx) => (
-                      <div
-                        key={note._id}
-                        className={`rounded-lg border p-2 text-xs ${
-                          activeNoteId === note._id ? "border-purple-500 bg-purple-950/30" : "border-gray-800 bg-gray-900/70"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-gray-400">
-                          <span>#{idx + 1} · ({note.x.toFixed(1)}%, {note.y.toFixed(1)}%)</span>
-                        </div>
-                        <p className="text-gray-200 mt-1 whitespace-pre-wrap">{note.content}</p>
-                        <p className="text-gray-500 mt-1">
-                          {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })} · {new Date(note.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
