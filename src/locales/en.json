@@ -117,6 +117,8 @@
     "createModeDailyTitle": "Daily Thought",
     "createModeDailyDesc": "Simple free-form idea sharing without business/feedback/external extras.",
     "createModeContinue": "Continue",
+    "currentMode": "Current Mode",
+    "switchMode": "Switch Mode",
     "backToModePicker": "Back to mode selection",
     "feedbackFixedTagLabel": "Fixed tag",
     "saving": "Saving...",

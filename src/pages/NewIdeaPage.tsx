@@ -56,6 +56,14 @@ export default function NewIdeaPage() {
   const externalEnabled = isExternalMode;
   const fixedFeedbackTag = "反馈bug/网站建议";
 
+  const modeBadgeClass = isBusinessMode
+    ? "border-emerald-400/70 bg-emerald-500/20 text-emerald-100"
+    : isFeedbackMode
+      ? "border-sky-400/70 bg-sky-500/20 text-sky-100"
+      : isExternalMode
+        ? "border-fuchsia-400/70 bg-fuchsia-500/20 text-fuchsia-100"
+        : "border-amber-400/70 bg-amber-500/20 text-amber-100";
+
   useEffect(() => {
     if (!creationMode) {
       nav("/ideas/new", { replace: true });
@@ -232,14 +240,25 @@ export default function NewIdeaPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <Link to="/ideas/new" className="text-xs text-purple-300 hover:text-purple-200 underline underline-offset-2">
-        ← {t('idea.backToModePicker')}
-      </Link>
+      <div className="rounded-2xl border border-purple-700/60 bg-gradient-to-r from-purple-950/80 to-indigo-950/60 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wide text-purple-300/90">{t('idea.currentMode')}</p>
+            <span className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${modeBadgeClass}`}>
+              {creationMode ? t(`idea.createMode${creationMode.charAt(0).toUpperCase()}${creationMode.slice(1)}Title`) : ''}
+            </span>
+          </div>
+          <Link
+            to="/ideas/new"
+            className="inline-flex items-center rounded-lg border border-purple-500/70 bg-purple-900/40 px-3 py-1.5 text-xs font-semibold text-purple-100 hover:bg-purple-900/60"
+          >
+            {t('idea.switchMode')}
+          </Link>
+        </div>
+      </div>
+
       <h1 className="text-2xl font-bold text-white">{t('idea.createTitle')}</h1>
       <p className="text-gray-400 text-sm mt-1">{t('idea.createSubtitle')}</p>
-      <p className="text-purple-200 text-xs mt-2">
-        {creationMode ? t(`idea.createMode${creationMode.charAt(0).toUpperCase()}${creationMode.slice(1)}Title`) : ''}
-      </p>
 
       <div className="mt-6 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
         <div>

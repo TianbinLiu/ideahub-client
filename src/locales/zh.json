@@ -115,6 +115,8 @@
     "createModeDailyTitle": "日常想法",
     "createModeDailyDesc": "轻量发布日常思考，不带商业/反馈/外链扩展选项。",
     "createModeContinue": "进入该模式",
+    "currentMode": "当前模式",
+    "switchMode": "切换模式",
     "backToModePicker": "返回类型选择",
     "feedbackFixedTagLabel": "固定标签",
     "saving": "保存中...",
