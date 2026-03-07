@@ -210,6 +210,17 @@ export type ExternalSource = {
   url?: string;            // link to original post
   originalAuthor?: string; // author name from original platform
   sourceCreatedAt?: string; // when original post was created (ISO date string)
+  linkNotes?: ExternalLinkNote[];
+};
+
+export type ExternalLinkNote = {
+  _id: string;
+  x: number;
+  y: number;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+  user?: { _id: string; username: string; role: string };
 };
 
 export type IdeaStats = {

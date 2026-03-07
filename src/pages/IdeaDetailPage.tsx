@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
@@ -57,7 +57,23 @@ type Comment = {
   likesCount?: number;
   parentCommentId?: string | null;
   replyCount?: number;
+  externalLinkNote?: {
+    noteId?: string;
+    x?: number;
+    y?: number;
+  };
 };
+
+type LinkNote = {
+  _id: string;
+  x: number;
+  y: number;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
+  user?: { _id: string; username: string; role: string };
+};
+
 export default function IdeaDetailPage() {
   const { t } = useTranslation();
   const nav = useNavigate();
@@ -79,6 +95,18 @@ export default function IdeaDetailPage() {
 
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const linkWidgetRef = useRef<HTMLDivElement | null>(null);
+  const noteFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [linkNotes, setLinkNotes] = useState<LinkNote[]>([]);
+  const [linkNotesLoading, setLinkNotesLoading] = useState(false);
+  const [annotateMode, setAnnotateMode] = useState(false);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [flashingNoteId, setFlashingNoteId] = useState<string | null>(null);
+  const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
+  const [noteContent, setNoteContent] = useState("");
+  const [submittingNote, setSubmittingNote] = useState(false);
 
   const isCompany = user?.role === "company";
   const [interestMsg, setInterestMsg] = useState("");
@@ -184,6 +212,119 @@ export default function IdeaDetailPage() {
     }
   }
 
+  async function loadLinkNotes(ideaId: string) {
+    try {
+      setLinkNotesLoading(true);
+      const res = await apiFetch<{ ok: true; notes: LinkNote[] }>(`/api/ideas/${ideaId}/link-notes`);
+      setLinkNotes(res.notes || []);
+    } catch (e: any) {
+      // If the idea has no external source URL, backend can reject. Keep UI usable.
+      setLinkNotes([]);
+    } finally {
+      setLinkNotesLoading(false);
+    }
+  }
+
+  async function submitLinkNote() {
+    if (!id || !pendingPoint || !noteContent.trim()) return;
+    try {
+      setSubmittingNote(true);
+      const res = await apiFetch<{
+        ok: true;
+        note: LinkNote;
+        count: number;
+        comment?: Comment;
+        commentCount?: number;
+      }>(`/api/ideas/${id}/link-notes`, {
+        method: "POST",
+        body: JSON.stringify({
+          x: pendingPoint.x,
+          y: pendingPoint.y,
+          content: noteContent,
+        }),
+      });
+      setLinkNotes((prev) => [...prev, res.note]);
+      if (res.comment) {
+        setComments((prev) => [res.comment as Comment, ...prev]);
+      }
+      if (typeof res.commentCount === "number") {
+        setIdea((prev) =>
+          prev ? { ...prev, stats: { ...prev.stats, commentCount: res.commentCount } as any } : prev
+        );
+      }
+      setActiveNoteId(res.note._id);
+      setPendingPoint(null);
+      setNoteContent("");
+      toast.success(t("idea.linkWidgetNoteSaved"));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setSubmittingNote(false);
+    }
+  }
+
+  function handlePreviewClick(e: MouseEvent<HTMLDivElement>) {
+    if (!annotateMode) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setPendingPoint({
+      x: Math.max(0, Math.min(100, Number(x.toFixed(2)))),
+      y: Math.max(0, Math.min(100, Number(y.toFixed(2)))),
+    });
+    setActiveNoteId(null);
+  }
+
+  async function togglePreviewFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await previewRef.current?.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  function focusLinkNote(noteId?: string, x?: number, y?: number) {
+    if (!noteId && (x === undefined || y === undefined)) return;
+    let resolvedNoteId: string | undefined;
+
+    if (noteId) {
+      setActiveNoteId(noteId);
+      resolvedNoteId = noteId;
+    }
+
+    if (!noteId && x !== undefined && y !== undefined) {
+      const fallback = linkNotes.find((n) => Math.abs(n.x - x) < 0.01 && Math.abs(n.y - y) < 0.01);
+      if (fallback) {
+        setActiveNoteId(fallback._id);
+        resolvedNoteId = fallback._id;
+      }
+    }
+
+    if (resolvedNoteId) {
+      if (noteFlashTimerRef.current) {
+        clearTimeout(noteFlashTimerRef.current);
+      }
+      setFlashingNoteId(resolvedNoteId);
+      noteFlashTimerRef.current = setTimeout(() => {
+        setFlashingNoteId((current) => (current === resolvedNoteId ? null : current));
+      }, 1600);
+    }
+
+    linkWidgetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (noteFlashTimerRef.current) {
+        clearTimeout(noteFlashTimerRef.current);
+      }
+    };
+  }, []);
+
   async function onDeleteIdea() {
     if (!id) return;
     if (!confirm("Delete this idea? This cannot be undone.")) return;
@@ -222,6 +363,7 @@ export default function IdeaDetailPage() {
         } as any);
         setLiked(false);
         setBookmarked(false);
+        setLinkNotes([]);
         return;
       }
 
@@ -229,6 +371,11 @@ export default function IdeaDetailPage() {
       setIdea(res.idea);
       setLiked(!!res.liked);
       setBookmarked(!!res.bookmarked);
+      if (res.idea?.externalSource?.url && id) {
+        await loadLinkNotes(id);
+      } else {
+        setLinkNotes([]);
+      }
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
@@ -534,6 +681,174 @@ export default function IdeaDetailPage() {
           )}
 
           {idea.summary && <p className="text-gray-200 mt-4">{idea.summary}</p>}
+
+          {idea.externalSource?.url && (
+            <div ref={linkWidgetRef} className="mt-5 rounded-2xl border border-purple-800 bg-purple-950/20 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-purple-200">{t("idea.linkWidgetTitle")}</h3>
+                  <p className="text-xs text-purple-300/80 mt-1">{t("idea.linkWidgetSubtitle")}</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnnotateMode((v) => !v);
+                      setPendingPoint(null);
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-xs ${
+                      annotateMode
+                        ? "border-purple-400 text-purple-100 bg-purple-900/40"
+                        : "border-gray-700 text-gray-300 hover:bg-gray-900"
+                    }`}
+                  >
+                    {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={togglePreviewFullscreen}
+                    className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-900"
+                  >
+                    {t("idea.linkWidgetFullscreen")}
+                  </button>
+
+                  <a
+                    href={idea.externalSource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-blue-700 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-950/40"
+                  >
+                    {t("idea.linkWidgetOpenSite")}
+                  </a>
+                </div>
+              </div>
+
+              <div
+                ref={previewRef}
+                className="relative mt-3 overflow-hidden rounded-xl border border-purple-900 bg-gray-950"
+              >
+                <iframe
+                  title="external-link-preview"
+                  src={idea.externalSource.url}
+                  className="h-[360px] w-full bg-white"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+
+                <div
+                  className={`absolute inset-0 z-10 ${annotateMode ? "cursor-crosshair" : "pointer-events-none"}`}
+                  onClick={handlePreviewClick}
+                >
+                  {linkNotes.map((note, idx) => (
+                    <button
+                      key={note._id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveNoteId((cur) => (cur === note._id ? null : note._id));
+                      }}
+                      className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-purple-600 text-[10px] text-white shadow ${
+                        flashingNoteId === note._id ? "animate-pulse ring-4 ring-yellow-300/80 ring-offset-2 ring-offset-gray-900" : ""
+                      }`}
+                      style={{ left: `${note.x}%`, top: `${note.y}%`, width: "20px", height: "20px" }}
+                      title={note.content}
+                    >
+                      {idx + 1}
+                    </button>
+                  ))}
+
+                  {pendingPoint && (
+                    <span
+                      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-yellow-500"
+                      style={{ left: `${pendingPoint.x}%`, top: `${pendingPoint.y}%`, width: "14px", height: "14px" }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <p className="mt-2 text-xs text-purple-300/80">{t("idea.linkWidgetFrameHint")}</p>
+
+              {annotateMode && (
+                <p className="mt-2 text-xs text-yellow-300">{t("idea.linkWidgetClickToPlace")}</p>
+              )}
+
+              {!user && (
+                <p className="mt-2 text-xs text-gray-400">{t("idea.linkWidgetLoginToAnnotate")}</p>
+              )}
+
+              {pendingPoint && user && (
+                <div className="mt-3 rounded-xl border border-purple-800/80 bg-gray-950/70 p-3">
+                  <p className="text-xs text-gray-400 mb-2">
+                    {t("idea.linkWidgetPointLabel", {
+                      x: pendingPoint.x.toFixed(1),
+                      y: pendingPoint.y.toFixed(1),
+                    })}
+                  </p>
+                  <textarea
+                    className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-sm text-white"
+                    rows={3}
+                    placeholder={t("idea.linkWidgetNotePlaceholder")}
+                    value={noteContent}
+                    onChange={(e) => setNoteContent(e.target.value)}
+                    maxLength={500}
+                  />
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPendingPoint(null);
+                          setNoteContent("");
+                        }}
+                        className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitLinkNote}
+                        disabled={submittingNote || !noteContent.trim()}
+                        className="rounded-lg bg-purple-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {submittingNote ? t("comment.posting") : t("idea.linkWidgetSubmitNote")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
+                <h4 className="text-sm font-semibold text-gray-200">
+                  {t("idea.linkWidgetNotes")} ({linkNotes.length})
+                </h4>
+                {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
+                {!linkNotesLoading && linkNotes.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetNoNotes")}</p>
+                )}
+                <div className="mt-2 space-y-2">
+                  {linkNotes.map((note, idx) => (
+                    <div
+                      key={note._id}
+                      className={`rounded-lg border p-2 text-xs ${
+                        activeNoteId === note._id ? "border-purple-500 bg-purple-950/30" : "border-gray-800 bg-gray-900/70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-gray-400">
+                        <span>#{idx + 1} · ({note.x.toFixed(1)}%, {note.y.toFixed(1)}%)</span>
+                      </div>
+                      <p className="text-gray-200 mt-1 whitespace-pre-wrap">{note.content}</p>
+                      <p className="text-gray-500 mt-1">
+                        {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })} · {new Date(note.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {idea.content && <pre className="text-gray-200 mt-4 whitespace-pre-wrap font-sans">{idea.content}</pre>}
 
           {idea.aiReview?.analysisText && (
@@ -662,6 +977,21 @@ export default function IdeaDetailPage() {
                       <span>{new Date(c.createdAt).toLocaleString()}</span>
                     </div>
                     <p className="text-gray-200 mt-2 whitespace-pre-wrap">{c.content}</p>
+                    {c.externalLinkNote && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          focusLinkNote(
+                            c.externalLinkNote?.noteId,
+                            c.externalLinkNote?.x,
+                            c.externalLinkNote?.y
+                          )
+                        }
+                        className="mt-2 text-xs text-purple-300 underline underline-offset-2 hover:text-purple-200"
+                      >
+                        {t("comment.jumpToLinkNote")}
+                      </button>
+                    )}
                     
                     <div className="flex items-center gap-2 mt-2">
                       {user && (

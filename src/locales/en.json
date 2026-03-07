@@ -175,7 +175,24 @@
     "autoFetchSuccess": "Content fetched successfully! Review and edit as needed.",
     "autoFetchFailed": "Failed to fetch content automatically",
     "autoFetchNotice": "Due to browser security, automatic fetching may not work for all sites. Please manually enter the title and content.",
-    "autoFetchLimited": "Auto-fetch is limited due to CORS restrictions. Please copy the content manually."
+    "autoFetchLimited": "Auto-fetch is limited due to CORS restrictions. Please copy the content manually.",
+    "linkWidgetTitle": "Linked Content Window",
+    "linkWidgetSubtitle": "Review the source link, add position-based notes, and discuss the linked content.",
+    "linkWidgetAnnotateOn": "Annotation Mode: ON",
+    "linkWidgetAnnotateOff": "Annotation Mode: OFF",
+    "linkWidgetFullscreen": "Fullscreen",
+    "linkWidgetOpenSite": "Open Website",
+    "linkWidgetFrameHint": "Some sites may block embedding due to security headers. Use \"Open Website\" if needed.",
+    "linkWidgetClickToPlace": "Click inside the preview to place a note marker.",
+    "linkWidgetLoginToAnnotate": "Login to add notes in the linked content window.",
+    "linkWidgetPointLabel": "Marker at x={{x}}%, y={{y}}%",
+    "linkWidgetNotePlaceholder": "Add your remark or evaluation for this position...",
+    "linkWidgetRating": "Rating",
+    "linkWidgetSubmitNote": "Save Note",
+    "linkWidgetNoNotes": "No notes yet. Add the first position-based comment.",
+    "linkWidgetNotes": "Position Notes",
+    "linkWidgetPinnedBy": "Pinned by {{user}}",
+    "linkWidgetNoteSaved": "Position note saved"
   },
   "comment": {
     "title": "Comments",
@@ -185,7 +202,8 @@
     "empty": "No comments yet. Be the first to comment!",
     "reply": "Reply",
     "replies": "replies",
-    "replyPlaceholder": "Write a reply..."
+    "replyPlaceholder": "Write a reply...",
+    "jumpToLinkNote": "Jump to linked note"
   },
   "aiReview": {
     "title": "AI Review",

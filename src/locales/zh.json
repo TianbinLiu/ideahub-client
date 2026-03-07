@@ -173,7 +173,24 @@
     "autoFetchSuccess": "内容抓取成功！请审阅并根据需要编辑。",
     "autoFetchFailed": "自动抓取内容失败",
     "autoFetchNotice": "由于浏览器安全限制，自动抓取可能不适用于所有网站。请手动输入标题和内容。",
-    "autoFetchLimited": "由于 CORS 限制，自动抓取功能有限。请手动复制内容。"
+    "autoFetchLimited": "由于 CORS 限制，自动抓取功能有限。请手动复制内容。",
+    "linkWidgetTitle": "外链内容窗口",
+    "linkWidgetSubtitle": "可在此查看原链接，并按位置添加备注或评价。",
+    "linkWidgetAnnotateOn": "标注模式：开启",
+    "linkWidgetAnnotateOff": "标注模式：关闭",
+    "linkWidgetFullscreen": "全屏",
+    "linkWidgetOpenSite": "访问网站",
+    "linkWidgetFrameHint": "部分网站因安全策略禁止嵌入，可点击“访问网站”直接打开。",
+    "linkWidgetClickToPlace": "请在预览窗口中点击一个位置放置备注点。",
+    "linkWidgetLoginToAnnotate": "登录后可在窗口内添加位置备注。",
+    "linkWidgetPointLabel": "标记位置 x={{x}}%, y={{y}}%",
+    "linkWidgetNotePlaceholder": "输入你对这个位置内容的备注或评价...",
+    "linkWidgetRating": "评分",
+    "linkWidgetSubmitNote": "保存备注",
+    "linkWidgetNoNotes": "还没有位置备注，来添加第一条吧。",
+    "linkWidgetNotes": "位置备注",
+    "linkWidgetPinnedBy": "由 {{user}} 标注",
+    "linkWidgetNoteSaved": "位置备注已保存"
   },
   "comment": {
     "title": "评论",
@@ -183,7 +200,8 @@
     "empty": "还没有评论。快来抢沙发！",
     "reply": "回复",
     "replies": "条回复",
-    "replyPlaceholder": "写回复..."
+    "replyPlaceholder": "写回复...",
+    "jumpToLinkNote": "跳转到小窗口备注位置"
   },
   "aiReview": {
     "title": "AI 评估",
