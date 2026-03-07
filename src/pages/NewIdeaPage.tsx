@@ -32,7 +32,7 @@ export default function NewIdeaPage() {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
-  const [tags, setTags] = useState("demo,phase4");
+  const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private" | "unlisted">("public");
   const [, setIsMonetizable] = useState(false);
   const [licenseType, setLicenseType] = useState("default");
