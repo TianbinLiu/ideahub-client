@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { ExternalSource } from "../api";
 import { apiFetch } from "../api";
@@ -19,20 +19,27 @@ const LIMITS = {
 
 export default function NewIdeaPage() {
   const nav = useNavigate();
+  const { mode } = useParams();
   const { t } = useTranslation();
+
+  const creationMode = useMemo(() => {
+    if (mode === "business" || mode === "feedback" || mode === "external" || mode === "daily") {
+      return mode;
+    }
+    return null;
+  }, [mode]);
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("demo,phase4");
   const [visibility, setVisibility] = useState<"public" | "private" | "unlisted">("public");
-  const [isMonetizable, setIsMonetizable] = useState(false);
+  const [, setIsMonetizable] = useState(false);
   const [licenseType, setLicenseType] = useState("default");
   const [requestAI, setRequestAI] = useState(false);
-  const [isFeedback, setIsFeedback] = useState(false);
+  const [, setIsFeedback] = useState(false);
 
   // External source fields
-  const [isFromExternal, setIsFromExternal] = useState(false);
   const [externalPlatform, setExternalPlatform] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [externalOriginalAuthor, setExternalOriginalAuthor] = useState("");
@@ -40,6 +47,47 @@ export default function NewIdeaPage() {
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isBusinessMode = creationMode === "business";
+  const isFeedbackMode = creationMode === "feedback";
+  const isExternalMode = creationMode === "external";
+  const isDailyMode = creationMode === "daily";
+  const showTagsInput = !isFeedbackMode;
+  const externalEnabled = isExternalMode;
+  const fixedFeedbackTag = "反馈bug/网站建议";
+
+  useEffect(() => {
+    if (!creationMode) {
+      nav("/ideas/new", { replace: true });
+      return;
+    }
+
+    if (isBusinessMode) {
+      setIsMonetizable(false);
+      setIsFeedback(false);
+      return;
+    }
+
+    if (isFeedbackMode) {
+      setIsMonetizable(false);
+      setRequestAI(false);
+      setIsFeedback(true);
+      return;
+    }
+
+    if (isExternalMode) {
+      setIsMonetizable(false);
+      setRequestAI(false);
+      setIsFeedback(false);
+      return;
+    }
+
+    if (isDailyMode) {
+      setIsMonetizable(false);
+      setRequestAI(false);
+      setIsFeedback(false);
+    }
+  }, [creationMode, isBusinessMode, isDailyMode, isExternalMode, isFeedbackMode, nav]);
 
   function isValidUrl(url: string): boolean {
     try {
@@ -117,7 +165,7 @@ export default function NewIdeaPage() {
       setLoading(true);
 
       // Validate external source if enabled
-      if (isFromExternal) {
+      if (externalEnabled) {
         if (!externalPlatform.trim()) {
           throw new Error(t('idea.externalSourcePlatformRequired'));
         }
@@ -137,7 +185,7 @@ export default function NewIdeaPage() {
       }
 
       // Build externalSource object if enabled
-      const externalSource: ExternalSource | undefined = isFromExternal
+      const externalSource: ExternalSource | undefined = externalEnabled
         ? {
             platform: externalPlatform.trim(),
             url: externalUrl.trim(),
@@ -145,14 +193,28 @@ export default function NewIdeaPage() {
           }
         : undefined;
 
+      const submitTags = isFeedbackMode ? fixedFeedbackTag : tags;
+      const submitIsFeedback = isFeedbackMode ? true : false;
+      const submitRequestAI = isBusinessMode ? requestAI : false;
+
       const res = await apiFetch<{ idea: { _id: string } }>(`/api/ideas`, {
         method: "POST",
-        body: JSON.stringify({ title, summary, content, tags, visibility, isMonetizable, licenseType, isFeedback, externalSource }),
+        body: JSON.stringify({
+          title,
+          summary,
+          content,
+          tags: submitTags,
+          visibility,
+          isMonetizable: false,
+          licenseType,
+          isFeedback: submitIsFeedback,
+          externalSource,
+        }),
       });
 
       const ideaId = res.idea._id;
 
-      if (requestAI) {
+      if (submitRequestAI) {
         const r = await apiFetch<{ ok: true; jobId: string; status: string }>(`/api/ideas/${ideaId}/ai-review`, { method: "POST" });
         toast.success(t('idea.aiReviewQueued'));
         nav(`/ideas/${ideaId}?aiJob=${r.jobId}`);
@@ -170,8 +232,14 @@ export default function NewIdeaPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
+      <Link to="/ideas/new" className="text-xs text-purple-300 hover:text-purple-200 underline underline-offset-2">
+        ← {t('idea.backToModePicker')}
+      </Link>
       <h1 className="text-2xl font-bold text-white">{t('idea.createTitle')}</h1>
       <p className="text-gray-400 text-sm mt-1">{t('idea.createSubtitle')}</p>
+      <p className="text-purple-200 text-xs mt-2">
+        {creationMode ? t(`idea.createMode${creationMode.charAt(0).toUpperCase()}${creationMode.slice(1)}Title`) : ''}
+      </p>
 
       <div className="mt-6 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
         <div>
@@ -203,6 +271,7 @@ export default function NewIdeaPage() {
           <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
         </div>
 
+        {showTagsInput && (
         <div>
           <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
             placeholder={t('idea.tagsPlaceholder')} 
@@ -211,6 +280,13 @@ export default function NewIdeaPage() {
             maxLength={LIMITS.TAGS} />
           <CharCount current={tags.length} max={LIMITS.TAGS} className="mt-1" />
         </div>
+        )}
+
+        {isFeedbackMode && (
+          <div className="rounded-xl border border-blue-800 bg-blue-950/30 p-3 text-sm text-blue-100">
+            {t('idea.feedbackFixedTagLabel')}: <span className="font-semibold">{fixedFeedbackTag}</span>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-2">
           <select className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
@@ -221,44 +297,25 @@ export default function NewIdeaPage() {
           </select>
           <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
             placeholder={t('idea.licenseType')} value={licenseType} onChange={(e) => setLicenseType(e.target.value)} />
-          <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
-            <input type="checkbox" checked={isMonetizable} onChange={(e) => setIsMonetizable(e.target.checked)} />
-            {t('idea.monetizable')}
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
-            <input
-              type="checkbox"
-              checked={requestAI}
-              onChange={(e) => setRequestAI(e.target.checked)}
-            />
-            {t('idea.requestAI')}
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
-            <input
-              type="checkbox"
-              checked={isFeedback}
-              onChange={(e) => setIsFeedback(e.target.checked)}
-            />
-            {t('idea.submitAsFeedback')}
-          </label>
+          {isBusinessMode && (
+            <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
+              <input
+                type="checkbox"
+                checked={requestAI}
+                onChange={(e) => setRequestAI(e.target.checked)}
+              />
+              {t('idea.requestAI')}
+            </label>
+          )}
         </div>
 
-        {isFeedback && (
+        {isFeedbackMode && (
           <div className="bg-blue-900/20 border border-blue-800 rounded-xl p-3 text-sm text-blue-200">
             <p>{t('idea.feedbackDescription')}</p>
           </div>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
-          <input
-            type="checkbox"
-            checked={isFromExternal}
-            onChange={(e) => setIsFromExternal(e.target.checked)}
-          />
-          {t('idea.fromExternalSource')}
-        </label>
-
-        {isFromExternal && (
+        {externalEnabled && (
           <div className="bg-purple-900/20 border border-purple-800 rounded-xl p-4 grid gap-3">
             <div>
               <label className="block text-sm text-gray-300 mb-2">

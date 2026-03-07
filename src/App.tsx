@@ -20,6 +20,7 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import NewIdeaPage from "./pages/NewIdeaPage";
+import NewIdeaTypePage from "./pages/NewIdeaTypePage";
 import IdeaDetailPage from "./pages/IdeaDetailPage";
 import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
@@ -75,6 +76,15 @@ export default function App() {
 
         <Route
           path="/ideas/new"
+          element={
+            <ProtectedRoute>
+              <NewIdeaTypePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ideas/new/:mode"
           element={
             <ProtectedRoute>
               <NewIdeaPage />
