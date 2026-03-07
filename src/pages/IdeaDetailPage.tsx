@@ -107,6 +107,7 @@ export default function IdeaDetailPage() {
   const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
   const [noteContent, setNoteContent] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const isCompany = user?.role === "company";
   const [interestMsg, setInterestMsg] = useState("");
@@ -264,7 +265,7 @@ export default function IdeaDetailPage() {
   }
 
   function handlePreviewClick(e: MouseEvent<HTMLDivElement>) {
-    if (!annotateMode) return;
+    if (!annotateMode || !isFullscreen) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -279,15 +280,17 @@ export default function IdeaDetailPage() {
     try {
       if (!document.fullscreenElement) {
         await previewRef.current?.requestFullscreen();
+        setIsFullscreen(true);
       } else {
         await document.exitFullscreen();
+        setIsFullscreen(false);
       }
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
   }
 
-  function focusLinkNote(noteId?: string, x?: number, y?: number) {
+  async function focusLinkNote(noteId?: string, x?: number, y?: number) {
     if (!noteId && (x === undefined || y === undefined)) return;
     let resolvedNoteId: string | undefined;
 
@@ -301,6 +304,18 @@ export default function IdeaDetailPage() {
       if (fallback) {
         setActiveNoteId(fallback._id);
         resolvedNoteId = fallback._id;
+      }
+    }
+
+    // Enter fullscreen first if not already in fullscreen
+    if (!document.fullscreenElement && previewRef.current) {
+      try {
+        await previewRef.current.requestFullscreen();
+        setIsFullscreen(true);
+        // Wait a bit for fullscreen transition to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (e) {
+        console.error('Failed to enter fullscreen:', e);
       }
     }
 
@@ -322,6 +337,26 @@ export default function IdeaDetailPage() {
       if (noteFlashTimerRef.current) {
         clearTimeout(noteFlashTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const inFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(inFullscreen);
+      
+      // Exit annotate mode and clear pending point when exiting fullscreen
+      if (!inFullscreen) {
+        setAnnotateMode(false);
+        setPendingPoint(null);
+        setActiveNoteId(null);
+      }
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
 
@@ -691,20 +726,22 @@ export default function IdeaDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAnnotateMode((v) => !v);
-                      setPendingPoint(null);
-                    }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs ${
-                      annotateMode
-                        ? "border-purple-400 text-purple-100 bg-purple-900/40"
-                        : "border-gray-700 text-gray-300 hover:bg-gray-900"
-                    }`}
-                  >
-                    {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
-                  </button>
+                  {isFullscreen && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAnnotateMode((v) => !v);
+                        setPendingPoint(null);
+                      }}
+                      className={`rounded-lg border px-3 py-1.5 text-xs ${
+                        annotateMode
+                          ? "border-purple-400 text-purple-100 bg-purple-900/40"
+                          : "border-gray-700 text-gray-300 hover:bg-gray-900"
+                      }`}
+                    >
+                      {annotateMode ? t("idea.linkWidgetAnnotateOn") : t("idea.linkWidgetAnnotateOff")}
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -732,16 +769,16 @@ export default function IdeaDetailPage() {
                 <iframe
                   title="external-link-preview"
                   src={idea.externalSource.url}
-                  className="h-[360px] w-full bg-white"
+                  className={`w-full bg-white ${isFullscreen ? 'h-screen' : 'h-[360px]'}`}
                   loading="lazy"
                   referrerPolicy="no-referrer"
                 />
 
                 <div
-                  className={`absolute inset-0 z-10 ${annotateMode ? "cursor-crosshair" : "pointer-events-none"}`}
+                  className={`absolute inset-0 z-10 ${annotateMode && isFullscreen ? "cursor-crosshair" : "pointer-events-none"}`}
                   onClick={handlePreviewClick}
                 >
-                  {linkNotes.map((note, idx) => (
+                  {isFullscreen && linkNotes.map((note, idx) => (
                     <button
                       key={note._id}
                       type="button"
@@ -759,7 +796,7 @@ export default function IdeaDetailPage() {
                     </button>
                   ))}
 
-                  {pendingPoint && (
+                  {isFullscreen && pendingPoint && (
                     <span
                       className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-yellow-500"
                       style={{ left: `${pendingPoint.x}%`, top: `${pendingPoint.y}%`, width: "14px", height: "14px" }}
@@ -770,15 +807,19 @@ export default function IdeaDetailPage() {
 
               <p className="mt-2 text-xs text-purple-300/80">{t("idea.linkWidgetFrameHint")}</p>
 
-              {annotateMode && (
+              {!isFullscreen && (
+                <p className="mt-2 text-xs text-yellow-300">💡 {t("idea.linkWidgetFullscreenRequired")}</p>
+              )}
+
+              {isFullscreen && annotateMode && (
                 <p className="mt-2 text-xs text-yellow-300">{t("idea.linkWidgetClickToPlace")}</p>
               )}
 
-              {!user && (
+              {isFullscreen && !user && (
                 <p className="mt-2 text-xs text-gray-400">{t("idea.linkWidgetLoginToAnnotate")}</p>
               )}
 
-              {pendingPoint && user && (
+              {isFullscreen && pendingPoint && user && (
                 <div className="mt-3 rounded-xl border border-purple-800/80 bg-gray-950/70 p-3">
                   <p className="text-xs text-gray-400 mb-2">
                     {t("idea.linkWidgetPointLabel", {
@@ -819,33 +860,35 @@ export default function IdeaDetailPage() {
                 </div>
               )}
 
-              <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
-                <h4 className="text-sm font-semibold text-gray-200">
-                  {t("idea.linkWidgetNotes")} ({linkNotes.length})
-                </h4>
-                {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
-                {!linkNotesLoading && linkNotes.length === 0 && (
-                  <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetNoNotes")}</p>
-                )}
-                <div className="mt-2 space-y-2">
-                  {linkNotes.map((note, idx) => (
-                    <div
-                      key={note._id}
-                      className={`rounded-lg border p-2 text-xs ${
-                        activeNoteId === note._id ? "border-purple-500 bg-purple-950/30" : "border-gray-800 bg-gray-900/70"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-gray-400">
-                        <span>#{idx + 1} · ({note.x.toFixed(1)}%, {note.y.toFixed(1)}%)</span>
+              {isFullscreen && (
+                <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
+                  <h4 className="text-sm font-semibold text-gray-200">
+                    {t("idea.linkWidgetNotes")} ({linkNotes.length})
+                  </h4>
+                  {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
+                  {!linkNotesLoading && linkNotes.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetNoNotes")}</p>
+                  )}
+                  <div className="mt-2 space-y-2">
+                    {linkNotes.map((note, idx) => (
+                      <div
+                        key={note._id}
+                        className={`rounded-lg border p-2 text-xs ${
+                          activeNoteId === note._id ? "border-purple-500 bg-purple-950/30" : "border-gray-800 bg-gray-900/70"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-gray-400">
+                          <span>#{idx + 1} · ({note.x.toFixed(1)}%, {note.y.toFixed(1)}%)</span>
+                        </div>
+                        <p className="text-gray-200 mt-1 whitespace-pre-wrap">{note.content}</p>
+                        <p className="text-gray-500 mt-1">
+                          {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })} · {new Date(note.createdAt).toLocaleString()}
+                        </p>
                       </div>
-                      <p className="text-gray-200 mt-1 whitespace-pre-wrap">{note.content}</p>
-                      <p className="text-gray-500 mt-1">
-                        {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })} · {new Date(note.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
