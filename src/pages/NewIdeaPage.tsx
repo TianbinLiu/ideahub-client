@@ -170,6 +170,17 @@ export default function NewIdeaPage() {
         }
         toast.success(t('idea.autoFetchSuccess'));
       } else {
+        // Partial fallback: if backend returns anything useful, prefill it.
+        if (result.title && !title) {
+          setTitle(result.title);
+        }
+        if (result.content && !content) {
+          setContent(result.content);
+        }
+        if (result.author && !externalOriginalAuthor) {
+          setExternalOriginalAuthor(result.author);
+        }
+
         // Failed to fetch - show user-friendly message
         toast.error(result.error || result.message || t('idea.autoFetchFailed'), {
           duration: 6000,
