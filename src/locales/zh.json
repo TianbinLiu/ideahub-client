@@ -208,7 +208,9 @@
     "linkWidgetNoNotes": "还没有位置备注，来添加第一条吧。",
     "linkWidgetNotes": "位置备注",
     "linkWidgetPinnedBy": "由 {{user}} 标注",
-    "linkWidgetNoteSaved": "位置备注已保存"
+    "linkWidgetNoteSaved": "位置备注已保存",
+    "linkWidgetNoteNotFound": "未找到该标注，可能已被删除",
+    "linkWidgetFullscreenFailed": "无法进入全屏模式"
   },
   "comment": {
     "title": "评论",

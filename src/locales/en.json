@@ -212,7 +212,9 @@
     "linkWidgetNoNotes": "No notes yet. Add the first position-based comment.",
     "linkWidgetNotes": "Position Notes",
     "linkWidgetPinnedBy": "Pinned by {{user}}",
-    "linkWidgetNoteSaved": "Position note saved"
+    "linkWidgetNoteSaved": "Position note saved",
+    "linkWidgetNoteNotFound": "Annotation not found. It may have been deleted.",
+    "linkWidgetFullscreenFailed": "Failed to enter fullscreen mode"
   },
   "comment": {
     "title": "Comments",

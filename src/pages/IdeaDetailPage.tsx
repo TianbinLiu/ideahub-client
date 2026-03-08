@@ -312,18 +312,57 @@ export default function IdeaDetailPage() {
   async function focusLinkNote(noteId?: string, x?: number, y?: number) {
     if (!noteId && (x === undefined || y === undefined)) return;
     let resolvedNoteId: string | undefined;
+    let noteFound = false;
 
+    // First verify the note exists in our current linkNotes state
     if (noteId) {
-      setActiveNoteId(noteId);
-      resolvedNoteId = noteId;
+      const note = linkNotes.find((n) => n._id === noteId);
+      if (note) {
+        setActiveNoteId(noteId);
+        resolvedNoteId = noteId;
+        noteFound = true;
+      } else {
+        // Note not found, try to reload linkNotes
+        if (id) {
+          try {
+            const res = await apiFetch<{ ok: true; notes: LinkNote[] }>(`/api/ideas/${id}/link-notes`);
+            const reloadedNotes = res.notes || [];
+            const reloadedNote = reloadedNotes.find((n) => n._id === noteId);
+            if (reloadedNote) {
+              setLinkNotes(reloadedNotes);
+              setActiveNoteId(noteId);
+              resolvedNoteId = noteId;
+              noteFound = true;
+            } else {
+              toast.error(t("idea.linkWidgetNoteNotFound"));
+              return;
+            }
+          } catch (e) {
+            toast.error(t("idea.linkWidgetNoteNotFound"));
+            return;
+          }
+        } else {
+          toast.error(t("idea.linkWidgetNoteNotFound"));
+          return;
+        }
+      }
     }
 
-    if (!noteId && x !== undefined && y !== undefined) {
+    if (!noteFound && x !== undefined && y !== undefined) {
       const fallback = linkNotes.find((n) => Math.abs(n.x - x) < 0.01 && Math.abs(n.y - y) < 0.01);
       if (fallback) {
         setActiveNoteId(fallback._id);
         resolvedNoteId = fallback._id;
+        noteFound = true;
+      } else {
+        toast.error(t("idea.linkWidgetNoteNotFound"));
+        return;
       }
+    }
+
+    if (!noteFound) {
+      toast.error(t("idea.linkWidgetNoteNotFound"));
+      return;
     }
 
     // Enter fullscreen first if not already in fullscreen
@@ -332,9 +371,11 @@ export default function IdeaDetailPage() {
         await previewRef.current.requestFullscreen();
         setIsFullscreen(true);
         // Wait a bit for fullscreen transition to complete
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (e) {
         console.error('Failed to enter fullscreen:', e);
+        toast.error(t("idea.linkWidgetFullscreenFailed"));
+        return;
       }
     }
 
@@ -348,7 +389,10 @@ export default function IdeaDetailPage() {
       }, 1600);
     }
 
-    linkWidgetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Use setTimeout to ensure DOM is ready after fullscreen transition
+    setTimeout(() => {
+      linkWidgetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   }
 
   useEffect(() => {
