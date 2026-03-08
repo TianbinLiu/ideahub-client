@@ -220,7 +220,10 @@
     "linkWidgetCaptureRequired": "Please capture a screenshot first",
     "linkWidgetCaptureSuccess": "Screenshot captured",
     "linkWidgetCaptureUnsupported": "Current browser does not support screen capture",
-    "linkWidgetCaptureCurrentTabOnly": "Please share this browser tab in fullscreen mode"
+    "linkWidgetCaptureCurrentTabOnly": "Please share this browser tab in fullscreen mode",
+    "linkWidgetSelectRegion": "Now drag to select the region you want to capture",
+    "linkWidgetConfirmCapture": "Confirm Capture",
+    "linkWidgetRegionTooSmall": "Selection region is too small"
   },
   "comment": {
     "title": "Comments",

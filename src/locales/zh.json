@@ -216,7 +216,10 @@
     "linkWidgetCaptureRequired": "请先截取屏幕",
     "linkWidgetCaptureSuccess": "截图成功",
     "linkWidgetCaptureUnsupported": "当前浏览器不支持屏幕捕获",
-    "linkWidgetCaptureCurrentTabOnly": "请在全屏模式下共享当前浏览器标签页"
+    "linkWidgetCaptureCurrentTabOnly": "请在全屏模式下共享当前浏览器标签页",
+    "linkWidgetSelectRegion": "现在拖动鼠标选择要截取的区域",
+    "linkWidgetConfirmCapture": "确认截图",
+    "linkWidgetRegionTooSmall": "选择区域太小"
   },
   "comment": {
     "title": "评论",

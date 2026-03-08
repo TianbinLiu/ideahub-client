@@ -124,6 +124,12 @@ export default function IdeaDetailPage() {
   const [panelPositions, setPanelPositions] = useState<Record<string, number>>({});
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
   const dragOffsetRef = useRef(0);
+  
+  // Screenshot region selection state
+  const [isSelectingRegion, setIsSelectingRegion] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  const [capturedStream, setCapturedStream] = useState<MediaStream | null>(null);
 
   const isCompany = user?.role === "company";
   const [interestMsg, setInterestMsg] = useState("");
@@ -170,7 +176,7 @@ export default function IdeaDetailPage() {
     }
   }
 
-  async function captureFullscreenScreenshot() {
+  async function startScreenCapture() {
     if (!isFullscreen) {
       toast.error(t("idea.linkWidgetFullscreenRequired"));
       return;
@@ -180,54 +186,60 @@ export default function IdeaDetailPage() {
       return;
     }
 
-    setCapturingScreenshot(true);
-    let stream: MediaStream | null = null;
     try {
-      // Prefer capturing the current browser tab so annotation screenshots come from this fullscreen view.
-      const captureOptions: any = {
-        audio: false,
-        video: {
-          frameRate: { ideal: 30, max: 30 },
-          displaySurface: "browser",
-        },
-        preferCurrentTab: true,
-        selfBrowserSurface: "include",
-        surfaceSwitching: "exclude",
-        monitorTypeSurfaces: "exclude",
-      };
-      stream = await navigator.mediaDevices.getDisplayMedia(captureOptions);
-      const track = stream.getVideoTracks()[0];
-      const settings = track?.getSettings?.();
-      if (settings?.displaySurface && settings.displaySurface !== "browser") {
-        throw new Error(t("idea.linkWidgetCaptureCurrentTabOnly"));
-      }
+      setCapturingScreenshot(true);
+      // Let user choose what to capture (tab, window, or screen)
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      setCapturedStream(stream);
+      setIsSelectingRegion(true);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      toast.success(t("idea.linkWidgetSelectRegion"));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+      setCapturingScreenshot(false);
+    }
+  }
 
+  async function captureSelectedRegion() {
+    if (!capturedStream || !selectionStart || !selectionEnd) return;
+
+    try {
       const video = document.createElement("video");
-      video.srcObject = stream;
+      video.srcObject = capturedStream;
       await video.play();
       await new Promise((resolve) => setTimeout(resolve, 300));
 
+      // Calculate selection rectangle in screen coordinates
       const previewRect = previewRef.current?.getBoundingClientRect();
-      const viewportWidth = Math.max(1, window.innerWidth);
-      const viewportHeight = Math.max(1, window.innerHeight);
-      const scaleX = video.videoWidth / viewportWidth;
-      const scaleY = video.videoHeight / viewportHeight;
+      if (!previewRect) throw new Error("Preview element not found");
 
-      const sourceX = previewRect ? Math.max(0, Math.round(previewRect.left * scaleX)) : 0;
-      const sourceY = previewRect ? Math.max(0, Math.round(previewRect.top * scaleY)) : 0;
-      const sourceW = previewRect
-        ? Math.max(1, Math.round(Math.min(video.videoWidth - sourceX, previewRect.width * scaleX)))
-        : video.videoWidth;
-      const sourceH = previewRect
-        ? Math.max(1, Math.round(Math.min(video.videoHeight - sourceY, previewRect.height * scaleY)))
-        : video.videoHeight;
+      const x1 = Math.min(selectionStart.x, selectionEnd.x);
+      const y1 = Math.min(selectionStart.y, selectionEnd.y);
+      const x2 = Math.max(selectionStart.x, selectionEnd.x);
+      const y2 = Math.max(selectionStart.y, selectionEnd.y);
+      const width = x2 - x1;
+      const height = y2 - y1;
+
+      if (width < 10 || height < 10) {
+        throw new Error(t("idea.linkWidgetRegionTooSmall"));
+      }
+
+      // Map preview coordinates to video coordinates
+      const scaleX = video.videoWidth / previewRect.width;
+      const scaleY = video.videoHeight / previewRect.height;
+
+      const sourceX = Math.round(x1 * scaleX);
+      const sourceY = Math.round(y1 * scaleY);
+      const sourceW = Math.round(width * scaleX);
+      const sourceH = Math.round(height * scaleY);
 
       const canvas = document.createElement("canvas");
       canvas.width = sourceW;
       canvas.height = sourceH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Failed to capture screenshot");
-      ctx.drawImage(video, sourceX, sourceY, sourceW, sourceH, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
 
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
       if (!blob) throw new Error("Failed to export screenshot");
@@ -236,14 +248,23 @@ export default function IdeaDetailPage() {
       const file = new File([blob], `annotation-${Date.now()}.png`, { type: "image/png" });
       const uploaded = await apiUploadImage(file, "annotation");
       setPendingScreenshotUrl(uploaded.imageUrl);
-      if (!pendingPoint) {
-        setPendingPoint({ x: 50, y: 50 });
-      }
+      
+      // Set pending point to center of selection
+      const centerX = ((x1 + x2) / 2 / previewRect.width) * 100;
+      const centerY = ((y1 + y2) / 2 / previewRect.height) * 100;
+      setPendingPoint({ x: centerX, y: centerY });
+      
       toast.success(t("idea.linkWidgetCaptureSuccess"));
+      
+      // Clean up
+      capturedStream.getTracks().forEach((track) => track.stop());
+      setCapturedStream(null);
+      setIsSelectingRegion(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
-      if (stream) stream.getTracks().forEach((track) => track.stop());
       setCapturingScreenshot(false);
     }
   }
@@ -405,6 +426,28 @@ export default function IdeaDetailPage() {
     } finally {
       setSubmittingNote(false);
     }
+  }
+
+  function handleRegionMouseDown(e: MouseEvent<HTMLDivElement>) {
+    if (!isSelectingRegion || !isFullscreen) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setSelectionStart({ x, y });
+    setSelectionEnd({ x, y });
+  }
+
+  function handleRegionMouseMove(e: MouseEvent<HTMLDivElement>) {
+    if (!isSelectingRegion || !selectionStart) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setSelectionEnd({ x, y });
+  }
+
+  function handleRegionMouseUp() {
+    if (!isSelectingRegion || !selectionStart || !selectionEnd) return;
+    // Show confirmation UI
   }
 
   function handlePreviewClick(e: MouseEvent<HTMLDivElement>) {
@@ -569,8 +612,12 @@ export default function IdeaDetailPage() {
       if (noteFlashTimerRef.current) {
         clearTimeout(noteFlashTimerRef.current);
       }
+      // Clean up captured stream on unmount
+      if (capturedStream) {
+        capturedStream.getTracks().forEach((track) => track.stop());
+      }
     };
-  }, []);
+  }, [capturedStream]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1048,9 +1095,30 @@ export default function IdeaDetailPage() {
                 />
 
                 <div
-                  className={`absolute inset-0 z-10 ${annotateMode && isFullscreen ? "cursor-crosshair" : "pointer-events-none"}`}
-                  onClick={handlePreviewClick}
+                  className={`absolute inset-0 z-10 ${
+                    isSelectingRegion 
+                      ? "cursor-crosshair" 
+                      : annotateMode && isFullscreen 
+                      ? "cursor-crosshair" 
+                      : "pointer-events-none"
+                  }`}
+                  onClick={!isSelectingRegion ? handlePreviewClick : undefined}
+                  onMouseDown={isSelectingRegion ? handleRegionMouseDown : undefined}
+                  onMouseMove={isSelectingRegion ? handleRegionMouseMove : undefined}
+                  onMouseUp={isSelectingRegion ? handleRegionMouseUp : undefined}
                 >
+                  {/* Selection rectangle visualization */}
+                  {isSelectingRegion && selectionStart && selectionEnd && (
+                    <div
+                      className="absolute border-2 border-blue-500 bg-blue-500/20"
+                      style={{
+                        left: `${Math.min(selectionStart.x, selectionEnd.x)}px`,
+                        top: `${Math.min(selectionStart.y, selectionEnd.y)}px`,
+                        width: `${Math.abs(selectionEnd.x - selectionStart.x)}px`,
+                        height: `${Math.abs(selectionEnd.y - selectionStart.y)}px`,
+                      }}
+                    />
+                  )}
                   {isFullscreen && linkNotes.map((note, idx) => (
                     <button
                       key={note._id}
@@ -1093,12 +1161,39 @@ export default function IdeaDetailPage() {
                           <div className="mb-2 flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={captureFullscreenScreenshot}
-                              disabled={capturingScreenshot}
-                              className="rounded-lg border border-purple-600 px-3 py-1 text-xs text-purple-100"
+                              onClick={startScreenCapture}
+                              disabled={capturingScreenshot || isSelectingRegion}
+                              className="rounded-lg border border-purple-600 px-3 py-1 text-xs text-purple-100 disabled:opacity-50"
                             >
-                              {capturingScreenshot ? t("comment.posting") : t("idea.linkWidgetCaptureScreenshot")}
+                              {capturingScreenshot || isSelectingRegion ? t("comment.posting") : t("idea.linkWidgetCaptureScreenshot")}
                             </button>
+                            {isSelectingRegion && selectionStart && selectionEnd && (
+                              <button
+                                type="button"
+                                onClick={captureSelectedRegion}
+                                className="rounded-lg border border-green-600 px-3 py-1 text-xs text-green-100"
+                              >
+                                {t("idea.linkWidgetConfirmCapture")}
+                              </button>
+                            )}
+                            {isSelectingRegion && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (capturedStream) {
+                                    capturedStream.getTracks().forEach((track) => track.stop());
+                                    setCapturedStream(null);
+                                  }
+                                  setIsSelectingRegion(false);
+                                  setSelectionStart(null);
+                                  setSelectionEnd(null);
+                                  setCapturingScreenshot(false);
+                                }}
+                                className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
+                              >
+                                {t("common.cancel")}
+                              </button>
+                            )}
                             {pendingScreenshotUrl && <span className="text-xs text-green-300">{t("idea.linkWidgetScreenshotReady")}</span>}
                           </div>
                           {pendingScreenshotUrl && (
