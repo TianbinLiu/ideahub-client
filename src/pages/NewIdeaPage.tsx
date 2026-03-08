@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { ExternalSource } from "../api";
-import { apiFetch } from "../api";
+import { apiFetch, apiUploadImage } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { saveLocalIdea } from "../utils/localIdeas";
@@ -16,6 +16,9 @@ const LIMITS = {
   CONTENT: 10000,
   TAGS: 200,
 };
+
+const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 export default function NewIdeaPage() {
   const nav = useNavigate();
@@ -32,6 +35,8 @@ export default function NewIdeaPage() {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private" | "unlisted">("public");
   const [, setIsMonetizable] = useState(false);
@@ -120,6 +125,30 @@ export default function NewIdeaPage() {
     const cleaned = list.filter((tag) => tag !== "其他");
     if (extra) cleaned.push(extra.trim());
     return Array.from(new Set(cleaned)).join(",");
+  }
+
+  async function handleIdeaImageUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingImages(true);
+    try {
+      const selected = Array.from(files).slice(0, 4);
+      const urls: string[] = [];
+      for (const file of selected) {
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Only image files are allowed");
+        }
+        if (file.size > IMAGE_MAX_BYTES) {
+          throw new Error("Image size must be <= 5MB");
+        }
+        const uploaded = await apiUploadImage(file, "idea");
+        urls.push(uploaded.imageUrl);
+      }
+      setImageUrls((prev) => [...prev, ...urls].slice(0, 8));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setUploadingImages(false);
+    }
   }
 
   // Auto-detect platform from URL
@@ -226,7 +255,7 @@ export default function NewIdeaPage() {
         : submitTagsBase;
 
       if (visibility === "private") {
-        const local = saveLocalIdea({ title, summary, content, tags: splitTags(submitTags) });
+        const local = saveLocalIdea({ title, summary, content, imageUrls, tags: splitTags(submitTags) });
         toast.success(t('idea.savedLocally'));
         nav(`/ideas/${local._id}`);
         return;
@@ -250,6 +279,7 @@ export default function NewIdeaPage() {
           title,
           summary,
           content,
+          imageUrls,
           tags: submitTags,
           visibility,
           isMonetizable: false,
@@ -327,6 +357,43 @@ export default function NewIdeaPage() {
             maxLength={LIMITS.CONTENT}
           />
           <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
+        </div>
+
+        <div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 cursor-pointer hover:bg-gray-900 text-gray-200">
+              + Image
+              <input
+                type="file"
+                accept={IMAGE_ACCEPT}
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  handleIdeaImageUpload(e.target.files);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            {uploadingImages && <span className="text-xs text-gray-400">Uploading...</span>}
+            <span className="text-xs text-gray-500">Max 5MB per image</span>
+          </div>
+
+          {imageUrls.length > 0 && (
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {imageUrls.map((url) => (
+                <div key={url} className="relative">
+                  <img src={url} alt="idea upload" className="h-20 w-full rounded border border-gray-800 object-cover" />
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 rounded bg-black/60 px-1 text-xs"
+                    onClick={() => setImageUrls((prev) => prev.filter((item) => item !== url))}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {showTagsInput && (

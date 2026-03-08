@@ -214,7 +214,12 @@
     "linkWidgetPinnedBy": "Pinned by {{user}}",
     "linkWidgetNoteSaved": "Position note saved",
     "linkWidgetNoteNotFound": "Annotation not found. It may have been deleted.",
-    "linkWidgetFullscreenFailed": "Failed to enter fullscreen mode"
+    "linkWidgetFullscreenFailed": "Failed to enter fullscreen mode",
+    "linkWidgetCaptureScreenshot": "Capture Screenshot",
+    "linkWidgetScreenshotReady": "Screenshot ready",
+    "linkWidgetCaptureRequired": "Please capture a screenshot first",
+    "linkWidgetCaptureSuccess": "Screenshot captured",
+    "linkWidgetCaptureUnsupported": "Current browser does not support screen capture"
   },
   "comment": {
     "title": "Comments",

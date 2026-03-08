@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { apiFetch } from "../api";
+import { apiFetch, apiUploadImage } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
@@ -12,6 +12,9 @@ const LIMITS = {
   NOMINATION_TITLE: 150,
   NOMINATION_BODY: 2000,
 };
+
+const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 export default function LeaderboardDetailPage() {
   const { id } = useParams();
@@ -32,6 +35,27 @@ export default function LeaderboardDetailPage() {
 
   const [newPostTitle, setNewPostTitle] = useState("");
   const [newPostBody, setNewPostBody] = useState("");
+  const [newPostImageUrls, setNewPostImageUrls] = useState<string[]>([]);
+  const [uploadingPostImages, setUploadingPostImages] = useState(false);
+
+  async function handlePostImageUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingPostImages(true);
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(files).slice(0, 4)) {
+        if (!file.type.startsWith("image/")) throw new Error("Only image files are allowed");
+        if (file.size > IMAGE_MAX_BYTES) throw new Error("Image size must be <= 5MB");
+        const uploaded = await apiUploadImage(file, "leaderboard");
+        urls.push(uploaded.imageUrl);
+      }
+      setNewPostImageUrls((prev) => [...prev, ...urls].slice(0, 8));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setUploadingPostImages(false);
+    }
+  }
 
   async function toggleBookmark() {
     try {
@@ -96,10 +120,11 @@ export default function LeaderboardDetailPage() {
       const tagsKey = leaderboard.tagsKey;
       await apiFetch(`/api/tag-rank/posts`, {
         method: "POST",
-        body: JSON.stringify({ title: newPostTitle, body: newPostBody, tagsKey }),
+        body: JSON.stringify({ title: newPostTitle, body: newPostBody, imageUrls: newPostImageUrls, tagsKey }),
       });
       setNewPostTitle("");
       setNewPostBody("");
+      setNewPostImageUrls([]);
       toast.success(t('leaderboard.nominationPosted'));
       setPostsPage(1);
       loadPosts();
@@ -259,6 +284,39 @@ export default function LeaderboardDetailPage() {
               />
               <CharCount current={newPostBody.length} max={LIMITS.NOMINATION_BODY} className="mt-1" />
             </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 cursor-pointer hover:bg-gray-900 text-gray-200">
+                + Image
+                <input
+                  type="file"
+                  accept={IMAGE_ACCEPT}
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    handlePostImageUpload(e.target.files);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              {uploadingPostImages && <span className="text-xs text-gray-400">Uploading...</span>}
+              <span className="text-xs text-gray-500">Max 5MB per image</span>
+            </div>
+            {newPostImageUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {newPostImageUrls.map((url) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt="nomination" className="h-20 w-full rounded border border-gray-800 object-cover" />
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 rounded bg-black/60 px-1 text-xs"
+                      onClick={() => setNewPostImageUrls((prev) => prev.filter((item) => item !== url))}
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={submitPost}
@@ -304,6 +362,13 @@ export default function LeaderboardDetailPage() {
                       · {new Date(p.createdAt).toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-300 mt-2">{p.body}</div>
+                    {!!p.imageUrls?.length && (
+                      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {p.imageUrls.map((url: string) => (
+                          <img key={url} src={url} alt="post" className="h-24 w-full rounded border border-gray-800 object-cover" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-white font-bold">

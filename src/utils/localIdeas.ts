@@ -7,6 +7,7 @@ export type LocalIdea = {
   title: string;
   summary?: string;
   content?: string;
+  imageUrls?: string[];
   tags?: string[];
   visibility?: "private";
   createdAt: string;
@@ -54,6 +55,7 @@ export function saveLocalIdea(data: Partial<LocalIdea>): LocalIdea {
     title: data.title || "Untitled",
     summary: data.summary || "",
     content: data.content || "",
+    imageUrls: data.imageUrls || [],
     tags: data.tags || [],
     visibility: "private",
     createdAt: data.createdAt || now,

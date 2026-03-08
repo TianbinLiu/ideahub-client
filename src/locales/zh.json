@@ -210,7 +210,12 @@
     "linkWidgetPinnedBy": "由 {{user}} 标注",
     "linkWidgetNoteSaved": "位置备注已保存",
     "linkWidgetNoteNotFound": "未找到该标注，可能已被删除",
-    "linkWidgetFullscreenFailed": "无法进入全屏模式"
+    "linkWidgetFullscreenFailed": "无法进入全屏模式",
+    "linkWidgetCaptureScreenshot": "截取屏幕",
+    "linkWidgetScreenshotReady": "截图已就绪",
+    "linkWidgetCaptureRequired": "请先截取屏幕",
+    "linkWidgetCaptureSuccess": "截图成功",
+    "linkWidgetCaptureUnsupported": "当前浏览器不支持屏幕捕获"
   },
   "comment": {
     "title": "评论",

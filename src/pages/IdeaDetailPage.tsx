@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiFetch } from "../api";
+import { apiFetch, apiUploadImage } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -15,12 +15,16 @@ const LIMITS = {
   COMMENT: 2000,
 };
 
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
+
 
 type Idea = {
   _id: string;
   title: string;
   summary: string;
   content: string;
+  imageUrls?: string[];
   tags: string[];
   visibility: string;
   isMonetizable: boolean;
@@ -51,6 +55,7 @@ type Idea = {
 type Comment = {
   _id: string;
   content: string;
+  imageUrls?: string[];
   createdAt: string;
   author?: { _id: string; username: string; role: string };
   likes?: string[];
@@ -69,6 +74,8 @@ type LinkNote = {
   x: number;
   y: number;
   content: string;
+  screenshotUrl?: string;
+  panelY?: number;
   createdAt: string;
   updatedAt?: string;
   user?: { _id: string; username: string; role: string };
@@ -87,9 +94,13 @@ export default function IdeaDetailPage() {
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [commentImageUrls, setCommentImageUrls] = useState<string[]>([]);
+  const [uploadingCommentImages, setUploadingCommentImages] = useState(false);
   const [busy, setBusy] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [replyImageUrls, setReplyImageUrls] = useState<string[]>([]);
+  const [uploadingReplyImages, setUploadingReplyImages] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [replies, setReplies] = useState<{ [commentId: string]: Comment[] }>({});
 
@@ -105,13 +116,18 @@ export default function IdeaDetailPage() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [flashingNoteId, setFlashingNoteId] = useState<string | null>(null);
   const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
+  const [pendingScreenshotUrl, setPendingScreenshotUrl] = useState("");
+  const [capturingScreenshot, setCapturingScreenshot] = useState(false);
   const [noteContent, setNoteContent] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [panelPositions, setPanelPositions] = useState<Record<string, number>>({});
+  const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
+  const dragOffsetRef = useRef(0);
 
   const isCompany = user?.role === "company";
   const [interestMsg, setInterestMsg] = useState("");
-  const [interested, setInterested] = useState(false); // Phase 8 简化：首次不拉状态，点了就更新
+  const [interested, setInterested] = useState(false);
 
 
   async function loadComments() {
@@ -119,18 +135,97 @@ export default function IdeaDetailPage() {
     setComments(res.comments || []);
   }
 
+  function validateImageFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Only image files are allowed");
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      throw new Error("Image size must be <= 5MB");
+    }
+  }
+
+  async function uploadLocalImages(files: FileList | null, target: "comment" | "reply") {
+    if (!files || files.length === 0) return;
+    if (target === "comment") setUploadingCommentImages(true);
+    if (target === "reply") setUploadingReplyImages(true);
+
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(files).slice(0, 4)) {
+        validateImageFile(file);
+        const uploaded = await apiUploadImage(file, "comment");
+        urls.push(uploaded.imageUrl);
+      }
+
+      if (target === "comment") {
+        setCommentImageUrls((prev) => [...prev, ...urls].slice(0, 8));
+      } else {
+        setReplyImageUrls((prev) => [...prev, ...urls].slice(0, 8));
+      }
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      if (target === "comment") setUploadingCommentImages(false);
+      if (target === "reply") setUploadingReplyImages(false);
+    }
+  }
+
+  async function captureFullscreenScreenshot() {
+    if (!isFullscreen) {
+      toast.error(t("idea.linkWidgetFullscreenRequired"));
+      return;
+    }
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      toast.error(t("idea.linkWidgetCaptureUnsupported"));
+      return;
+    }
+
+    setCapturingScreenshot(true);
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      await video.play();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Failed to capture screenshot");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+      if (!blob) throw new Error("Failed to export screenshot");
+      if (blob.size > IMAGE_MAX_BYTES) throw new Error("Image size must be <= 5MB");
+
+      const file = new File([blob], `annotation-${Date.now()}.png`, { type: "image/png" });
+      const uploaded = await apiUploadImage(file, "annotation");
+      setPendingScreenshotUrl(uploaded.imageUrl);
+      if (!pendingPoint) {
+        setPendingPoint({ x: 50, y: 50 });
+      }
+      toast.success(t("idea.linkWidgetCaptureSuccess"));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      setCapturingScreenshot(false);
+    }
+  }
+
   async function submitComment() {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() && commentImageUrls.length === 0) return;
     try {
       setBusy(true);
       const res = await apiFetch<{ comment: Comment; commentCount: number }>(`/api/ideas/${id}/comments`, {
         method: "POST",
-        body: JSON.stringify({ content: commentText }),
+        body: JSON.stringify({ content: commentText || "[image]", imageUrls: commentImageUrls }),
       });
       setCommentText("");
-      // 立即把新评论插到最前
+      setCommentImageUrls([]);
       setComments((prev) => [res.comment, ...prev]);
-      // 同步本地 idea 计数（不必等重新拉详情）
       setIdea((prev) =>
         prev ? { ...prev, stats: { ...prev.stats, commentCount: res.commentCount } as any } : prev
       );
@@ -140,24 +235,23 @@ export default function IdeaDetailPage() {
   }
 
   async function submitReply(parentCommentId: string) {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() && replyImageUrls.length === 0) return;
     try {
       setBusy(true);
       await apiFetch<{ comment: Comment }>(`/api/ideas/${id}/comments`, {
         method: "POST",
-        body: JSON.stringify({ content: replyText, parentCommentId }),
+        body: JSON.stringify({ content: replyText || "[image]", imageUrls: replyImageUrls, parentCommentId }),
       });
       setReplyText("");
+      setReplyImageUrls([]);
       setReplyingTo(null);
       
-      // 更新父评论的回复数
       setComments((prev) =>
         prev.map((c) =>
           c._id === parentCommentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c
         )
       );
-      
-      // 立即加载并展开回复列表，这样用户能看到新回复
+
       try {
         const repliesRes = await apiFetch<{ replies: Comment[] }>(`/api/ideas/${id}/comments/${parentCommentId}/replies`);
         setReplies((prev) => ({ ...prev, [parentCommentId]: repliesRes.replies || [] }));
@@ -217,10 +311,18 @@ export default function IdeaDetailPage() {
     try {
       setLinkNotesLoading(true);
       const res = await apiFetch<{ ok: true; notes: LinkNote[] }>(`/api/ideas/${ideaId}/link-notes`);
-      setLinkNotes(res.notes || []);
+      const notes = res.notes || [];
+      setLinkNotes(notes);
+      setPanelPositions(
+        notes.reduce<Record<string, number>>((acc, note, idx) => {
+          acc[note._id] = Number(note.panelY || idx * 110);
+          return acc;
+        }, {})
+      );
     } catch (e: any) {
       // If the idea has no external source URL, backend can reject. Keep UI usable.
       setLinkNotes([]);
+      setPanelPositions({});
     } finally {
       setLinkNotesLoading(false);
     }
@@ -228,6 +330,10 @@ export default function IdeaDetailPage() {
 
   async function submitLinkNote() {
     if (!id || !pendingPoint || !noteContent.trim()) return;
+    if (!pendingScreenshotUrl) {
+      toast.error(t("idea.linkWidgetCaptureRequired"));
+      return;
+    }
     try {
       setSubmittingNote(true);
       const res = await apiFetch<{
@@ -241,10 +347,13 @@ export default function IdeaDetailPage() {
         body: JSON.stringify({
           x: pendingPoint.x,
           y: pendingPoint.y,
+          screenshotUrl: pendingScreenshotUrl,
+          panelY: Math.max(0, linkNotes.length * 110),
           content: noteContent,
         }),
       });
       setLinkNotes((prev) => [...prev, res.note]);
+      setPanelPositions((prev) => ({ ...prev, [res.note._id]: Number(res.note.panelY || linkNotes.length * 110) }));
       if (res.comment) {
         setComments((prev) => [res.comment as Comment, ...prev]);
       }
@@ -255,6 +364,7 @@ export default function IdeaDetailPage() {
       }
       setActiveNoteId(res.note._id);
       setPendingPoint(null);
+      setPendingScreenshotUrl("");
       setNoteContent("");
       toast.success(t("idea.linkWidgetNoteSaved"));
     } catch (e: any) {
@@ -305,8 +415,16 @@ export default function IdeaDetailPage() {
     }
     
     // Toggle annotate mode
-    setAnnotateMode((v) => !v);
-    setPendingPoint(null);
+    setAnnotateMode((v) => {
+      const next = !v;
+      if (next) {
+        setPendingPoint({ x: 50, y: 50 });
+      } else {
+        setPendingPoint(null);
+        setPendingScreenshotUrl("");
+      }
+      return next;
+    });
   }
 
   async function focusLinkNote(noteId?: string, x?: number, y?: number) {
@@ -395,6 +513,24 @@ export default function IdeaDetailPage() {
     }, 100);
   }
 
+  async function persistPanelPosition(noteId: string, panelY: number) {
+    if (!id) return;
+    try {
+      await apiFetch(`/api/ideas/${id}/link-notes/${noteId}/position`, {
+        method: "PATCH",
+        body: JSON.stringify({ panelY: Math.max(0, panelY) }),
+      });
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  function startDragNote(noteId: string, e: MouseEvent<HTMLDivElement>) {
+    const currentTop = panelPositions[noteId] ?? 0;
+    dragOffsetRef.current = e.clientY - currentTop;
+    setDraggingNoteId(noteId);
+  }
+
   useEffect(() => {
     return () => {
       if (noteFlashTimerRef.current) {
@@ -412,6 +548,7 @@ export default function IdeaDetailPage() {
       if (!inFullscreen) {
         setAnnotateMode(false);
         setPendingPoint(null);
+        setPendingScreenshotUrl("");
         setActiveNoteId(null);
       }
     };
@@ -422,6 +559,30 @@ export default function IdeaDetailPage() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!draggingNoteId) return;
+
+    const onMove = (event: globalThis.MouseEvent) => {
+      const nextY = Math.max(0, event.clientY - dragOffsetRef.current);
+      setPanelPositions((prev) => ({ ...prev, [draggingNoteId]: nextY }));
+    };
+
+    const onUp = async () => {
+      const noteId = draggingNoteId;
+      const y = panelPositions[noteId] ?? 0;
+      setDraggingNoteId(null);
+      await persistPanelPosition(noteId, y);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp, { once: true });
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [draggingNoteId, panelPositions]);
 
   async function onDeleteIdea() {
     if (!id) return;
@@ -452,6 +613,7 @@ export default function IdeaDetailPage() {
           title: li.title,
           summary: li.summary || "",
           content: li.content || "",
+          imageUrls: li.imageUrls || [],
           tags: li.tags || [],
           visibility: "private",
           isMonetizable: false,
@@ -477,7 +639,7 @@ export default function IdeaDetailPage() {
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
-      setErr(msg); // 可选
+      setErr(msg);
 
     } finally {
       setLoading(false);
@@ -723,7 +885,7 @@ export default function IdeaDetailPage() {
                   ? "bg-red-900/30 border border-red-800 text-red-200" 
                   : "bg-blue-900/30 border border-blue-800 text-blue-200"
               }`}>
-                {idea.feedbackType === "bug" ? `🐛 ${t('idea.feedbackBug')}` : `💡 ${t('idea.feedbackSuggestion')}`}
+                {idea.feedbackType === "bug" ? t('idea.feedbackBug') : t('idea.feedbackSuggestion')}
               </span>
               
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -734,11 +896,11 @@ export default function IdeaDetailPage() {
                 idea.feedbackStatus === "rejected" ? "bg-gray-900/30 border border-gray-700 text-gray-400" :
                 "bg-gray-900/30 border border-gray-700 text-gray-300"
               }`}>
-                {idea.feedbackStatus === "pending" ? `⏳ ${t('idea.feedbackPending')}` :
-                 idea.feedbackStatus === "under_review" ? `🔍 ${t('idea.feedbackUnderReview')}` :
-                 idea.feedbackStatus === "adopted" ? `✅ ${t('idea.feedbackAdopted')}` :
-                 idea.feedbackStatus === "resolved" ? `✔️ ${t('idea.feedbackResolved')}` :
-                 idea.feedbackStatus === "rejected" ? `❌ ${t('idea.feedbackRejected')}` :
+                 {idea.feedbackStatus === "pending" ? t('idea.feedbackPending') :
+                  idea.feedbackStatus === "under_review" ? t('idea.feedbackUnderReview') :
+                  idea.feedbackStatus === "adopted" ? t('idea.feedbackAdopted') :
+                  idea.feedbackStatus === "resolved" ? t('idea.feedbackResolved') :
+                  idea.feedbackStatus === "rejected" ? t('idea.feedbackRejected') :
                  t('idea.statusUnknown')}
               </span>
 
@@ -773,12 +935,20 @@ export default function IdeaDetailPage() {
 
           {idea.aiSummary && (
             <div className="mt-4 rounded-2xl border border-blue-800 bg-blue-950/20 p-3">
-              <h4 className="text-sm font-semibold text-blue-200">📝 {t('idea.aiSummary')}</h4>
+              <h4 className="text-sm font-semibold text-blue-200">{t('idea.aiSummary')}</h4>
               <p className="text-sm text-blue-100 mt-1">{idea.aiSummary}</p>
             </div>
           )}
 
           {idea.summary && <p className="text-gray-200 mt-4">{idea.summary}</p>}
+
+          {!!idea.imageUrls?.length && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+              {idea.imageUrls.map((url) => (
+                <img key={url} src={url} alt="idea" className="w-full h-32 rounded-lg border border-gray-800 object-cover" />
+              ))}
+            </div>
+          )}
 
           {idea.externalSource?.url && (
             <div ref={linkWidgetRef} className="mt-5 rounded-2xl border border-purple-800 bg-purple-950/20 p-4">
@@ -887,6 +1057,20 @@ export default function IdeaDetailPage() {
 
                       {pendingPoint && user && (
                         <div className="mt-2 rounded-xl border border-purple-800/80 bg-gray-950/70 p-3">
+                          <div className="mb-2 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={captureFullscreenScreenshot}
+                              disabled={capturingScreenshot}
+                              className="rounded-lg border border-purple-600 px-3 py-1 text-xs text-purple-100"
+                            >
+                              {capturingScreenshot ? t("comment.posting") : t("idea.linkWidgetCaptureScreenshot")}
+                            </button>
+                            {pendingScreenshotUrl && <span className="text-xs text-green-300">{t("idea.linkWidgetScreenshotReady")}</span>}
+                          </div>
+                          {pendingScreenshotUrl && (
+                            <img src={pendingScreenshotUrl} alt="annotation capture" className="mb-2 max-h-28 rounded border border-gray-800" />
+                          )}
                           <p className="text-xs text-gray-400 mb-2">
                             {t("idea.linkWidgetPointLabel", {
                               x: pendingPoint.x.toFixed(1),
@@ -907,6 +1091,7 @@ export default function IdeaDetailPage() {
                                 type="button"
                                 onClick={() => {
                                   setPendingPoint(null);
+                                  setPendingScreenshotUrl("");
                                   setNoteContent("");
                                 }}
                                 className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
@@ -926,32 +1111,47 @@ export default function IdeaDetailPage() {
                         </div>
                       )}
 
-                      <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
-                        <h4 className="text-sm font-semibold text-gray-200">
-                          {t("idea.linkWidgetNotes")} ({linkNotes.length})
-                        </h4>
-                        {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
-                        {!linkNotesLoading && linkNotes.length === 0 && (
-                          <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetNoNotes")}</p>
+                      {linkNotesLoading && <p className="text-xs text-gray-400 mt-2">{t("common.loading")}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {isFullscreen && (
+                  <div className="absolute right-3 top-12 bottom-3 z-40 w-[320px] pointer-events-none">
+                    <div className="relative h-full rounded-xl border border-purple-800/60 bg-gray-950/50 backdrop-blur pointer-events-auto overflow-hidden">
+                      <div className="px-3 py-2 border-b border-purple-900/50 text-xs text-purple-200">
+                        {t("idea.linkWidgetNotes")} ({linkNotes.length})
+                      </div>
+                      <div className="relative h-[calc(100%-40px)]">
+                        {linkNotesLoading && (
+                          <p className="px-3 py-2 text-xs text-gray-400">{t("common.loading")}</p>
                         )}
-                        <div className="mt-2 space-y-2">
-                          {linkNotes.map((note, idx) => (
+                        {!linkNotesLoading && linkNotes.length === 0 && (
+                          <p className="px-3 py-2 text-xs text-gray-400">{t("idea.linkWidgetNoNotes")}</p>
+                        )}
+                        {linkNotes
+                          .slice()
+                          .sort((a, b) => (panelPositions[a._id] ?? Number(a.panelY || 0)) - (panelPositions[b._id] ?? Number(b.panelY || 0)))
+                          .map((note, idx) => (
                             <div
                               key={note._id}
-                              className={`rounded-lg border p-2 text-xs ${
-                                activeNoteId === note._id ? "border-purple-500 bg-purple-950/30" : "border-gray-800 bg-gray-900/70"
-                              }`}
+                              onMouseDown={(e) => startDragNote(note._id, e)}
+                              onClick={() => setActiveNoteId(note._id)}
+                              className={`absolute left-2 right-2 cursor-move rounded-lg border p-2 text-xs ${
+                                activeNoteId === note._id ? "border-purple-500 bg-purple-950/70" : "border-gray-800 bg-gray-900/70"
+                              } ${flashingNoteId === note._id ? "ring-2 ring-yellow-300/70" : ""}`}
+                              style={{ top: `${panelPositions[note._id] ?? idx * 110}px` }}
                             >
-                              <div className="flex items-center justify-between text-gray-400">
-                                <span>#{idx + 1} · ({note.x.toFixed(1)}%, {note.y.toFixed(1)}%)</span>
-                              </div>
+                              <div className="text-gray-300">#{idx + 1}</div>
+                              {note.screenshotUrl && (
+                                <img src={note.screenshotUrl} alt="annotation" className="mt-1 max-h-20 w-full rounded object-cover" />
+                              )}
                               <p className="text-gray-200 mt-1 whitespace-pre-wrap">{note.content}</p>
                               <p className="text-gray-500 mt-1">
-                                {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })} · {new Date(note.createdAt).toLocaleString()}
+                                {t("idea.linkWidgetPinnedBy", { user: note.user?.username || t("home.unknownAuthor") })}
                               </p>
                             </div>
                           ))}
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -961,7 +1161,7 @@ export default function IdeaDetailPage() {
               <p className="mt-2 text-xs text-purple-300/80">{t("idea.linkWidgetFrameHint")}</p>
 
               {!isFullscreen && (
-                <p className="mt-2 text-xs text-yellow-300">💡 {t("idea.linkWidgetFullscreenRequired")}</p>
+                <p className="mt-2 text-xs text-yellow-300">{t("idea.linkWidgetFullscreenRequired")}</p>
               )}
 
 
@@ -995,8 +1195,7 @@ export default function IdeaDetailPage() {
               </span>
             ))}
             <span className="ml-auto text-gray-500">
-              ❤️ {idea.stats?.likeCount ?? 0} · 💬 {idea.stats?.commentCount ?? 0} · 🔖{" "}
-              {idea.stats?.bookmarkCount ?? 0} · 👀 {idea.stats?.viewCount ?? 0}
+              L {idea.stats?.likeCount ?? 0} · C {idea.stats?.commentCount ?? 0} · B {idea.stats?.bookmarkCount ?? 0} · V {idea.stats?.viewCount ?? 0}
             </span>
           </div>
 
@@ -1007,7 +1206,7 @@ export default function IdeaDetailPage() {
               onClick={onToggleLike}
               disabled={!user}
             >
-              {liked ? `❤️ ${t('idea.liked')}` : `🤍 ${t('idea.like')}`}
+              {liked ? `${t('idea.liked')}` : `${t('idea.like')}`}
             </button>
 
             <button
@@ -1016,7 +1215,7 @@ export default function IdeaDetailPage() {
               onClick={onToggleBookmark}
               disabled={!user}
             >
-              {bookmarked ? `🔖 ${t('idea.bookmarked')}` : `📑 ${t('idea.bookmark')}`}
+              {bookmarked ? `${t('idea.bookmarked')}` : `${t('idea.bookmark')}`}
             </button>
 
             {isCompany && (
@@ -1038,7 +1237,7 @@ export default function IdeaDetailPage() {
                     }`}
                   onClick={onToggleInterest}
                 >
-                  {interested ? `✅ ${t('company.interested')}` : `⭐ ${t('company.markInterested')}`}
+                  {interested ? `${t('company.interested')}` : `${t('company.markInterested')}`}
                 </button>
               </div>
             )}
@@ -1061,10 +1260,42 @@ export default function IdeaDetailPage() {
                   />
                   <CharCount current={commentText.length} max={LIMITS.COMMENT} className="mt-1" />
                 </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 cursor-pointer hover:bg-gray-900">
+                    + Image
+                    <input
+                      type="file"
+                      accept={IMAGE_ACCEPT}
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        uploadLocalImages(e.target.files, "comment");
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  {uploadingCommentImages && <span className="text-xs text-gray-400">Uploading...</span>}
+                </div>
+                {commentImageUrls.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {commentImageUrls.map((url) => (
+                      <div key={url} className="relative">
+                        <img src={url} alt="comment upload" className="h-20 w-full rounded border border-gray-800 object-cover" />
+                        <button
+                          type="button"
+                          className="absolute top-1 right-1 rounded bg-black/60 px-1 text-xs"
+                          onClick={() => setCommentImageUrls((prev) => prev.filter((item) => item !== url))}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <button
                   className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
                   onClick={submitComment}
-                  disabled={busy || !commentText.trim()}
+                  disabled={busy || (!commentText.trim() && commentImageUrls.length === 0)}
                 >
                   {busy ? t('comment.posting') : t('comment.submit')}
                 </button>
@@ -1096,6 +1327,13 @@ export default function IdeaDetailPage() {
                       <span>{new Date(c.createdAt).toLocaleString()}</span>
                     </div>
                     <p className="text-gray-200 mt-2 whitespace-pre-wrap">{c.content}</p>
+                    {!!c.imageUrls?.length && (
+                      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {c.imageUrls.map((url) => (
+                          <img key={url} src={url} alt="comment" className="h-24 w-full rounded border border-gray-800 object-cover" />
+                        ))}
+                      </div>
+                    )}
                     {c.externalLinkNote && (
                       <button
                         type="button"
@@ -1123,14 +1361,14 @@ export default function IdeaDetailPage() {
                                 : "border-gray-700 text-gray-400 hover:text-gray-200"
                             }`}
                           >
-                            {isCommentLiked ? "❤️" : "🤍"} {c.likesCount || 0}
+                            {isCommentLiked ? "liked" : "like"} {c.likesCount || 0}
                           </button>
                           
                           <button
                             onClick={() => setReplyingTo(replyingTo === c._id ? null : c._id)}
                             className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 hover:text-gray-200"
                           >
-                            💬 {t('comment.reply')}
+                            {t('comment.reply')}
                           </button>
                         </>
                       )}
@@ -1140,12 +1378,12 @@ export default function IdeaDetailPage() {
                           onClick={() => toggleReplies(c._id)}
                           className="text-xs px-2 py-1 text-blue-400 hover:text-blue-300"
                         >
-                          {isExpanded ? '▼' : '▶'} {c.replyCount} {t('comment.replies')}
+                          {isExpanded ? 'v' : '>'} {c.replyCount} {t('comment.replies')}
                         </button>
                       )}
                     </div>
 
-                    {/* 回复输入框 */}
+                    {/* Reply editor */}
                     {replyingTo === c._id && (
                       <div className="mt-3 pl-4 border-l-2 border-gray-700">
                         <textarea
@@ -1159,10 +1397,24 @@ export default function IdeaDetailPage() {
                         <div className="flex justify-between items-center mt-1">
                           <CharCount current={replyText.length} max={LIMITS.COMMENT} className="" />
                           <div className="flex gap-2">
+                            <label className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-300 cursor-pointer hover:bg-gray-700/40">
+                              + Image
+                              <input
+                                type="file"
+                                accept={IMAGE_ACCEPT}
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                  uploadLocalImages(e.target.files, "reply");
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
                             <button
                               onClick={() => {
                                 setReplyingTo(null);
                                 setReplyText("");
+                                setReplyImageUrls([]);
                               }}
                               className="text-xs px-3 py-1 rounded border border-gray-700 text-gray-400 hover:text-gray-200"
                             >
@@ -1170,17 +1422,34 @@ export default function IdeaDetailPage() {
                             </button>
                             <button
                               onClick={() => submitReply(c._id)}
-                              disabled={busy || !replyText.trim()}
+                              disabled={busy || (!replyText.trim() && replyImageUrls.length === 0)}
                               className="text-xs px-3 py-1 rounded bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700"
                             >
                               {busy ? t('comment.posting') : t('comment.submit')}
                             </button>
                           </div>
                         </div>
+                        {uploadingReplyImages && <p className="mt-1 text-xs text-gray-400">Uploading...</p>}
+                        {replyImageUrls.length > 0 && (
+                          <div className="mt-2 grid grid-cols-3 gap-2">
+                            {replyImageUrls.map((url) => (
+                              <div key={url} className="relative">
+                                <img src={url} alt="reply upload" className="h-16 w-full rounded border border-gray-700 object-cover" />
+                                <button
+                                  type="button"
+                                  className="absolute top-1 right-1 rounded bg-black/60 px-1 text-xs"
+                                  onClick={() => setReplyImageUrls((prev) => prev.filter((item) => item !== url))}
+                                >
+                                  x
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* 回复列表 */}
+                    {/* Reply list */}
                     {isExpanded && commentReplies.length > 0 && (
                       <div className="mt-3 pl-4 space-y-2 border-l-2 border-gray-700">
                         {commentReplies.map((reply) => {
@@ -1200,6 +1469,13 @@ export default function IdeaDetailPage() {
                                 <span>{new Date(reply.createdAt).toLocaleString()}</span>
                               </div>
                               <p className="text-gray-200 mt-1 text-sm whitespace-pre-wrap">{reply.content}</p>
+                              {!!reply.imageUrls?.length && (
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  {reply.imageUrls.map((url) => (
+                                    <img key={url} src={url} alt="reply" className="h-20 w-full rounded border border-gray-700 object-cover" />
+                                  ))}
+                                </div>
+                              )}
                               {user && (
                                 <button
                                   onClick={() => toggleCommentLike(reply._id)}
@@ -1209,7 +1485,7 @@ export default function IdeaDetailPage() {
                                       : "border-gray-700 text-gray-400 hover:text-gray-200"
                                   }`}
                                 >
-                                  {isReplyLiked ? "❤️" : "🤍"} {reply.likesCount || 0}
+                                  {isReplyLiked ? "liked" : "like"} {reply.likesCount || 0}
                                 </button>
                               )}
                             </div>

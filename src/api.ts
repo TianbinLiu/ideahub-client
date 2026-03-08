@@ -49,6 +49,32 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   return json as T;
 }
 
+export async function apiUploadImage(file: File, scope: "idea" | "comment" | "leaderboard" | "annotation" = "idea") {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch(`${API_BASE}/api/uploads/image?scope=${encodeURIComponent(scope)}`, {
+    method: "POST",
+    body: formData,
+    headers,
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err: any = new Error(json?.message || `HTTP ${res.status}`);
+    err.code = json?.code;
+    err.details = json?.details;
+    err.status = res.status;
+    throw err;
+  }
+
+  return json as { ok: true; imageUrl: string; maxSizeBytes: number; mimeType: string; size: number };
+}
+
 export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED";
 
 export type NotificationItem = {
