@@ -94,6 +94,12 @@ export default function IdeaDetailPage() {
   const [interestMsg, setInterestMsg] = useState("");
   const [interested, setInterested] = useState(false);
 
+  // External link fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  function toggleFullscreen() {
+    setIsFullscreen(!isFullscreen);
+  }
 
   async function loadComments() {
     const res = await apiFetch<{ comments: Comment[] }>(`/api/ideas/${id}/comments`);
@@ -629,16 +635,59 @@ export default function IdeaDetailPage() {
 
           {idea.externalSource?.url && (
             <div className="mt-5 rounded-2xl border border-purple-800 bg-purple-950/20 p-4">
-              <h3 className="text-sm font-semibold text-purple-200">{t("idea.linkWidgetTitle")}</h3>
-              <p className="text-xs text-purple-300/80 mt-1">{t("idea.linkWidgetSubtitle")}</p>
-              <a
-                href={idea.externalSource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex rounded-lg border border-blue-700 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-950/40"
-              >
-                {t("idea.linkWidgetOpenSite")}
-              </a>
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-purple-200">{t("idea.linkWidgetTitle")}</h3>
+                  <p className="text-xs text-purple-300/80 mt-1">{t("idea.linkWidgetSubtitle")}</p>
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={idea.externalSource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex rounded-lg border border-blue-700 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-950/40"
+                  >
+                    {t("idea.linkWidgetOpenSite")}
+                  </a>
+                  <button
+                    onClick={toggleFullscreen}
+                    className="inline-flex rounded-lg border border-purple-700 px-3 py-1.5 text-xs text-purple-300 hover:bg-purple-950/40"
+                  >
+                    {isFullscreen ? t("idea.exitFullscreen") : t("idea.viewFullscreen")}
+                  </button>
+                </div>
+              </div>
+              {isFullscreen ? (
+                <div className="fixed inset-0 z-50 bg-black">
+                  <div className="flex items-center justify-between p-4 bg-gray-900">
+                    <a
+                      href={idea.externalSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline text-sm truncate max-w-xl"
+                    >
+                      {idea.externalSource.url}
+                    </a>
+                    <button
+                      onClick={toggleFullscreen}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      {t("idea.exitFullscreen")}
+                    </button>
+                  </div>
+                  <iframe
+                    src={idea.externalSource.url}
+                    className="w-full h-[calc(100vh-60px)] border-0"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={idea.externalSource.url}
+                  className="w-full h-96 mt-3 rounded-lg border border-purple-700"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                />
+              )}
             </div>
           )}
 

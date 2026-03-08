@@ -200,6 +200,8 @@
     "linkWidgetAnnotateOn": "Annotation Mode: ON",
     "linkWidgetAnnotateOff": "Annotation Mode: OFF",
     "linkWidgetFullscreen": "Fullscreen",
+    "viewFullscreen": "View Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
     "linkWidgetFullscreenRequired": "Enter fullscreen mode to view and add position notes.",
     "linkWidgetOpenSite": "Open Website",
     "linkWidgetFrameHint": "Some sites may block embedding due to security headers. Use \"Open Website\" if needed.",
