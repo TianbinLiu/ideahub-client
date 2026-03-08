@@ -219,7 +219,8 @@
     "linkWidgetScreenshotReady": "Screenshot ready",
     "linkWidgetCaptureRequired": "Please capture a screenshot first",
     "linkWidgetCaptureSuccess": "Screenshot captured",
-    "linkWidgetCaptureUnsupported": "Current browser does not support screen capture"
+    "linkWidgetCaptureUnsupported": "Current browser does not support screen capture",
+    "linkWidgetCaptureCurrentTabOnly": "Please share this browser tab in fullscreen mode"
   },
   "comment": {
     "title": "Comments",

@@ -183,18 +183,51 @@ export default function IdeaDetailPage() {
     setCapturingScreenshot(true);
     let stream: MediaStream | null = null;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      // Prefer capturing the current browser tab so annotation screenshots come from this fullscreen view.
+      const captureOptions: any = {
+        audio: false,
+        video: {
+          frameRate: { ideal: 30, max: 30 },
+          displaySurface: "browser",
+        },
+        preferCurrentTab: true,
+        selfBrowserSurface: "include",
+        surfaceSwitching: "exclude",
+        monitorTypeSurfaces: "exclude",
+      };
+      stream = await navigator.mediaDevices.getDisplayMedia(captureOptions);
+      const track = stream.getVideoTracks()[0];
+      const settings = track?.getSettings?.();
+      if (settings?.displaySurface && settings.displaySurface !== "browser") {
+        throw new Error(t("idea.linkWidgetCaptureCurrentTabOnly"));
+      }
+
       const video = document.createElement("video");
       video.srcObject = stream;
       await video.play();
       await new Promise((resolve) => setTimeout(resolve, 300));
 
+      const previewRect = previewRef.current?.getBoundingClientRect();
+      const viewportWidth = Math.max(1, window.innerWidth);
+      const viewportHeight = Math.max(1, window.innerHeight);
+      const scaleX = video.videoWidth / viewportWidth;
+      const scaleY = video.videoHeight / viewportHeight;
+
+      const sourceX = previewRect ? Math.max(0, Math.round(previewRect.left * scaleX)) : 0;
+      const sourceY = previewRect ? Math.max(0, Math.round(previewRect.top * scaleY)) : 0;
+      const sourceW = previewRect
+        ? Math.max(1, Math.round(Math.min(video.videoWidth - sourceX, previewRect.width * scaleX)))
+        : video.videoWidth;
+      const sourceH = previewRect
+        ? Math.max(1, Math.round(Math.min(video.videoHeight - sourceY, previewRect.height * scaleY)))
+        : video.videoHeight;
+
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = sourceW;
+      canvas.height = sourceH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Failed to capture screenshot");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sourceX, sourceY, sourceW, sourceH, 0, 0, canvas.width, canvas.height);
 
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
       if (!blob) throw new Error("Failed to export screenshot");

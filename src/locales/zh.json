@@ -215,7 +215,8 @@
     "linkWidgetScreenshotReady": "截图已就绪",
     "linkWidgetCaptureRequired": "请先截取屏幕",
     "linkWidgetCaptureSuccess": "截图成功",
-    "linkWidgetCaptureUnsupported": "当前浏览器不支持屏幕捕获"
+    "linkWidgetCaptureUnsupported": "当前浏览器不支持屏幕捕获",
+    "linkWidgetCaptureCurrentTabOnly": "请在全屏模式下共享当前浏览器标签页"
   },
   "comment": {
     "title": "评论",
