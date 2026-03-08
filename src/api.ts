@@ -49,7 +49,7 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   return json as T;
 }
 
-export async function apiUploadImage(file: File, scope: "idea" | "comment" | "leaderboard" | "annotation" = "idea") {
+export async function apiUploadImage(file: File, scope: "idea" | "comment" | "leaderboard" = "idea") {
   const token = getToken();
   const headers = new Headers();
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -236,17 +236,6 @@ export type ExternalSource = {
   url?: string;            // link to original post
   originalAuthor?: string; // author name from original platform
   sourceCreatedAt?: string; // when original post was created (ISO date string)
-  linkNotes?: ExternalLinkNote[];
-};
-
-export type ExternalLinkNote = {
-  _id: string;
-  x: number;
-  y: number;
-  content: string;
-  createdAt?: string;
-  updatedAt?: string;
-  user?: { _id: string; username: string; role: string };
 };
 
 export type IdeaStats = {
