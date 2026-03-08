@@ -128,6 +128,7 @@ export default function IdeaDetailPage() {
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
   const [capturedStream, setCapturedStream] = useState<MediaStream | null>(null);
+  const [selectingCaptureRegion, setSelectingCaptureRegion] = useState(false);
 
   const isCompany = user?.role === "company";
   const [interestMsg, setInterestMsg] = useState("");
@@ -185,9 +186,15 @@ export default function IdeaDetailPage() {
     }
 
     try {
-      // Let user choose what to capture (tab, window, or screen)
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      setCapturedStream(stream);
+      // Reuse existing stream to avoid repeatedly opening picker.
+      if (!capturedStream) {
+        // Let user choose what to capture (tab, window, or screen)
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        setCapturedStream(stream);
+      }
+      setSelectingCaptureRegion(true);
+      setSelectionStart(null);
+      setSelectionEnd(null);
       toast.success(t("idea.linkWidgetSelectRegion"));
       return true;
     } catch (e: any) {
@@ -253,7 +260,8 @@ export default function IdeaDetailPage() {
       
       toast.success(t("idea.linkWidgetCaptureSuccess"));
       
-      // Keep stream active for more captures, just clear selection
+      // Keep stream active for more captures, but exit current selection mode.
+      setSelectingCaptureRegion(false);
       setSelectionStart(null);
       setSelectionEnd(null);
     } catch (e: any) {
@@ -421,7 +429,7 @@ export default function IdeaDetailPage() {
   }
 
   function handleRegionMouseDown(e: MouseEvent<HTMLDivElement>) {
-    if (!annotateMode || !capturedStream || !isFullscreen) return;
+    if (!annotateMode || !selectingCaptureRegion || !capturedStream || !isFullscreen) return;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -431,7 +439,7 @@ export default function IdeaDetailPage() {
   }
 
   function handleRegionMouseMove(e: MouseEvent<HTMLDivElement>) {
-    if (!annotateMode || !selectionStart) return;
+    if (!annotateMode || !selectingCaptureRegion || !selectionStart) return;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -440,7 +448,7 @@ export default function IdeaDetailPage() {
   }
 
   async function handleRegionMouseUp() {
-    if (!annotateMode || !selectionStart || !selectionEnd) return;
+    if (!annotateMode || !selectingCaptureRegion || !selectionStart || !selectionEnd) return;
     
     // Check if selection is large enough
     const width = Math.abs(selectionEnd.x - selectionStart.x);
@@ -485,26 +493,18 @@ export default function IdeaDetailPage() {
       }
     }
     
-    // Toggle annotate mode
-    const willEnable = !annotateMode;
-    
-    if (willEnable) {
-      // Entering annotate mode: start screen capture if not already capturing
-      if (!capturedStream) {
-        const success = await startScreenCapture();
-        if (!success) {
-          return; // User cancelled or error occurred
-        }
+    // Toggle annotate mode only. Screen capture starts from explicit button click.
+    setAnnotateMode((v) => {
+      const next = !v;
+      if (!next) {
+        setPendingPoint(null);
+        setPendingScreenshotUrl("");
+        setSelectionStart(null);
+        setSelectionEnd(null);
+        setSelectingCaptureRegion(false);
       }
-      setAnnotateMode(true);
-    } else {
-      // Exiting annotate mode: clean up
-      setAnnotateMode(false);
-      setPendingPoint(null);
-      setPendingScreenshotUrl("");
-      setSelectionStart(null);
-      setSelectionEnd(null);
-    }
+      return next;
+    });
   }
 
   async function focusLinkNote(noteId?: string, x?: number, y?: number) {
@@ -636,6 +636,7 @@ export default function IdeaDetailPage() {
         setActiveNoteId(null);
         setSelectionStart(null);
         setSelectionEnd(null);
+        setSelectingCaptureRegion(false);
         // Clean up captured stream
         if (capturedStream) {
           capturedStream.getTracks().forEach((track) => track.stop());
@@ -1107,16 +1108,16 @@ export default function IdeaDetailPage() {
 
                 <div
                   className={`absolute inset-0 z-10 ${
-                    annotateMode && isFullscreen && capturedStream
+                    annotateMode && isFullscreen && selectingCaptureRegion
                       ? "cursor-crosshair" 
                       : "pointer-events-none"
                   }`}
-                  onMouseDown={annotateMode && capturedStream ? handleRegionMouseDown : undefined}
-                  onMouseMove={annotateMode && capturedStream ? handleRegionMouseMove : undefined}
-                  onMouseUp={annotateMode && capturedStream ? handleRegionMouseUp : undefined}
+                  onMouseDown={annotateMode && selectingCaptureRegion ? handleRegionMouseDown : undefined}
+                  onMouseMove={annotateMode && selectingCaptureRegion ? handleRegionMouseMove : undefined}
+                  onMouseUp={annotateMode && selectingCaptureRegion ? handleRegionMouseUp : undefined}
                 >
                   {/* Selection rectangle visualization */}
-                  {annotateMode && selectionStart && selectionEnd && (
+                  {annotateMode && selectingCaptureRegion && selectionStart && selectionEnd && (
                     <div
                       className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
                       style={{
@@ -1156,11 +1157,37 @@ export default function IdeaDetailPage() {
                 {isFullscreen && (
                   <div className="absolute inset-x-0 bottom-0 z-30 p-3 pointer-events-none">
                     <div className="pointer-events-auto rounded-xl border border-gray-800 bg-gray-950/85 p-3 backdrop-blur max-h-[45vh] overflow-y-auto">
-                      {annotateMode && capturedStream && !pendingScreenshotUrl && (
+                      {annotateMode && user && (
+                        <div className="mb-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={startScreenCapture}
+                            className="rounded-lg border border-purple-600 px-3 py-1 text-xs text-purple-100"
+                          >
+                            {t("idea.linkWidgetCaptureScreenshot")}
+                          </button>
+                          {selectingCaptureRegion && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectingCaptureRegion(false);
+                                setSelectionStart(null);
+                                setSelectionEnd(null);
+                              }}
+                              className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
+                            >
+                              {t("common.cancel")}
+                            </button>
+                          )}
+                          {pendingScreenshotUrl && <span className="text-xs text-green-300">{t("idea.linkWidgetScreenshotReady")}</span>}
+                        </div>
+                      )}
+
+                      {annotateMode && selectingCaptureRegion && (
                         <p className="text-xs text-yellow-300">{t("idea.linkWidgetDragToCapture")}</p>
                       )}
 
-                      {annotateMode && !capturedStream && (
+                      {annotateMode && !capturedStream && selectingCaptureRegion && (
                         <p className="text-xs text-gray-400">{t("idea.linkWidgetInitializing")}</p>
                       )}
 
