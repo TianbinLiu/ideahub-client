@@ -117,7 +117,6 @@ export default function IdeaDetailPage() {
   const [flashingNoteId, setFlashingNoteId] = useState<string | null>(null);
   const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
   const [pendingScreenshotUrl, setPendingScreenshotUrl] = useState("");
-  const [capturingScreenshot, setCapturingScreenshot] = useState(false);
   const [noteContent, setNoteContent] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -259,8 +258,6 @@ export default function IdeaDetailPage() {
       setSelectionEnd(null);
     } catch (e: any) {
       toast.error(humanizeError(e));
-    } finally {
-      setCapturingScreenshot(false);
     }
   }
 
@@ -494,9 +491,7 @@ export default function IdeaDetailPage() {
     if (willEnable) {
       // Entering annotate mode: start screen capture if not already capturing
       if (!capturedStream) {
-        setCapturingScreenshot(true);
         const success = await startScreenCapture();
-        setCapturingScreenshot(false);
         if (!success) {
           return; // User cancelled or error occurred
         }
