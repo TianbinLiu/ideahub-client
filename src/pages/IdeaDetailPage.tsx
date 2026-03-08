@@ -361,6 +361,46 @@ export default function IdeaDetailPage() {
     }
   }
 
+  async function deleteCommentById(commentId: string) {
+    if (!id || !userId) return;
+    if (!confirm(t("common.deleteConfirm"))) return;
+
+    try {
+      const res = await apiFetch<{ ok: true; deletedId: string; parentCommentId: string | null; commentCount: number }>(
+        `/api/ideas/${id}/comments/${commentId}`,
+        { method: "DELETE" }
+      );
+
+      if (res.parentCommentId) {
+        setReplies((prev) => ({
+          ...prev,
+          [res.parentCommentId as string]: (prev[res.parentCommentId as string] || []).filter((r) => r._id !== res.deletedId),
+        }));
+        setComments((prev) =>
+          prev.map((c) =>
+            c._id === res.parentCommentId
+              ? { ...c, replyCount: Math.max(0, (c.replyCount || 0) - 1) }
+              : c
+          )
+        );
+      } else {
+        setComments((prev) => prev.filter((c) => c._id !== res.deletedId));
+        setReplies((prev) => {
+          const next = { ...prev };
+          delete next[res.deletedId];
+          return next;
+        });
+        setIdea((prev) =>
+          prev ? { ...prev, stats: { ...prev.stats, commentCount: res.commentCount } as any } : prev
+        );
+      }
+
+      toast.success("Deleted");
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
   async function loadLinkNotes(ideaId: string) {
     try {
       setLinkNotesLoading(true);
@@ -1440,6 +1480,7 @@ export default function IdeaDetailPage() {
                 const hasReplies = (c.replyCount || 0) > 0;
                 const isExpanded = expandedReplies.has(c._id);
                 const commentReplies = replies[c._id] || [];
+                const canDeleteComment = !!user && (isAdmin || (c.author?._id && String(c.author._id) === String(userId)));
                 
                 return (
                   <div key={c._id} className="rounded-xl border border-gray-800 bg-gray-900 p-3">
@@ -1499,6 +1540,14 @@ export default function IdeaDetailPage() {
                           >
                             {t('comment.reply')}
                           </button>
+                          {canDeleteComment && (
+                            <button
+                              onClick={() => deleteCommentById(c._id)}
+                              className="text-xs px-2 py-1 rounded border border-red-800 text-red-300 hover:bg-red-950/40"
+                            >
+                              {t('common.delete')}
+                            </button>
+                          )}
                         </>
                       )}
                       
@@ -1583,6 +1632,7 @@ export default function IdeaDetailPage() {
                       <div className="mt-3 pl-4 space-y-2 border-l-2 border-gray-700">
                         {commentReplies.map((reply) => {
                           const isReplyLiked = reply.likes?.includes(userId);
+                          const canDeleteReply = !!user && (isAdmin || (reply.author?._id && String(reply.author._id) === String(userId)));
                           return (
                             <div key={reply._id} className="rounded-lg bg-gray-800 p-2">
                               <div className="flex items-center justify-between text-xs text-gray-400">
@@ -1606,16 +1656,26 @@ export default function IdeaDetailPage() {
                                 </div>
                               )}
                               {user && (
-                                <button
-                                  onClick={() => toggleCommentLike(reply._id)}
-                                  className={`mt-1 text-xs px-2 py-0.5 rounded border ${
-                                    isReplyLiked
-                                      ? "border-white text-white"
-                                      : "border-gray-700 text-gray-400 hover:text-gray-200"
-                                  }`}
-                                >
-                                  {isReplyLiked ? "liked" : "like"} {reply.likesCount || 0}
-                                </button>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <button
+                                    onClick={() => toggleCommentLike(reply._id)}
+                                    className={`text-xs px-2 py-0.5 rounded border ${
+                                      isReplyLiked
+                                        ? "border-white text-white"
+                                        : "border-gray-700 text-gray-400 hover:text-gray-200"
+                                    }`}
+                                  >
+                                    {isReplyLiked ? "liked" : "like"} {reply.likesCount || 0}
+                                  </button>
+                                  {canDeleteReply && (
+                                    <button
+                                      onClick={() => deleteCommentById(reply._id)}
+                                      className="text-xs px-2 py-0.5 rounded border border-red-800 text-red-300 hover:bg-red-950/40"
+                                    >
+                                      {t('common.delete')}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
