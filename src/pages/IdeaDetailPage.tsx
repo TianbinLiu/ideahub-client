@@ -126,7 +126,6 @@ export default function IdeaDetailPage() {
   const dragOffsetRef = useRef(0);
   
   // Screenshot region selection state
-  const [isSelectingRegion, setIsSelectingRegion] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
   const [capturedStream, setCapturedStream] = useState<MediaStream | null>(null);
@@ -179,25 +178,24 @@ export default function IdeaDetailPage() {
   async function startScreenCapture() {
     if (!isFullscreen) {
       toast.error(t("idea.linkWidgetFullscreenRequired"));
-      return;
+      return false;
     }
     if (!navigator.mediaDevices?.getDisplayMedia) {
       toast.error(t("idea.linkWidgetCaptureUnsupported"));
-      return;
+      return false;
     }
 
     try {
-      setCapturingScreenshot(true);
       // Let user choose what to capture (tab, window, or screen)
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       setCapturedStream(stream);
-      setIsSelectingRegion(true);
-      setSelectionStart(null);
-      setSelectionEnd(null);
       toast.success(t("idea.linkWidgetSelectRegion"));
+      return true;
     } catch (e: any) {
-      toast.error(humanizeError(e));
-      setCapturingScreenshot(false);
+      if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
+        toast.error(humanizeError(e));
+      }
+      return false;
     }
   }
 
@@ -256,10 +254,7 @@ export default function IdeaDetailPage() {
       
       toast.success(t("idea.linkWidgetCaptureSuccess"));
       
-      // Clean up
-      capturedStream.getTracks().forEach((track) => track.stop());
-      setCapturedStream(null);
-      setIsSelectingRegion(false);
+      // Keep stream active for more captures, just clear selection
       setSelectionStart(null);
       setSelectionEnd(null);
     } catch (e: any) {
@@ -429,7 +424,8 @@ export default function IdeaDetailPage() {
   }
 
   function handleRegionMouseDown(e: MouseEvent<HTMLDivElement>) {
-    if (!isSelectingRegion || !isFullscreen) return;
+    if (!annotateMode || !capturedStream || !isFullscreen) return;
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -438,28 +434,30 @@ export default function IdeaDetailPage() {
   }
 
   function handleRegionMouseMove(e: MouseEvent<HTMLDivElement>) {
-    if (!isSelectingRegion || !selectionStart) return;
+    if (!annotateMode || !selectionStart) return;
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     setSelectionEnd({ x, y });
   }
 
-  function handleRegionMouseUp() {
-    if (!isSelectingRegion || !selectionStart || !selectionEnd) return;
-    // Show confirmation UI
-  }
-
-  function handlePreviewClick(e: MouseEvent<HTMLDivElement>) {
-    if (!annotateMode || !isFullscreen) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setPendingPoint({
-      x: Math.max(0, Math.min(100, Number(x.toFixed(2)))),
-      y: Math.max(0, Math.min(100, Number(y.toFixed(2)))),
-    });
-    setActiveNoteId(null);
+  async function handleRegionMouseUp() {
+    if (!annotateMode || !selectionStart || !selectionEnd) return;
+    
+    // Check if selection is large enough
+    const width = Math.abs(selectionEnd.x - selectionStart.x);
+    const height = Math.abs(selectionEnd.y - selectionStart.y);
+    
+    if (width < 10 || height < 10) {
+      // Too small, just clear selection
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      return;
+    }
+    
+    // Automatically capture the selected region
+    await captureSelectedRegion();
   }
 
   async function togglePreviewFullscreen() {
@@ -491,16 +489,27 @@ export default function IdeaDetailPage() {
     }
     
     // Toggle annotate mode
-    setAnnotateMode((v) => {
-      const next = !v;
-      if (next) {
-        setPendingPoint({ x: 50, y: 50 });
-      } else {
-        setPendingPoint(null);
-        setPendingScreenshotUrl("");
+    const willEnable = !annotateMode;
+    
+    if (willEnable) {
+      // Entering annotate mode: start screen capture if not already capturing
+      if (!capturedStream) {
+        setCapturingScreenshot(true);
+        const success = await startScreenCapture();
+        setCapturingScreenshot(false);
+        if (!success) {
+          return; // User cancelled or error occurred
+        }
       }
-      return next;
-    });
+      setAnnotateMode(true);
+    } else {
+      // Exiting annotate mode: clean up
+      setAnnotateMode(false);
+      setPendingPoint(null);
+      setPendingScreenshotUrl("");
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    }
   }
 
   async function focusLinkNote(noteId?: string, x?: number, y?: number) {
@@ -630,6 +639,13 @@ export default function IdeaDetailPage() {
         setPendingPoint(null);
         setPendingScreenshotUrl("");
         setActiveNoteId(null);
+        setSelectionStart(null);
+        setSelectionEnd(null);
+        // Clean up captured stream
+        if (capturedStream) {
+          capturedStream.getTracks().forEach((track) => track.stop());
+          setCapturedStream(null);
+        }
       }
     };
     
@@ -1096,21 +1112,18 @@ export default function IdeaDetailPage() {
 
                 <div
                   className={`absolute inset-0 z-10 ${
-                    isSelectingRegion 
-                      ? "cursor-crosshair" 
-                      : annotateMode && isFullscreen 
+                    annotateMode && isFullscreen && capturedStream
                       ? "cursor-crosshair" 
                       : "pointer-events-none"
                   }`}
-                  onClick={!isSelectingRegion ? handlePreviewClick : undefined}
-                  onMouseDown={isSelectingRegion ? handleRegionMouseDown : undefined}
-                  onMouseMove={isSelectingRegion ? handleRegionMouseMove : undefined}
-                  onMouseUp={isSelectingRegion ? handleRegionMouseUp : undefined}
+                  onMouseDown={annotateMode && capturedStream ? handleRegionMouseDown : undefined}
+                  onMouseMove={annotateMode && capturedStream ? handleRegionMouseMove : undefined}
+                  onMouseUp={annotateMode && capturedStream ? handleRegionMouseUp : undefined}
                 >
                   {/* Selection rectangle visualization */}
-                  {isSelectingRegion && selectionStart && selectionEnd && (
+                  {annotateMode && selectionStart && selectionEnd && (
                     <div
-                      className="absolute border-2 border-blue-500 bg-blue-500/20"
+                      className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
                       style={{
                         left: `${Math.min(selectionStart.x, selectionEnd.x)}px`,
                         top: `${Math.min(selectionStart.y, selectionEnd.y)}px`,
@@ -1148,61 +1161,27 @@ export default function IdeaDetailPage() {
                 {isFullscreen && (
                   <div className="absolute inset-x-0 bottom-0 z-30 p-3 pointer-events-none">
                     <div className="pointer-events-auto rounded-xl border border-gray-800 bg-gray-950/85 p-3 backdrop-blur max-h-[45vh] overflow-y-auto">
-                      {annotateMode && (
-                        <p className="text-xs text-yellow-300">{t("idea.linkWidgetClickToPlace")}</p>
+                      {annotateMode && capturedStream && !pendingScreenshotUrl && (
+                        <p className="text-xs text-yellow-300">{t("idea.linkWidgetDragToCapture")}</p>
+                      )}
+
+                      {annotateMode && !capturedStream && (
+                        <p className="text-xs text-gray-400">{t("idea.linkWidgetInitializing")}</p>
                       )}
 
                       {!user && (
                         <p className="text-xs text-gray-400 mt-2">{t("idea.linkWidgetLoginToAnnotate")}</p>
                       )}
 
-                      {pendingPoint && user && (
+                      {pendingScreenshotUrl && user && (
                         <div className="mt-2 rounded-xl border border-purple-800/80 bg-gray-950/70 p-3">
-                          <div className="mb-2 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={startScreenCapture}
-                              disabled={capturingScreenshot || isSelectingRegion}
-                              className="rounded-lg border border-purple-600 px-3 py-1 text-xs text-purple-100 disabled:opacity-50"
-                            >
-                              {capturingScreenshot || isSelectingRegion ? t("comment.posting") : t("idea.linkWidgetCaptureScreenshot")}
-                            </button>
-                            {isSelectingRegion && selectionStart && selectionEnd && (
-                              <button
-                                type="button"
-                                onClick={captureSelectedRegion}
-                                className="rounded-lg border border-green-600 px-3 py-1 text-xs text-green-100"
-                              >
-                                {t("idea.linkWidgetConfirmCapture")}
-                              </button>
-                            )}
-                            {isSelectingRegion && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (capturedStream) {
-                                    capturedStream.getTracks().forEach((track) => track.stop());
-                                    setCapturedStream(null);
-                                  }
-                                  setIsSelectingRegion(false);
-                                  setSelectionStart(null);
-                                  setSelectionEnd(null);
-                                  setCapturingScreenshot(false);
-                                }}
-                                className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300"
-                              >
-                                {t("common.cancel")}
-                              </button>
-                            )}
-                            {pendingScreenshotUrl && <span className="text-xs text-green-300">{t("idea.linkWidgetScreenshotReady")}</span>}
-                          </div>
                           {pendingScreenshotUrl && (
                             <img src={pendingScreenshotUrl} alt="annotation capture" className="mb-2 max-h-28 rounded border border-gray-800" />
                           )}
                           <p className="text-xs text-gray-400 mb-2">
                             {t("idea.linkWidgetPointLabel", {
-                              x: pendingPoint.x.toFixed(1),
-                              y: pendingPoint.y.toFixed(1),
+                              x: pendingPoint?.x.toFixed(1) || "0",
+                              y: pendingPoint?.y.toFixed(1) || "0",
                             })}
                           </p>
                           <textarea
