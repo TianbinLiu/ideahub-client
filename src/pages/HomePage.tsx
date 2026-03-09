@@ -144,9 +144,9 @@ export default function HomePage() {
 
   function replaceLastTokenWith(input: string, replacement: string) {
     // replace last comma/space separated token
-    const parts = input.split(/([,\s]+)/);
+    const parts = input.split(/([,，\s]+)/);
     for (let i = parts.length - 1; i >= 0; i--) {
-      if (!parts[i].match(/^[,\s]+$/)) {
+      if (!parts[i].match(/^[,，\s]+$/)) {
         parts[i] = replacement;
         return parts.join("");
       }
@@ -172,7 +172,7 @@ export default function HomePage() {
   }
 
   function updateRecentTagsFromInput(input: string) {
-    const parts = input.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    const parts = input.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
     if (parts.length === 0) return;
     const normalized = parts.map(s => s.toLowerCase());
     const merged = [...normalized, ...recentTags.filter(t => !normalized.includes(t))].slice(0, 12);
@@ -289,7 +289,7 @@ export default function HomePage() {
                   className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
                   onClick={() => {
                     setSearchInput(prev => {
-                      const tokens = prev.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+                      const tokens = prev.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
                       if (tokens.length === 0) return t;
                       const last = tokens[tokens.length - 1].toLowerCase();
                       if (last === t.toLowerCase()) return prev;

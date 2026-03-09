@@ -54,7 +54,7 @@ export default function TagRankPage() {
   async function handleSearch() {
     try {
       const tagsArr = tagsInput
-        .split(",")
+        .split(/[,，]/)
         .map((s) => s.trim())
         .filter(Boolean)
         .map((s) => s.toLowerCase());
@@ -83,7 +83,7 @@ export default function TagRankPage() {
   async function createNewLeaderboard() {
     try {
       const tagsArr = tagsInput
-        .split(",")
+        .split(/[,，]/)
         .map((s) => s.trim())
         .filter(Boolean)
         .map((s) => s.toLowerCase());
