@@ -504,6 +504,7 @@
     "new": "最新",
     "searchPlaceholder": "搜索标签或关键词（例如 小说、黑暗风 或 roguelike）",
     "searchButton": "搜索",
+    "openTagMap": "打开热点图谱",
     "tagSuggestion": "标签建议",
     "ideaTitle": "想法标题",
     "recentTagsHint": "热门标签会在你搜索后出现",
@@ -514,6 +515,21 @@
     "prev": "← 上一页",
     "next": "下一页 →",
     "noIdeas": "还没有想法。快来创建第一个！"
+  },
+  "tagMap": {
+    "title": "热点图谱",
+    "subtitle": "每个点代表一个想法。越靠近中心表示发布时间越新，相关标签会聚成更大的热点区域。",
+    "backHome": "返回首页",
+    "hint": "点击蓝色聚合圈可返回搜索页，并自动按对应标签进行检索。",
+    "empty": "该时间范围内还没有公开想法。",
+    "timeWindowLabel": "时间范围",
+    "window": {
+      "7d": "最近一周",
+      "30d": "最近一月",
+      "90d": "最近三月",
+      "180d": "最近半年",
+      "365d": "最近一年"
+    }
   },
   "messages": {
     "myMessages": "我的消息",

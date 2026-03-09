@@ -73,6 +73,7 @@ export default function HomePage() {
   const nav = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suggRef = useRef<HTMLDivElement | null>(null);
+  const visibleHotTags = recentTags.slice(0, 3);
 
   // debounce timer
   const suggTimer = useRef<any>(null);
@@ -281,24 +282,34 @@ export default function HomePage() {
           {recentTags.length === 0 ? (
             <div className="text-gray-500 text-sm">{t('home.recentTagsHint')}</div>
           ) : (
-            recentTags.map((t) => (
+            <>
+              {visibleHotTags.map((t) => (
+                <button
+                  key={t}
+                  className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
+                  onClick={() => {
+                    setSearchInput(prev => {
+                      const tokens = prev.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+                      if (tokens.length === 0) return t;
+                      const last = tokens[tokens.length - 1].toLowerCase();
+                      if (last === t.toLowerCase()) return prev;
+                      return prev.trim() ? prev.trim() + ", " + t : t;
+                    });
+                    inputRef.current?.focus();
+                  }}
+                >
+                  #{t}
+                </button>
+              ))}
               <button
-                key={t}
                 className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
-                onClick={() => {
-                  setSearchInput(prev => {
-                    const tokens = prev.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
-                    if (tokens.length === 0) return t;
-                    const last = tokens[tokens.length - 1].toLowerCase();
-                    if (last === t.toLowerCase()) return prev;
-                    return prev.trim() ? prev.trim() + ", " + t : t;
-                  });
-                  inputRef.current?.focus();
-                }}
+                onClick={() => nav("/tag-map")}
+                aria-label={t("home.openTagMap")}
+                title={t("home.openTagMap")}
               >
-                #{t}
+                ...
               </button>
-            ))
+            </>
           )}
         </div>
 

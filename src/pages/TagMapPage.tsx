@@ -1,0 +1,363 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { apiFetch } from "../api";
+import toast from "react-hot-toast";
+import { humanizeError } from "../utils/humanizeError";
+
+type IdeaLite = {
+  _id: string;
+  title: string;
+  tags?: string[];
+  createdAt?: string;
+};
+
+type DotPoint = {
+  id: string;
+  x: number;
+  y: number;
+  clusterKey: string;
+};
+
+type Cluster = {
+  key: string;
+  cx: number;
+  cy: number;
+  r: number;
+  count: number;
+  relatedTags: string[];
+};
+
+type TimeWindowKey = "7d" | "30d" | "90d" | "180d" | "365d";
+
+const TIME_WINDOWS: Array<{ key: TimeWindowKey; days: number }> = [
+  { key: "7d", days: 7 },
+  { key: "30d", days: 30 },
+  { key: "90d", days: 90 },
+  { key: "180d", days: 180 },
+  { key: "365d", days: 365 },
+];
+
+const MAP_CENTER = { x: 50, y: 50 };
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function hashString(input: string) {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+  }
+  return Math.abs(h >>> 0);
+}
+
+function pickClusterTag(tags: string[], globalTagCount: Map<string, number>) {
+  if (!tags.length) return "untagged";
+  const sorted = [...tags].sort((a, b) => {
+    const ca = globalTagCount.get(a) || 0;
+    const cb = globalTagCount.get(b) || 0;
+    if (cb !== ca) return cb - ca;
+    return a.localeCompare(b);
+  });
+  return sorted[0] || "untagged";
+}
+
+export default function TagMapPage() {
+  const { t } = useTranslation();
+  const nav = useNavigate();
+
+  const [ideas, setIdeas] = useState<IdeaLite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [timeWindow, setTimeWindow] = useState<TimeWindowKey>("30d");
+
+  useEffect(() => {
+    async function loadIdeas() {
+      try {
+        setLoading(true);
+        setErr("");
+        const qs = new URLSearchParams({ sort: "new", page: "1", limit: "240" });
+        const res = await apiFetch<{ ideas: IdeaLite[] }>(`/api/ideas?${qs.toString()}`);
+        setIdeas(res.ideas || []);
+      } catch (e: any) {
+        const msg = humanizeError(e);
+        setErr(msg);
+        toast.error(msg);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadIdeas();
+  }, []);
+
+  const filteredIdeas = useMemo(() => {
+    if (!ideas.length) return [] as IdeaLite[];
+    const selected = TIME_WINDOWS.find((w) => w.key === timeWindow) || TIME_WINDOWS[1];
+    const now = Date.now();
+    const cutoff = now - selected.days * 24 * 60 * 60 * 1000;
+    return ideas.filter((it) => {
+      const ts = new Date(it.createdAt || 0).getTime() || 0;
+      return ts >= cutoff;
+    });
+  }, [ideas, timeWindow]);
+
+  const mapRenderKey = useMemo(() => {
+    const lastId = filteredIdeas[0]?._id || "none";
+    return `${timeWindow}-${filteredIdeas.length}-${lastId}`;
+  }, [filteredIdeas, timeWindow]);
+
+  const { points, clusters } = useMemo(() => {
+    if (!filteredIdeas.length) return { points: [] as DotPoint[], clusters: [] as Cluster[] };
+
+    const normalized = filteredIdeas.map((it) => {
+      const tags = (it.tags || [])
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean);
+      const ts = new Date(it.createdAt || 0).getTime() || 0;
+      return { ...it, tags, ts };
+    });
+
+    const globalTagCount = new Map<string, number>();
+    normalized.forEach((it) => {
+      const uniq = new Set(it.tags);
+      uniq.forEach((tag) => {
+        globalTagCount.set(tag, (globalTagCount.get(tag) || 0) + 1);
+      });
+    });
+
+    const byCluster = new Map<string, typeof normalized>();
+    normalized.forEach((it) => {
+      const key = pickClusterTag(it.tags, globalTagCount);
+      const arr = byCluster.get(key) || [];
+      arr.push(it);
+      byCluster.set(key, arr);
+    });
+
+    const clusterKeys = [...byCluster.keys()].sort((a, b) => {
+      const c1 = byCluster.get(a)?.length || 0;
+      const c2 = byCluster.get(b)?.length || 0;
+      if (c2 !== c1) return c2 - c1;
+      return a.localeCompare(b);
+    });
+
+    const limitedKeys = clusterKeys.slice(0, 14);
+    const centers = new Map<string, { x: number; y: number }>();
+    limitedKeys.forEach((key, idx) => {
+      const angle = (Math.PI * 2 * idx) / Math.max(1, limitedKeys.length);
+      const ring = 16 + (idx % 4) * 6 + Math.floor(idx / 4) * 5;
+      const jitter = (hashString(key) % 100) / 100;
+      const r = ring + jitter * 3;
+      centers.set(key, {
+        x: MAP_CENTER.x + Math.cos(angle) * r,
+        y: MAP_CENTER.y + Math.sin(angle) * r,
+      });
+    });
+
+    const sortedByTime = [...normalized].sort((a, b) => b.ts - a.ts);
+    const total = Math.max(1, sortedByTime.length - 1);
+    const points: DotPoint[] = [];
+
+    sortedByTime.forEach((it, index) => {
+      const recency = index / total;
+      const key = pickClusterTag(it.tags, globalTagCount);
+      const clusterCenter = centers.get(key) || MAP_CENTER;
+
+      const seed = hashString(it._id);
+      const angle = ((seed % 360) * Math.PI) / 180;
+      const rawRadius = 6 + recency * 40;
+      const baseX = MAP_CENTER.x + Math.cos(angle) * rawRadius;
+      const baseY = MAP_CENTER.y + Math.sin(angle) * rawRadius;
+
+      const attract = 0.58;
+      const x = clamp(baseX * (1 - attract) + clusterCenter.x * attract, 3, 97);
+      const y = clamp(baseY * (1 - attract) + clusterCenter.y * attract, 3, 97);
+
+      points.push({ id: it._id, x, y, clusterKey: key });
+    });
+
+    const clusters: Cluster[] = limitedKeys
+      .map((key) => {
+        const members = byCluster.get(key) || [];
+        if (!members.length) return null;
+
+        const center = centers.get(key) || MAP_CENTER;
+        const localTagCount = new Map<string, number>();
+        members.forEach((m) => {
+          (m.tags || []).forEach((tag) => {
+            localTagCount.set(tag, (localTagCount.get(tag) || 0) + 1);
+          });
+        });
+
+        const relatedTags = [...localTagCount.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([tag]) => tag);
+
+        return {
+          key,
+          cx: center.x,
+          cy: center.y,
+          r: clamp(4 + Math.sqrt(members.length) * 1.8, 5, 13),
+          count: members.length,
+          relatedTags: relatedTags.length ? relatedTags : [key],
+        };
+      })
+      .filter(Boolean) as Cluster[];
+
+    return { points, clusters };
+  }, [filteredIdeas]);
+
+  function jumpToSearch(tags: string[]) {
+    const query = tags.join(", ");
+    nav(`/?q=${encodeURIComponent(query)}&page=1`);
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white">{t("tagMap.title")}</h1>
+          <p className="text-sm text-gray-300 mt-1">{t("tagMap.subtitle")}</p>
+        </div>
+        <Link
+          to="/"
+          className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+        >
+          {t("tagMap.backHome")}
+        </Link>
+      </div>
+
+      <p className="mt-3 text-xs text-cyan-300">{t("tagMap.hint")}</p>
+
+      <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/60 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-gray-300">{t("tagMap.timeWindowLabel")}</span>
+          <span className="text-xs text-cyan-300">{t(`tagMap.window.${timeWindow}`)}</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={TIME_WINDOWS.length - 1}
+          step={1}
+          value={TIME_WINDOWS.findIndex((w) => w.key === timeWindow)}
+          onChange={(e) => {
+            const idx = clamp(parseInt(e.target.value, 10) || 0, 0, TIME_WINDOWS.length - 1);
+            setTimeWindow(TIME_WINDOWS[idx].key);
+          }}
+          className="mt-3 w-full accent-cyan-400"
+          aria-label={t("tagMap.timeWindowLabel")}
+        />
+        <div className="mt-2 grid grid-cols-5 gap-1">
+          {TIME_WINDOWS.map((w) => (
+            <button
+              key={w.key}
+              onClick={() => setTimeWindow(w.key)}
+              className={`rounded-md px-1.5 py-1 text-[11px] md:text-xs border ${
+                timeWindow === w.key
+                  ? "border-cyan-500 text-cyan-200 bg-cyan-900/30"
+                  : "border-gray-700 text-gray-400 hover:bg-gray-800"
+              }`}
+            >
+              {t(`tagMap.window.${w.key}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-3xl border border-cyan-900/60 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.16)_0%,rgba(15,23,42,0.96)_55%,rgba(2,6,23,1)_100%)] p-3 md:p-5">
+        {loading && <div className="text-gray-300 text-sm">{t("common.loading")}</div>}
+        {err && <div className="text-red-400 text-sm">{t("common.error")}: {err}</div>}
+        {!loading && !err && points.length === 0 && (
+          <div className="text-gray-400 text-sm">{t("tagMap.empty")}</div>
+        )}
+
+        {!loading && !err && points.length > 0 && (
+          <div className="relative">
+            <svg key={mapRenderKey} viewBox="0 0 100 100" className="w-full h-[64vh] min-h-[420px]">
+              <defs>
+                <filter id="clusterGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="1.5" result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <circle cx="50" cy="50" r="2.5" fill="#67e8f9" opacity="0.9" />
+
+              {points.map((pt, idx) => {
+                const dx = pt.x - MAP_CENTER.x;
+                const dy = pt.y - MAP_CENTER.y;
+                const startX = clamp(MAP_CENTER.x + dx * 1.55, -10, 110);
+                const startY = clamp(MAP_CENTER.y + dy * 1.55, -10, 110);
+                return (
+                  <circle
+                    key={pt.id}
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="0.55"
+                    fill="#93c5fd"
+                    opacity="0.72"
+                  >
+                    <animate attributeName="cx" from={String(startX)} to={String(pt.x)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
+                    <animate attributeName="cy" from={String(startY)} to={String(pt.y)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
+                    <animate attributeName="opacity" from="0.05" to="0.72" dur="650ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
+                  </circle>
+                );
+              })}
+
+              {clusters.map((c, idx) => {
+                const dx = c.cx - MAP_CENTER.x;
+                const dy = c.cy - MAP_CENTER.y;
+                const startCx = clamp(MAP_CENTER.x + dx * 1.38, -10, 110);
+                const startCy = clamp(MAP_CENTER.y + dy * 1.38, -10, 110);
+                return (
+                  <g key={c.key}>
+                    <circle
+                      cx={c.cx}
+                      cy={c.cy}
+                      r={c.r}
+                      className="cursor-pointer"
+                      fill="rgba(14,165,233,0.2)"
+                      stroke="rgba(125,211,252,0.9)"
+                      strokeWidth="0.35"
+                      filter="url(#clusterGlow)"
+                      onClick={() => jumpToSearch(c.relatedTags)}
+                    >
+                      <animate attributeName="cx" from={String(startCx)} to={String(c.cx)} dur="820ms" begin={`${120 + idx * 40}ms`} fill="freeze" />
+                      <animate attributeName="cy" from={String(startCy)} to={String(c.cy)} dur="820ms" begin={`${120 + idx * 40}ms`} fill="freeze" />
+                      <animate attributeName="r" from="1" to={String(c.r)} dur="820ms" begin={`${120 + idx * 40}ms`} fill="freeze" />
+                    </circle>
+                    <text
+                      x={c.cx}
+                      y={c.cy - 0.2}
+                      textAnchor="middle"
+                      fill="#e0f2fe"
+                      fontSize="1.4"
+                      className="pointer-events-none"
+                    >
+                      #{c.key}
+                    </text>
+                    <text
+                      x={c.cx}
+                      y={c.cy + 1.8}
+                      textAnchor="middle"
+                      fill="#bae6fd"
+                      fontSize="1.1"
+                      className="pointer-events-none"
+                    >
+                      {c.count}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

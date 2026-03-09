@@ -510,6 +510,7 @@
     "new": "New",
     "searchPlaceholder": "Search tags or keywords (e.g. novel, dark or roguelike)",
     "searchButton": "Search",
+    "openTagMap": "Open heat map",
     "tagSuggestion": "tag suggestion",
     "ideaTitle": "idea title",
     "recentTagsHint": "Hot tags will appear after you search",
@@ -520,6 +521,21 @@
     "prev": "← Prev",
     "next": "Next →",
     "noIdeas": "No ideas yet. Be the first to create one!"
+  },
+  "tagMap": {
+    "title": "Heat Map",
+    "subtitle": "Each dot is one idea. Newer ideas sit closer to the center, and related tags gather into larger hotspot regions.",
+    "backHome": "Back to Home",
+    "hint": "Click a blue cluster bubble to return to search and auto-run with that tag.",
+    "empty": "No public ideas in this time window.",
+    "timeWindowLabel": "Time Window",
+    "window": {
+      "7d": "Last 7 days",
+      "30d": "Last 1 month",
+      "90d": "Last 3 months",
+      "180d": "Last 6 months",
+      "365d": "Last 1 year"
+    }
   },
   "messages": {
     "myMessages": "My Messages",
