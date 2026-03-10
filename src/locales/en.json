@@ -532,7 +532,8 @@
     "title": "Heat Map",
     "subtitle": "Each dot is one idea. Newer ideas sit closer to the center, and related tags gather into larger hotspot regions.",
     "backHome": "Back to Home",
-    "hint": "Click a blue cluster bubble to return to search and auto-run with that tag.",
+    "home": "Overview",
+    "hint": "Click a blue cluster to zoom in and view ideas inside. Click a dot to open idea details. Click empty space to zoom out.",
     "empty": "No public ideas in this time window.",
     "timeWindowLabel": "Time Window",
     "window": {

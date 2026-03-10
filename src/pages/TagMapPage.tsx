@@ -17,6 +17,7 @@ type DotPoint = {
   x: number;
   y: number;
   clusterKey: string;
+  idea: IdeaLite;
 };
 
 type Cluster = {
@@ -26,6 +27,8 @@ type Cluster = {
   r: number;
   count: number;
   relatedTags: string[];
+  ideas: IdeaLite[];
+  subClusters?: Cluster[];
 };
 
 type TimeWindowKey = "7d" | "30d" | "90d" | "180d" | "365d";
@@ -72,6 +75,7 @@ export default function TagMapPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [timeWindow, setTimeWindow] = useState<TimeWindowKey>("30d");
+  const [zoomPath, setZoomPath] = useState<string[]>([]); // 当前层级路径
 
   useEffect(() => {
     async function loadIdeas() {
@@ -108,8 +112,8 @@ export default function TagMapPage() {
     return `${timeWindow}-${filteredIdeas.length}-${lastId}`;
   }, [filteredIdeas, timeWindow]);
 
-  const { points, clusters } = useMemo(() => {
-    if (!filteredIdeas.length) return { points: [] as DotPoint[], clusters: [] as Cluster[] };
+  const { points, clusters, currentCluster } = useMemo(() => {
+    if (!filteredIdeas.length) return { points: [] as DotPoint[], clusters: [] as Cluster[], currentCluster: null };
 
     const normalized = filteredIdeas.map((it) => {
       const tags = (it.tags || [])
@@ -127,58 +131,39 @@ export default function TagMapPage() {
       });
     });
 
-    const byCluster = new Map<string, typeof normalized>();
-    normalized.forEach((it) => {
-      const key = pickClusterTag(it.tags, globalTagCount);
-      const arr = byCluster.get(key) || [];
-      arr.push(it);
-      byCluster.set(key, arr);
-    });
-
-    const clusterKeys = [...byCluster.keys()].sort((a, b) => {
-      const c1 = byCluster.get(a)?.length || 0;
-      const c2 = byCluster.get(b)?.length || 0;
-      if (c2 !== c1) return c2 - c1;
-      return a.localeCompare(b);
-    });
-
-    const limitedKeys = clusterKeys.slice(0, 14);
-    const centers = new Map<string, { x: number; y: number }>();
-    limitedKeys.forEach((key, idx) => {
-      const angle = (Math.PI * 2 * idx) / Math.max(1, limitedKeys.length);
-      const ring = 16 + (idx % 4) * 6 + Math.floor(idx / 4) * 5;
-      const jitter = (hashString(key) % 100) / 100;
-      const r = ring + jitter * 3;
-      centers.set(key, {
-        x: MAP_CENTER.x + Math.cos(angle) * r,
-        y: MAP_CENTER.y + Math.sin(angle) * r,
+    // 构建层级聚类
+    function buildClusters(items: typeof normalized, depth: number = 0): Cluster[] {
+      if (items.length === 0) return [];
+      
+      const byCluster = new Map<string, typeof normalized>();
+      items.forEach((it) => {
+        const key = pickClusterTag(it.tags, globalTagCount);
+        const arr = byCluster.get(key) || [];
+        arr.push(it);
+        byCluster.set(key, arr);
       });
-    });
 
-    const sortedByTime = [...normalized].sort((a, b) => b.ts - a.ts);
-    const total = Math.max(1, sortedByTime.length - 1);
-    const points: DotPoint[] = [];
+      const clusterKeys = [...byCluster.keys()].sort((a, b) => {
+        const c1 = byCluster.get(a)?.length || 0;
+        const c2 = byCluster.get(b)?.length || 0;
+        if (c2 !== c1) return c2 - c1;
+        return a.localeCompare(b);
+      });
 
-    sortedByTime.forEach((it, index) => {
-      const recency = index / total;
-      const key = pickClusterTag(it.tags, globalTagCount);
-      const clusterCenter = centers.get(key) || MAP_CENTER;
+      const limitedKeys = clusterKeys.slice(0, 14);
+      const centers = new Map<string, { x: number; y: number }>();
+      limitedKeys.forEach((key, idx) => {
+        const angle = (Math.PI * 2 * idx) / Math.max(1, limitedKeys.length);
+        const ring = 16 + (idx % 4) * 6 + Math.floor(idx / 4) * 5;
+        const jitter = (hashString(key) % 100) / 100;
+        const r = ring + jitter * 3;
+        centers.set(key, {
+          x: MAP_CENTER.x + Math.cos(angle) * r,
+          y: MAP_CENTER.y + Math.sin(angle) * r,
+        });
+      });
 
-      const seed = hashString(it._id);
-      const angle = ((seed % 360) * Math.PI) / 180;
-      const rawRadius = 6 + recency * 40;
-      const baseX = MAP_CENTER.x + Math.cos(angle) * rawRadius;
-      const baseY = MAP_CENTER.y + Math.sin(angle) * rawRadius;
-
-      const attract = 0.58;
-      const x = clamp(baseX * (1 - attract) + clusterCenter.x * attract, 3, 97);
-      const y = clamp(baseY * (1 - attract) + clusterCenter.y * attract, 3, 97);
-
-      points.push({ id: it._id, x, y, clusterKey: key });
-    });
-
-    const clusters: Cluster[] = limitedKeys
-      .map((key) => {
+      return limitedKeys.map((key) => {
         const members = byCluster.get(key) || [];
         if (!members.length) return null;
 
@@ -195,6 +180,11 @@ export default function TagMapPage() {
           .slice(0, 3)
           .map(([tag]) => tag);
 
+        // 递归构建子集群（如果该集群有足够多的 ideas）
+        const subClusters = depth < 2 && members.length > 8 
+          ? buildClusters(members, depth + 1) 
+          : [];
+
         return {
           key,
           cx: center.x,
@@ -202,16 +192,109 @@ export default function TagMapPage() {
           r: clamp(4 + Math.sqrt(members.length) * 1.8, 5, 13),
           count: members.length,
           relatedTags: relatedTags.length ? relatedTags : [key],
+          ideas: members,
+          subClusters: subClusters.length > 0 ? subClusters : undefined,
         };
-      })
-      .filter(Boolean) as Cluster[];
+      }).filter(Boolean) as Cluster[];
+    }
 
-    return { points, clusters };
-  }, [filteredIdeas]);
+    const allClusters = buildClusters(normalized);
 
-  function jumpToSearch(tags: string[]) {
-    const query = tags.join(", ");
-    nav(`/?q=${encodeURIComponent(query)}&page=1`);
+    // 根据 zoomPath 找到当前显示的集群
+    let currentCluster: Cluster | null = null;
+    let displayClusters = allClusters;
+    let displayIdeas = normalized;
+
+    if (zoomPath.length > 0) {
+      for (const pathKey of zoomPath) {
+        const found = displayClusters.find(c => c.key === pathKey);
+        if (found) {
+          currentCluster = found;
+          displayClusters = found.subClusters || [];
+          // 将 ideas 转换为 normalized 格式
+          displayIdeas = found.ideas.map(it => {
+            const tags = (it.tags || []).map((x) => x.trim().toLowerCase()).filter(Boolean);
+            const ts = new Date(it.createdAt || 0).getTime() || 0;
+            return { ...it, tags, ts };
+          });
+        } else {
+          break;
+        }
+      }
+    }
+
+    // 如果当前在某个集群内部，显示该集群的 ideas 作为点
+    const points: DotPoint[] = [];
+    if (currentCluster) {
+      const sortedByTime = [...displayIdeas].sort((a, b) => b.ts - a.ts);
+
+      sortedByTime.forEach((it) => {
+        const seed = hashString(it._id);
+        const angle = ((seed % 360) * Math.PI) / 180;
+        const radius = 8 + (Math.random() * 35);
+        const x = clamp(MAP_CENTER.x + Math.cos(angle) * radius, 5, 95);
+        const y = clamp(MAP_CENTER.y + Math.sin(angle) * radius, 5, 95);
+
+        points.push({ 
+          id: it._id, 
+          x, 
+          y, 
+          clusterKey: currentCluster.key,
+          idea: it 
+        });
+      });
+    } else {
+      // 顶层视图：显示所有 ideas 的点
+      const sortedByTime = [...normalized].sort((a, b) => b.ts - a.ts);
+      const total = Math.max(1, sortedByTime.length - 1);
+
+      sortedByTime.forEach((it, index) => {
+        const recency = index / total;
+        const key = pickClusterTag(it.tags, globalTagCount);
+        const clusterCenter = allClusters.find(c => c.key === key);
+        const center = clusterCenter ? { x: clusterCenter.cx, y: clusterCenter.cy } : MAP_CENTER;
+
+        const seed = hashString(it._id);
+        const angle = ((seed % 360) * Math.PI) / 180;
+        const rawRadius = 6 + recency * 40;
+        const baseX = MAP_CENTER.x + Math.cos(angle) * rawRadius;
+        const baseY = MAP_CENTER.y + Math.sin(angle) * rawRadius;
+
+        const attract = 0.58;
+        const x = clamp(baseX * (1 - attract) + center.x * attract, 3, 97);
+        const y = clamp(baseY * (1 - attract) + center.y * attract, 3, 97);
+
+        points.push({ 
+          id: it._id, 
+          x, 
+          y, 
+          clusterKey: key,
+          idea: it 
+        });
+      });
+    }
+
+    return { points, clusters: displayClusters, currentCluster };
+  }, [filteredIdeas, zoomPath]);
+
+  function handleClusterClick(clusterKey: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setZoomPath([...zoomPath, clusterKey]);
+  }
+
+  function handleIdeaClick(ideaId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    nav(`/ideas/${ideaId}`);
+  }
+
+  function handleBackgroundClick() {
+    if (zoomPath.length > 0) {
+      setZoomPath(zoomPath.slice(0, -1));
+    }
+  }
+
+  function navigateToBreadcrumb(index: number) {
+    setZoomPath(zoomPath.slice(0, index));
   }
 
   return (
@@ -275,7 +358,40 @@ export default function TagMapPage() {
 
         {!loading && !err && points.length > 0 && (
           <div className="relative">
-            <svg key={mapRenderKey} viewBox="0 0 100 100" className="w-full h-[64vh] min-h-[420px]">
+            {/* 面包屑导航 */}
+            {zoomPath.length > 0 && (
+              <div className="mb-3 flex items-center gap-2 text-sm">
+                <button
+                  onClick={() => setZoomPath([])}
+                  className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                >
+                  🏠 {t("tagMap.home")} 
+                </button>
+                {zoomPath.map((key, index) => (
+                  <span key={key} className="flex items-center gap-2">
+                    <span className="text-gray-500">/</span>
+                    <button
+                      onClick={() => navigateToBreadcrumb(index + 1)}
+                      className="text-cyan-300 hover:text-cyan-200 hover:underline"
+                    >
+                      #{key}
+                    </button>
+                  </span>
+                ))}
+                {currentCluster && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    ({currentCluster.count} ideas)
+                  </span>
+                )}
+              </div>
+            )}
+
+            <svg 
+              key={mapRenderKey + '-' + zoomPath.join('-')} 
+              viewBox="0 0 100 100" 
+              className="w-full h-[64vh] min-h-[420px] cursor-pointer"
+              onClick={handleBackgroundClick}
+            >
               <defs>
                 <filter id="clusterGlow" x="-50%" y="-50%" width="200%" height="200%">
                   <feGaussianBlur stdDeviation="1.5" result="coloredBlur" />
@@ -288,44 +404,54 @@ export default function TagMapPage() {
 
               <circle cx="50" cy="50" r="2.5" fill="#67e8f9" opacity="0.9" />
 
+              {/* Ideas 小点 */}
               {points.map((pt, idx) => {
                 const dx = pt.x - MAP_CENTER.x;
                 const dy = pt.y - MAP_CENTER.y;
                 const startX = clamp(MAP_CENTER.x + dx * 1.55, -10, 110);
                 const startY = clamp(MAP_CENTER.y + dy * 1.55, -10, 110);
                 return (
-                  <circle
-                    key={pt.id}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r="0.55"
-                    fill="#93c5fd"
-                    opacity="0.72"
-                  >
-                    <animate attributeName="cx" from={String(startX)} to={String(pt.x)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
-                    <animate attributeName="cy" from={String(startY)} to={String(pt.y)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
-                    <animate attributeName="opacity" from="0.05" to="0.72" dur="650ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
-                  </circle>
+                  <g key={pt.id}>
+                    <circle
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={currentCluster ? "1.2" : "0.55"}
+                      fill={currentCluster ? "#60a5fa" : "#93c5fd"}
+                      opacity={currentCluster ? "0.85" : "0.72"}
+                      className="cursor-pointer hover:opacity-100 transition-opacity"
+                      onClick={(e) => handleIdeaClick(pt.id, e)}
+                    >
+                      <animate attributeName="cx" from={String(startX)} to={String(pt.x)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
+                      <animate attributeName="cy" from={String(startY)} to={String(pt.y)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
+                      <animate attributeName="opacity" from="0.05" to={currentCluster ? "0.85" : "0.72"} dur="650ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
+                    </circle>
+                    {currentCluster && (
+                      <title>{pt.idea.title}</title>
+                    )}
+                  </g>
                 );
               })}
 
+              {/* Cluster 气泡 */}
               {clusters.map((c, idx) => {
                 const dx = c.cx - MAP_CENTER.x;
                 const dy = c.cy - MAP_CENTER.y;
                 const startCx = clamp(MAP_CENTER.x + dx * 1.38, -10, 110);
                 const startCy = clamp(MAP_CENTER.y + dy * 1.38, -10, 110);
+                const hasSubClusters = c.subClusters && c.subClusters.length > 0;
+                
                 return (
                   <g key={c.key}>
                     <circle
                       cx={c.cx}
                       cy={c.cy}
                       r={c.r}
-                      className="cursor-pointer"
-                      fill="rgba(14,165,233,0.2)"
-                      stroke="rgba(125,211,252,0.9)"
-                      strokeWidth="0.35"
+                      className="cursor-pointer hover:opacity-100 transition-opacity"
+                      fill={hasSubClusters ? "rgba(14,165,233,0.28)" : "rgba(14,165,233,0.2)"}
+                      stroke={hasSubClusters ? "rgba(125,211,252,1)" : "rgba(125,211,252,0.9)"}
+                      strokeWidth={hasSubClusters ? "0.5" : "0.35"}
                       filter="url(#clusterGlow)"
-                      onClick={() => jumpToSearch(c.relatedTags)}
+                      onClick={(e) => handleClusterClick(c.key, e)}
                     >
                       <animate attributeName="cx" from={String(startCx)} to={String(c.cx)} dur="820ms" begin={`${120 + idx * 40}ms`} fill="freeze" />
                       <animate attributeName="cy" from={String(startCy)} to={String(c.cy)} dur="820ms" begin={`${120 + idx * 40}ms`} fill="freeze" />
@@ -337,7 +463,7 @@ export default function TagMapPage() {
                       textAnchor="middle"
                       fill="#e0f2fe"
                       fontSize="1.4"
-                      className="pointer-events-none"
+                      className="pointer-events-none select-none"
                     >
                       #{c.key}
                     </text>
@@ -347,10 +473,22 @@ export default function TagMapPage() {
                       textAnchor="middle"
                       fill="#bae6fd"
                       fontSize="1.1"
-                      className="pointer-events-none"
+                      className="pointer-events-none select-none"
                     >
                       {c.count}
                     </text>
+                    {hasSubClusters && (
+                      <text
+                        x={c.cx}
+                        y={c.cy + 3.2}
+                        textAnchor="middle"
+                        fill="#86efac"
+                        fontSize="0.9"
+                        className="pointer-events-none select-none"
+                      >
+                        📁
+                      </text>
+                    )}
                   </g>
                 );
               })}
