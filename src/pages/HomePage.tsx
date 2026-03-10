@@ -353,24 +353,23 @@ export default function HomePage() {
           <Link
             to={`/ideas/${it._id}`}
             key={it._id}
-            className="relative overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
+            className="relative rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
+            onMouseEnter={() => setHoveredIdeaId(it._id)}
+            onMouseLeave={() => setHoveredIdeaId((prev) => (prev === it._id ? null : prev))}
           >
-            <div
-              className="relative z-10"
-              onMouseEnter={() => setHoveredIdeaId(it._id)}
-              onMouseLeave={() => setHoveredIdeaId((prev) => (prev === it._id ? null : prev))}
-            >
-              {hoveredIdeaId === it._id && (it.coverImageUrl || it.imageUrls?.[0]) && (
-                <div className="pointer-events-none absolute right-0 top-0 z-20 w-52 overflow-hidden rounded-xl border border-gray-700 bg-black/80 shadow-2xl">
-                  <img
-                    src={toHttpsUrl(it.coverImageUrl || it.imageUrls?.[0])}
-                    alt="idea cover preview"
-                    loading="lazy"
-                    decoding="async"
-                    className="h-32 w-full object-cover"
-                  />
-                </div>
-              )}
+            {hoveredIdeaId === it._id && (it.coverImageUrl || it.imageUrls?.[0]) && (
+              <div className="pointer-events-none absolute -right-2 top-4 z-50 w-56 overflow-hidden rounded-xl border-2 border-purple-600/50 bg-gray-950/95 shadow-2xl backdrop-blur-sm">
+                <img
+                  src={toHttpsUrl(it.coverImageUrl || it.imageUrls?.[0])}
+                  alt="idea cover preview"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-36 w-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="relative z-10">
 
               <div className="flex items-center justify-between">
                 <h2 className="text-white font-semibold">{it.title}</h2>
