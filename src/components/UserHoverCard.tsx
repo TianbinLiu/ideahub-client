@@ -210,7 +210,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   }
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block z-[9999]">
       <span
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}

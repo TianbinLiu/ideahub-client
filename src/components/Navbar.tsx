@@ -91,7 +91,7 @@ export default function Navbar() {
   }, [user]);
 
   return (
-    <div className="relative z-[100] border-b border-gray-800 bg-gray-950/80 backdrop-blur">
+    <div className="border-b border-gray-800 bg-gray-950/80 backdrop-blur">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="font-bold text-xl text-white">IdeaHub</Link>
 
