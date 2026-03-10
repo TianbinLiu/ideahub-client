@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
@@ -39,8 +40,10 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   const [sendingDM, setSendingDM] = useState(false);
   const [dmBlocked, setDmBlocked] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
+  const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
 
   const isOwnProfile = currentUser?._id === userId || (currentUser as any)?.id === userId;
 
@@ -49,6 +52,39 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const cardWidth = 320; // w-80 = 320px
+      const cardHeight = 500; // 估算高度
+      
+      let top = rect.bottom + 8;
+      let left = rect.left;
+      
+      // 确保卡片不会超出右边界
+      if (left + cardWidth > window.innerWidth) {
+        left = window.innerWidth - cardWidth - 16;
+      }
+      
+      // 确保卡片不会超出底部边界
+      if (top + cardHeight > window.innerHeight) {
+        top = rect.top - cardHeight - 8;
+      }
+      
+      // 确保卡片不会超出左边界
+      if (left < 16) {
+        left = 16;
+      }
+      
+      // 确保卡片不会超出顶部边界
+      if (top < 16) {
+        top = 16;
+      }
+      
+      setCardPosition({ top, left });
+    }
+  }, [isOpen]);
 
   async function loadProfile() {
     if (profile || loading) return;
@@ -210,8 +246,9 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
   }
 
   return (
-    <div className="relative inline-block z-[9999]">
+    <>
       <span
+        ref={triggerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className="cursor-pointer hover:underline"
@@ -219,12 +256,16 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
         {children}
       </span>
 
-      {isOpen && (
+      {isOpen && cardPosition && createPortal(
         <div
           ref={cardRef}
           onMouseEnter={handleCardEnter}
           onMouseLeave={handleCardLeave}
-          className="absolute left-0 top-full mt-2 z-[9999] w-80 rounded-xl border border-gray-700 bg-gray-900 p-4 shadow-2xl"
+          className="fixed z-[99999] w-80 rounded-xl border border-gray-700 bg-gray-900 p-4 shadow-2xl"
+          style={{
+            top: `${cardPosition.top}px`,
+            left: `${cardPosition.left}px`,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {loading && <p className="text-gray-400 text-sm">{t('common.loading')}</p>}
@@ -384,13 +425,14 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
               )}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* DM Modal */}
-      {showDMModal && (
+      {showDMModal && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999999]"
           onClick={() => setShowDMModal(false)}
         >
           <div
@@ -425,8 +467,9 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
