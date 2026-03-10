@@ -29,6 +29,7 @@ import MessageRequestsPage from "./pages/MessageRequestsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import FeedbackAdminPage from "./pages/FeedbackAdminPage";
 import DocsAdminPage from "./pages/DocsAdminPage";
+import AdminScraperPage from "./pages/AdminScraperPage";
 import EditIdeaPage from "./pages/EditIdeaPage";
 import PhoneLoginPage from "./pages/PhoneLoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -176,6 +177,15 @@ export default function App() {
           element={
             <AdminRoute>
               <DocsAdminPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/scraper"
+          element={
+            <AdminRoute>
+              <AdminScraperPage />
             </AdminRoute>
           }
         />

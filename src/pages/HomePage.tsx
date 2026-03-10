@@ -44,6 +44,8 @@ type Idea = {
   _id: string;
   title: string;
   summary: string;
+  imageUrls?: string[];
+  coverImageUrl?: string;
   tags: string[];
   createdAt: string;
   author?: { username: string; role: string };
@@ -342,35 +344,47 @@ export default function HomePage() {
           <Link
             to={`/ideas/${it._id}`}
             key={it._id}
-            className="rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
+            className="relative overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
           >
-            <div className="flex items-center justify-between">
-              <h2 className="text-white font-semibold">{it.title}</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">{t('home.server')}</span>
-              </div>
-            </div>
-            {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
+            {(it.coverImageUrl || it.imageUrls?.[0]) && (
+              <>
+                <div
+                  className="absolute inset-0 bg-cover bg-center opacity-25"
+                  style={{ backgroundImage: `url(${it.coverImageUrl || it.imageUrls?.[0]})` }}
+                />
+                <div className="absolute inset-0 bg-gray-950/55" />
+              </>
+            )}
 
-            <div className="flex flex-wrap gap-2 mt-3 text-xs text-gray-400">
-              {it.externalSource ? (
-                <span className="px-2 py-1 rounded-full border border-purple-700 bg-purple-900/20 text-purple-300">
-                  {getPlatformIcon(it.externalSource.platform)} {it.externalSource.platform}
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <h2 className="text-white font-semibold">{it.title}</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">{t('home.server')}</span>
+                </div>
+              </div>
+              {it.summary && <p className="text-gray-200 mt-1">{it.summary}</p>}
+
+              <div className="flex flex-wrap gap-2 mt-3 text-xs text-gray-300">
+                {it.externalSource ? (
+                  <span className="px-2 py-1 rounded-full border border-purple-700 bg-purple-900/20 text-purple-300">
+                    {getPlatformIcon(it.externalSource.platform)} {it.externalSource.platform}
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 rounded-full border border-gray-700">
+                    {it.author?.username || t('home.unknownAuthor')}
+                  </span>
+                )}
+                {(it.tags || []).map((t) => (
+                  <span key={t} className="px-2 py-1 rounded-full border border-gray-700">
+                    #{t}
+                  </span>
+                ))}
+                <span className="ml-auto text-gray-400">
+                  ❤️ {it.stats?.likeCount ?? 0} · 👀 {it.stats?.viewCount ?? 0}
                 </span>
-              ) : (
-                <span className="px-2 py-1 rounded-full border border-gray-800">
-                  {it.author?.username || t('home.unknownAuthor')}
-                </span>
-              )}
-              {(it.tags || []).map((t) => (
-                <span key={t} className="px-2 py-1 rounded-full border border-gray-800">
-                  #{t}
-                </span>
-              ))}
-              <span className="ml-auto text-gray-500">
-                ❤️ {it.stats?.likeCount ?? 0} · 👀 {it.stats?.viewCount ?? 0}
-              </span>
+              </div>
             </div>
           </Link>
         ))}

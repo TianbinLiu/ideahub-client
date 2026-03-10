@@ -116,6 +116,9 @@ export default function Navbar() {
               <NavLink to="/admin/docs" className={({ isActive }) => cls(isActive)}>
                 {t('nav.docs')}
               </NavLink>
+              <NavLink to="/admin/scraper" className={({ isActive }) => cls(isActive)}>
+                {t('nav.scraper')}
+              </NavLink>
             </>
           )}
 

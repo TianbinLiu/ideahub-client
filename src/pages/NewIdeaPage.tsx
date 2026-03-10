@@ -36,7 +36,9 @@ export default function NewIdeaPage() {
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private" | "unlisted">("public");
   const [, setIsMonetizable] = useState(false);
@@ -115,7 +117,7 @@ export default function NewIdeaPage() {
 
   function splitTags(input: string): string[] {
     return input
-      .split(",")
+      .split(/[,，]/)
       .map((s) => s.trim())
       .filter(Boolean);
   }
@@ -151,6 +153,27 @@ export default function NewIdeaPage() {
     }
   }
 
+  async function handleCoverImageUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setUploadingCover(true);
+    try {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Only image files are allowed");
+      }
+      if (file.size > IMAGE_MAX_BYTES) {
+        throw new Error("Image size must be <= 5MB");
+      }
+      const uploaded = await apiUploadImage(file, "idea");
+      setCoverImageUrl(uploaded.imageUrl);
+      toast.success(t('idea.coverUploaded'));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
   // Auto-detect platform from URL
   function handleUrlChange(url: string) {
     setExternalUrl(url);
@@ -179,6 +202,7 @@ export default function NewIdeaPage() {
         title: string;
         content: string;
         author: string;
+        platform?: string;
         error?: string;
         message: string;
       }>('/api/scraper/fetch', {
@@ -197,6 +221,9 @@ export default function NewIdeaPage() {
         if (result.author && !externalOriginalAuthor) {
           setExternalOriginalAuthor(result.author);
         }
+        if (result.platform) {
+          setExternalPlatform(result.platform);
+        }
         toast.success(t('idea.autoFetchSuccess'));
       } else {
         // Partial fallback: if backend returns anything useful, prefill it.
@@ -208,6 +235,9 @@ export default function NewIdeaPage() {
         }
         if (result.author && !externalOriginalAuthor) {
           setExternalOriginalAuthor(result.author);
+        }
+        if (result.platform) {
+          setExternalPlatform(result.platform);
         }
 
         // Failed to fetch - show user-friendly message
@@ -280,6 +310,7 @@ export default function NewIdeaPage() {
           summary,
           content,
           imageUrls,
+          coverImageUrl,
           tags: submitTags,
           visibility,
           isMonetizable: false,
@@ -360,6 +391,36 @@ export default function NewIdeaPage() {
         </div>
 
         <div>
+          <div className="flex items-center gap-3 mb-3">
+            <label className="text-xs rounded-lg border border-purple-700 px-3 py-1.5 cursor-pointer hover:bg-purple-950/40 text-purple-200">
+              {t('idea.uploadCover')}
+              <input
+                type="file"
+                accept={IMAGE_ACCEPT}
+                className="hidden"
+                onChange={(e) => {
+                  handleCoverImageUpload(e.target.files);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            {uploadingCover && <span className="text-xs text-gray-400">{t('idea.uploadingCover')}</span>}
+            <span className="text-xs text-gray-500">{t('idea.coverImageHint')}</span>
+          </div>
+
+          {coverImageUrl && (
+            <div className="mb-3 relative">
+              <img src={coverImageUrl} alt="idea cover" className="h-28 w-full rounded border border-purple-800 object-cover" />
+              <button
+                type="button"
+                className="absolute top-1 right-1 rounded bg-black/60 px-2 text-xs"
+                onClick={() => setCoverImageUrl("")}
+              >
+                {t('idea.removeCover')}
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <label className="text-xs rounded-lg border border-gray-700 px-3 py-1.5 cursor-pointer hover:bg-gray-900 text-gray-200">
               + Image

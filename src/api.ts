@@ -258,6 +258,8 @@ export type Idea = {
   title: string;
   summary: string;
   content: string;
+  imageUrls?: string[];
+  coverImageUrl?: string;
   author?: { _id: string; username: string; role: string };
   tags?: string[];
   visibility?: "public" | "private" | "unlisted";
