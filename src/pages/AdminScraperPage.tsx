@@ -115,6 +115,16 @@ export default function AdminScraperPage() {
     try {
       setRunning(true);
       setResult(null);
+      
+      console.log('[Crawler] Starting crawl with params:', {
+        platform,
+        keywords: keywordsInput,
+        minViews,
+        limit,
+        maxPages,
+        maxCreate,
+      });
+      
       const res = await apiFetch<CrawlResult>("/api/scraper/admin/crawl", {
         method: "POST",
         body: JSON.stringify({
@@ -126,11 +136,27 @@ export default function AdminScraperPage() {
           maxCreate,
         }),
       });
+      
+      console.log('[Crawler] Success:', res);
       setResult(res);
       toast.success(t("scraperAdmin.runSuccess"));
       loadHistory();
     } catch (e: any) {
-      toast.error(humanizeError(e));
+      console.error('[Crawler] Error:', e);
+      console.error('[Crawler] Error status:', e.status);
+      console.error('[Crawler] Error code:', e.code);
+      console.error('[Crawler] Error message:', e.message);
+      
+      // 特别处理 412 和 401/403 错误
+      if (e.status === 412) {
+        toast.error('Precondition Failed (412): 请检查请求参数或服务器配置');
+      } else if (e.status === 401) {
+        toast.error('未授权 (401): 请重新登录');
+      } else if (e.status === 403) {
+        toast.error('权限不足 (403): 需要管理员权限');
+      } else {
+        toast.error(humanizeError(e));
+      }
     } finally {
       setRunning(false);
     }
