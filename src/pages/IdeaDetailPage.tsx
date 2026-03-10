@@ -678,14 +678,14 @@ export default function IdeaDetailPage() {
                   <iframe
                     src={idea.externalSource.url}
                     className="w-full h-[calc(100vh-60px)] border-0"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-top-navigation"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                   />
                 </div>
               ) : (
                 <iframe
                   src={idea.externalSource.url}
                   className="w-full h-96 mt-3 rounded-lg border border-purple-700"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-top-navigation"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 />
               )}
             </div>
