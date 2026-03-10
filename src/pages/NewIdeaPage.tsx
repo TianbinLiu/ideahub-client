@@ -37,6 +37,7 @@ export default function NewIdeaPage() {
   const [content, setContent] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverUploadedByUser, setCoverUploadedByUser] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [tags, setTags] = useState("");
@@ -115,6 +116,21 @@ export default function NewIdeaPage() {
     }
   }
 
+  function isVideoPlatformVideoUrl(url: string): boolean {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.toLowerCase();
+      const path = u.pathname.toLowerCase();
+      if ((host.includes("bilibili.com") || host.includes("b23.tv")) && path.includes("/video/")) return true;
+      if ((host.includes("youtube.com") && (path === "/watch" || path.startsWith("/shorts/") || path.startsWith("/live/"))) || host.includes("youtu.be")) return true;
+      if (host.includes("tiktok.com") && path.includes("/video/")) return true;
+      if (host.includes("vimeo.com")) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   function splitTags(input: string): string[] {
     return input
       .split(/[,，]/)
@@ -166,6 +182,7 @@ export default function NewIdeaPage() {
       }
       const uploaded = await apiUploadImage(file, "idea");
       setCoverImageUrl(uploaded.imageUrl);
+      setCoverUploadedByUser(true);
       toast.success(t('idea.coverUploaded'));
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -203,6 +220,7 @@ export default function NewIdeaPage() {
         content: string;
         author: string;
         platform?: string;
+        coverImageUrl?: string;
         error?: string;
         message: string;
       }>('/api/scraper/fetch', {
@@ -224,6 +242,9 @@ export default function NewIdeaPage() {
         if (result.platform) {
           setExternalPlatform(result.platform);
         }
+        if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
+          setCoverImageUrl(result.coverImageUrl);
+        }
         toast.success(t('idea.autoFetchSuccess'));
       } else {
         // Partial fallback: if backend returns anything useful, prefill it.
@@ -238,6 +259,9 @@ export default function NewIdeaPage() {
         }
         if (result.platform) {
           setExternalPlatform(result.platform);
+        }
+        if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
+          setCoverImageUrl(result.coverImageUrl);
         }
 
         // Failed to fetch - show user-friendly message
