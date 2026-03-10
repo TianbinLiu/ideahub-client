@@ -477,7 +477,7 @@ export default function NewIdeaPage() {
 
           {coverImageUrl && (
             <div className="mb-3 relative">
-              <img src={coverImageUrl} alt="idea cover" className="h-28 w-full rounded border border-purple-800 object-cover" />
+              <img src={coverImageUrl} alt="idea cover" className="h-48 w-full rounded border border-purple-800 object-contain bg-gray-900" />
               <button
                 type="button"
                 className="absolute top-1 right-1 rounded bg-black/60 px-2 text-xs"
