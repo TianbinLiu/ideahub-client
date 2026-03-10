@@ -255,6 +255,10 @@ export default function NewIdeaPage() {
 
       if (result.success) {
         // Successfully fetched content
+        console.log('[Auto Fetch Debug] Full result:', result);
+        console.log('[Auto Fetch Debug] result.tags:', result.tags);
+        console.log('[Auto Fetch Debug] Current tags input:', tags);
+        
         if (result.title && !title) {
           setTitle(result.title);
         }
@@ -277,6 +281,7 @@ export default function NewIdeaPage() {
           }
         }
         if (result.tags && Array.isArray(result.tags) && result.tags.length > 0 && !tags.trim()) {
+          console.log('[Auto Fetch Debug] Setting tags:', result.tags.join(", "));
           setTags(result.tags.join(", "));
         }
         toast.success(t('idea.autoFetchSuccess'));
