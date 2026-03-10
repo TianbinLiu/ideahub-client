@@ -145,6 +145,22 @@ export default function NewIdeaPage() {
     return Array.from(new Set(cleaned)).join(",");
   }
 
+  function applyFetchedPlatformName(rawName?: string) {
+    const name = String(rawName || "").trim();
+    if (!name) return;
+
+    const matched = PLATFORMS.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (matched && matched.name !== "其他") {
+      setExternalPlatform(matched.name);
+      setCustomExternalPlatform("");
+      return;
+    }
+
+    // If the fetched platform is not in dropdown options, switch to Other and prefill custom name.
+    setExternalPlatform(OTHER_PLATFORM_VALUE);
+    setCustomExternalPlatform(name);
+  }
+
   async function handleIdeaImageUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploadingImages(true);
@@ -239,9 +255,7 @@ export default function NewIdeaPage() {
         if (result.author && !externalOriginalAuthor) {
           setExternalOriginalAuthor(result.author);
         }
-        if (result.platform) {
-          setExternalPlatform(result.platform);
-        }
+        applyFetchedPlatformName(result.platform);
         if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
           setCoverImageUrl(result.coverImageUrl);
         }
@@ -257,9 +271,7 @@ export default function NewIdeaPage() {
         if (result.author && !externalOriginalAuthor) {
           setExternalOriginalAuthor(result.author);
         }
-        if (result.platform) {
-          setExternalPlatform(result.platform);
-        }
+        applyFetchedPlatformName(result.platform);
         if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
           setCoverImageUrl(result.coverImageUrl);
         }
