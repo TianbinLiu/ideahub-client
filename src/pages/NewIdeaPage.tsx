@@ -265,7 +265,15 @@ export default function NewIdeaPage() {
         }
         applyFetchedPlatformName(result.platform);
         if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
-          setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
+          try {
+            const imported = await apiFetch<{ ok: boolean; imageUrl: string }>("/api/scraper/import-cover", {
+              method: "POST",
+              body: JSON.stringify({ url: toHttpsUrl(result.coverImageUrl) }),
+            });
+            if (imported?.imageUrl) setCoverImageUrl(imported.imageUrl);
+          } catch {
+            setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
+          }
         }
         toast.success(t('idea.autoFetchSuccess'));
       } else {
@@ -281,7 +289,15 @@ export default function NewIdeaPage() {
         }
         applyFetchedPlatformName(result.platform);
         if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
-          setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
+          try {
+            const imported = await apiFetch<{ ok: boolean; imageUrl: string }>("/api/scraper/import-cover", {
+              method: "POST",
+              body: JSON.stringify({ url: toHttpsUrl(result.coverImageUrl) }),
+            });
+            if (imported?.imageUrl) setCoverImageUrl(imported.imageUrl);
+          } catch {
+            setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
+          }
         }
 
         // Failed to fetch - show user-friendly message
