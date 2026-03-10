@@ -245,6 +245,7 @@ export default function NewIdeaPage() {
         author: string;
         platform?: string;
         coverImageUrl?: string;
+        tags?: string[];
         error?: string;
         message: string;
       }>('/api/scraper/fetch', {
