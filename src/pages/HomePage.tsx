@@ -356,9 +356,12 @@ export default function HomePage() {
           >
             {(it.coverImageUrl || it.imageUrls?.[0]) && (
               <>
-                <div
-                  className="absolute inset-0 bg-cover bg-center opacity-25"
-                  style={{ backgroundImage: `url(${toHttpsUrl(it.coverImageUrl || it.imageUrls?.[0])})` }}
+                <img
+                  src={toHttpsUrl(it.coverImageUrl || it.imageUrls?.[0])}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover opacity-25"
                 />
                 <div className="absolute inset-0 bg-gray-950/55" />
               </>
