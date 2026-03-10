@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
@@ -18,6 +18,13 @@ type DotPoint = {
   y: number;
   clusterKey: string;
   idea: IdeaLite;
+};
+
+type DotTooltip = {
+  x: number;
+  y: number;
+  title: string;
+  tags: string[];
 };
 
 type Cluster = {
@@ -76,6 +83,10 @@ export default function TagMapPage() {
   const [err, setErr] = useState("");
   const [timeWindow, setTimeWindow] = useState<TimeWindowKey>("30d");
   const [zoomPath, setZoomPath] = useState<string[]>([]); // 当前层级路径
+  const [dotTooltip, setDotTooltip] = useState<DotTooltip | null>(null);
+  const [isDesktopHover, setIsDesktopHover] = useState(true);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
 
   useEffect(() => {
     async function loadIdeas() {
@@ -94,6 +105,14 @@ export default function TagMapPage() {
       }
     }
     loadIdeas();
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const sync = () => setIsDesktopHover(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
   }, []);
 
   const filteredIdeas = useMemo(() => {
@@ -284,13 +303,87 @@ export default function TagMapPage() {
 
   function handleIdeaClick(ideaId: string, e: React.MouseEvent) {
     e.stopPropagation();
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
     nav(`/ideas/${ideaId}`);
+  }
+
+  function handleDotHover(e: React.MouseEvent<SVGCircleElement>, idea: IdeaLite) {
+    if (!isDesktopHover) return;
+    const svg = (e.currentTarget.ownerSVGElement || e.currentTarget) as SVGElement;
+    const rect = svg.getBoundingClientRect();
+    const tags = (idea.tags || []).map((x) => x.trim()).filter(Boolean);
+    setDotTooltip({
+      x: e.clientX - rect.left + 10,
+      y: e.clientY - rect.top - 10,
+      title: idea.title,
+      tags,
+    });
+  }
+
+  function clearDotHover() {
+    setDotTooltip(null);
+  }
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function handleDotTouchStart(e: React.TouchEvent<SVGCircleElement>, idea: IdeaLite) {
+    if (isDesktopHover) return;
+    e.stopPropagation();
+    clearLongPressTimer();
+    longPressTriggeredRef.current = false;
+
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      const svg = (e.currentTarget.ownerSVGElement || e.currentTarget) as SVGElement;
+      const rect = svg.getBoundingClientRect();
+      const tags = (idea.tags || []).map((x) => x.trim()).filter(Boolean);
+      setDotTooltip({
+        x: touch.clientX - rect.left + 10,
+        y: touch.clientY - rect.top - 10,
+        title: idea.title,
+        tags,
+      });
+      longPressTriggeredRef.current = true;
+    }, 450);
+  }
+
+  function handleDotTouchMove(e: React.TouchEvent<SVGCircleElement>, idea: IdeaLite) {
+    if (isDesktopHover || !longPressTriggeredRef.current) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    if (!touch) return;
+    const svg = (e.currentTarget.ownerSVGElement || e.currentTarget) as SVGElement;
+    const rect = svg.getBoundingClientRect();
+    const tags = (idea.tags || []).map((x) => x.trim()).filter(Boolean);
+    setDotTooltip({
+      x: touch.clientX - rect.left + 10,
+      y: touch.clientY - rect.top - 10,
+      title: idea.title,
+      tags,
+    });
+  }
+
+  function handleDotTouchEnd(e: React.TouchEvent<SVGCircleElement>) {
+    if (isDesktopHover) return;
+    e.stopPropagation();
+    clearLongPressTimer();
   }
 
   function handleBackgroundClick() {
     if (zoomPath.length > 0) {
       setZoomPath(zoomPath.slice(0, -1));
     }
+    clearDotHover();
   }
 
   function navigateToBreadcrumb(index: number) {
@@ -391,6 +484,8 @@ export default function TagMapPage() {
               viewBox="0 0 100 100" 
               className="w-full h-[64vh] min-h-[420px] cursor-pointer"
               onClick={handleBackgroundClick}
+              onMouseLeave={clearDotHover}
+              onTouchStart={clearDotHover}
             >
               <defs>
                 <filter id="clusterGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -420,6 +515,13 @@ export default function TagMapPage() {
                       opacity={currentCluster ? "0.85" : "0.72"}
                       className="cursor-pointer hover:opacity-100 transition-opacity"
                       onClick={(e) => handleIdeaClick(pt.id, e)}
+                      onMouseEnter={(e) => handleDotHover(e, pt.idea)}
+                      onMouseMove={(e) => handleDotHover(e, pt.idea)}
+                      onMouseLeave={clearDotHover}
+                      onTouchStart={(e) => handleDotTouchStart(e, pt.idea)}
+                      onTouchMove={(e) => handleDotTouchMove(e, pt.idea)}
+                      onTouchEnd={handleDotTouchEnd}
+                      onTouchCancel={handleDotTouchEnd}
                     >
                       <animate attributeName="cx" from={String(startX)} to={String(pt.x)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
                       <animate attributeName="cy" from={String(startY)} to={String(pt.y)} dur="900ms" begin={`${Math.min(idx * 8, 280)}ms`} fill="freeze" />
@@ -493,6 +595,24 @@ export default function TagMapPage() {
                 );
               })}
             </svg>
+
+            {dotTooltip && (
+              <div
+                className="pointer-events-none absolute z-50 max-w-[320px] rounded-lg border border-cyan-700/80 bg-slate-950/95 px-3 py-2 text-xs shadow-[0_8px_30px_rgba(8,145,178,0.35)]"
+                style={{
+                  left: `${dotTooltip.x}px`,
+                  top: `${dotTooltip.y}px`,
+                  transform: "translate(0, -100%)",
+                }}
+              >
+                <div className="mb-1 line-clamp-2 text-cyan-100">{dotTooltip.title}</div>
+                <div className="text-cyan-300">
+                  {dotTooltip.tags.length
+                    ? dotTooltip.tags.map((tag) => `#${tag}`).join(" ")
+                    : "#untagged"}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
