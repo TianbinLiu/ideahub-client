@@ -275,6 +275,9 @@ export default function NewIdeaPage() {
             setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
           }
         }
+        if (result.tags && Array.isArray(result.tags) && result.tags.length > 0 && !tags.trim()) {
+          setTags(result.tags.join(", "));
+        }
         toast.success(t('idea.autoFetchSuccess'));
       } else {
         // Partial fallback: if backend returns anything useful, prefill it.
@@ -298,6 +301,9 @@ export default function NewIdeaPage() {
           } catch {
             setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
           }
+        }
+        if (result.tags && Array.isArray(result.tags) && result.tags.length > 0 && !tags.trim()) {
+          setTags(result.tags.join(", "));
         }
 
         // Failed to fetch - show user-friendly message
