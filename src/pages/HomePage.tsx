@@ -182,6 +182,14 @@ export default function HomePage() {
     persistRecentTags(merged);
   }
 
+  function toHttpsUrl(raw?: string) {
+    const val = String(raw || "").trim();
+    if (!val) return "";
+    if (/^http:\/\//i.test(val)) return val.replace(/^http:\/\//i, "https://");
+    if (val.startsWith("//")) return `https:${val}`;
+    return val;
+  }
+
 
   return (
     <div className="max-w-5xl mx-auto p-4">
@@ -350,7 +358,7 @@ export default function HomePage() {
               <>
                 <div
                   className="absolute inset-0 bg-cover bg-center opacity-25"
-                  style={{ backgroundImage: `url(${it.coverImageUrl || it.imageUrls?.[0]})` }}
+                  style={{ backgroundImage: `url(${toHttpsUrl(it.coverImageUrl || it.imageUrls?.[0])})` }}
                 />
                 <div className="absolute inset-0 bg-gray-950/55" />
               </>

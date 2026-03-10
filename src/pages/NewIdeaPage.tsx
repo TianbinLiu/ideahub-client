@@ -131,6 +131,14 @@ export default function NewIdeaPage() {
     }
   }
 
+  function toHttpsUrl(raw?: string): string {
+    const val = String(raw || "").trim();
+    if (!val) return "";
+    if (/^http:\/\//i.test(val)) return val.replace(/^http:\/\//i, "https://");
+    if (val.startsWith("//")) return `https:${val}`;
+    return val;
+  }
+
   function splitTags(input: string): string[] {
     return input
       .split(/[,，]/)
@@ -257,7 +265,7 @@ export default function NewIdeaPage() {
         }
         applyFetchedPlatformName(result.platform);
         if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
-          setCoverImageUrl(result.coverImageUrl);
+          setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
         }
         toast.success(t('idea.autoFetchSuccess'));
       } else {
@@ -273,7 +281,7 @@ export default function NewIdeaPage() {
         }
         applyFetchedPlatformName(result.platform);
         if (result.coverImageUrl && !coverImageUrl && !coverUploadedByUser && isVideoPlatformVideoUrl(externalUrl)) {
-          setCoverImageUrl(result.coverImageUrl);
+          setCoverImageUrl(toHttpsUrl(result.coverImageUrl));
         }
 
         // Failed to fetch - show user-friendly message
