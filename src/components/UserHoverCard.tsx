@@ -224,7 +224,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
           ref={cardRef}
           onMouseEnter={handleCardEnter}
           onMouseLeave={handleCardLeave}
-          className="absolute left-0 top-full mt-2 z-50 w-80 rounded-xl border border-gray-700 bg-gray-900 p-4 shadow-2xl"
+          className="absolute left-0 top-full mt-2 z-[9999] w-80 rounded-xl border border-gray-700 bg-gray-900 p-4 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {loading && <p className="text-gray-400 text-sm">{t('common.loading')}</p>}
