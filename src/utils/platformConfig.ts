@@ -60,6 +60,12 @@ export const PLATFORMS: PlatformConfig[] = [
     placeholder: "https://www.instagram.com/p/..."
   },
   {
+    name: "BiliBili",
+    icon: "📺",
+    urlPattern: /bilibili\.com|b23\.tv/i,
+    placeholder: "https://www.bilibili.com/video/..."
+  },
+  {
     name: "YouTube",
     icon: "📹",
     urlPattern: /youtube\.com|youtu\.be/i,
@@ -106,12 +112,38 @@ export function detectPlatformFromUrl(url: string): PlatformConfig | null {
   return null;
 }
 
+// 别名映射：处理旧数据库中存储的非规范平台名
+const PLATFORM_ALIASES: Record<string, string> = {
+  "twitter": "Twitter/X",
+  "x": "Twitter/X",
+  "bilibili": "BiliBili",
+  "youtube": "YouTube",
+  "tiktok": "TikTok",
+  "instagram": "Instagram",
+  "facebook": "Facebook",
+  "reddit": "Reddit",
+  "linkedin": "LinkedIn",
+  "weibo": "微博",
+  "zhihu": "知乎",
+  "tieba": "贴吧",
+  "xiaohongshu": "小红书",
+};
+
 /**
- * Get platform icon (with fallback)
+ * Get platform config by name (with alias fallback)
+ */
+export function getPlatformByNameWithAlias(name: string): PlatformConfig | undefined {
+  const direct = getPlatformByName(name);
+  if (direct) return direct;
+  const canonical = PLATFORM_ALIASES[name.toLowerCase()];
+  return canonical ? getPlatformByName(canonical) : undefined;
+}
+
+/**
+ * Get platform icon (with alias fallback for legacy stored names)
  */
 export function getPlatformIcon(platformName?: string): string {
   if (!platformName) return "🌐";
-  
-  const platform = getPlatformByName(platformName);
+  const platform = getPlatformByNameWithAlias(platformName);
   return platform?.icon || "🌐";
 }
