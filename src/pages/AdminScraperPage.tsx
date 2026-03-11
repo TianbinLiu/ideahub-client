@@ -273,6 +273,22 @@ export default function AdminScraperPage() {
       {result && (
         <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
           <h2 className="text-lg text-white">{t("scraperAdmin.resultTitle")}</h2>
+
+          {/* 全部低于播放量阈值时的警告 */}
+          {result.createdCount === 0 && result.scanned > 0 && result.skipped?.belowThreshold === result.scanned && (
+            <div className="mt-3 rounded-xl border border-amber-600/60 bg-amber-900/20 px-4 py-3 text-sm text-amber-300">
+              ⚠️ 扫描到的 {result.scanned} 个视频播放量均低于 {minViews.toLocaleString()}，没有创建任何 Idea。<br />
+              <span className="text-amber-400 font-medium">建议：</span> 降低「最低播放量」阈值，或换用热门关键词重新运行。
+            </div>
+          )}
+
+          {/* 创意为空但原因不是阈值 */}
+          {result.createdCount === 0 && result.scanned > 0 && result.skipped?.belowThreshold !== result.scanned && (
+            <div className="mt-3 rounded-xl border border-gray-600/60 bg-gray-800/40 px-4 py-3 text-sm text-gray-300">
+              本次未创建任何 Idea。请检查关键词和参数设置。
+            </div>
+          )}
+
           <div className="mt-2 grid gap-2 text-sm text-gray-300 md:grid-cols-2">
             <div>{t("scraperAdmin.scanned")}: {result.scanned}</div>
             <div>{t("scraperAdmin.created")}: {result.createdCount}</div>
