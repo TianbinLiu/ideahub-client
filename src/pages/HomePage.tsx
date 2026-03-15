@@ -32,13 +32,14 @@
  * ✅ 响应式设计 (grid responsive)
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiFetch } from "../api";
+import { apiFetch, clearIdeaRecommendationFeedback, submitIdeaRecommendationFeedback } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { getPlatformIcon } from "../utils/platformConfig";
+import { useAuth } from "../authContext";
 
 type Idea = {
   _id: string;
@@ -55,12 +56,14 @@ type Idea = {
     url?: string;
     originalAuthor?: string;
   };
+  recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const sort = params.get("sort") || "new";
+  const sort = params.get("sort") || "recommended";
   const q = params.get("q") || "";
   const page = Math.max(parseInt(params.get("page") || "1", 10), 1);
 
@@ -73,10 +76,24 @@ export default function HomePage() {
   const [highlight, setHighlight] = useState(-1);
   const [recentTags, setRecentTags] = useState<string[]>([]);
   const [hoveredIdeaId, setHoveredIdeaId] = useState<string | null>(null);
+  const [dismissedIdeaIds, setDismissedIdeaIds] = useState<string[]>([]);
+  const [feedbackLoadingId, setFeedbackLoadingId] = useState<string | null>(null);
   const nav = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suggRef = useRef<HTMLDivElement | null>(null);
   const visibleHotTags = recentTags.slice(0, 3);
+  const activeSearchTokens = useMemo(() => {
+    return Array.from(new Set(
+      q
+        .split(/[#,，,\s]+/)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+    ));
+  }, [q]);
+  const visibleIdeas = useMemo(
+    () => ideas.filter((idea) => !dismissedIdeaIds.includes(idea._id)),
+    [ideas, dismissedIdeaIds]
+  );
 
   // debounce timer
   const suggTimer = useRef<any>(null);
@@ -92,6 +109,10 @@ export default function HomePage() {
         page: String(page),
         limit: "10",
       });
+
+      if (recentTags.length > 0) {
+        qs.set("recentTags", recentTags.join(","));
+      }
 
       const res = await apiFetch<{
         ideas: Idea[];
@@ -114,11 +135,15 @@ export default function HomePage() {
 
   useEffect(() => {
     load();
-  }, [sort, q, page]);
+  }, [sort, q, page, recentTags.join(",")]);
 
   useEffect(() => {
     setSearchInput(q);
   }, [q]);
+
+  useEffect(() => {
+    setDismissedIdeaIds([]);
+  }, [sort, q, page]);
 
   useEffect(() => {
     loadRecentTags();
@@ -191,6 +216,58 @@ export default function HomePage() {
     return val;
   }
 
+  function updateSort(nextSort: string) {
+    const next = new URLSearchParams(params);
+    next.set("sort", nextSort);
+    next.set("page", "1");
+    setParams(next);
+  }
+
+  function isMatchingSearchTag(tag: string) {
+    const normalizedTag = String(tag || "").trim().toLowerCase();
+    return activeSearchTokens.some((token) => normalizedTag === token || normalizedTag.includes(token) || token.includes(normalizedTag));
+  }
+
+  async function handleRecommendationFeedback(
+    ideaId: string,
+    reason: "not_interested" | "already_recommended"
+  ) {
+    try {
+      setFeedbackLoadingId(ideaId);
+      await submitIdeaRecommendationFeedback(ideaId, reason);
+      setDismissedIdeaIds((prev) => (prev.includes(ideaId) ? prev : [...prev, ideaId]));
+      toast((toastInstance) => (
+        <div className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 shadow-lg">
+          <span>
+            {reason === "not_interested"
+              ? t("home.feedbackSavedNotInterested")
+              : t("home.feedbackSavedAlreadyRecommended")}
+          </span>
+          <button
+            type="button"
+            className="rounded-md border border-cyan-600 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-950/40"
+            onClick={async () => {
+              try {
+                await clearIdeaRecommendationFeedback(ideaId);
+                setDismissedIdeaIds((prev) => prev.filter((id) => id !== ideaId));
+                toast.dismiss(toastInstance.id);
+                toast.success(t("home.feedbackUndoSuccess"));
+              } catch (e: any) {
+                toast.error(humanizeError(e));
+              }
+            }}
+          >
+            {t("home.undoFeedback")}
+          </button>
+        </div>
+      ), { duration: 5000 });
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setFeedbackLoadingId(null);
+    }
+  }
+
 
   return (
     <div className="max-w-5xl mx-auto p-4">
@@ -202,14 +279,21 @@ export default function HomePage() {
 
         <div className="flex gap-2">
           <button
-            onClick={() => setParams({ sort: "new" })}
+            onClick={() => updateSort("recommended")}
+            className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "recommended" ? "border-white text-white" : "border-gray-700 text-gray-300"
+              }`}
+          >
+            {t('home.recommended')}
+          </button>
+          <button
+            onClick={() => updateSort("new")}
             className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "new" ? "border-white text-white" : "border-gray-700 text-gray-300"
               }`}
           >
             {t('home.new')}
           </button>
           <button
-            onClick={() => setParams({ sort: "hot" })}
+            onClick={() => updateSort("hot")}
             className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "hot" ? "border-white text-white" : "border-gray-700 text-gray-300"
               }`}
           >
@@ -267,6 +351,10 @@ export default function HomePage() {
               }
             }}
           />
+
+          <p className="mt-2 text-xs text-cyan-300">
+            {t('home.multiTagHint')}
+          </p>
 
           {suggestions.length > 0 && (
             <div ref={suggRef} className="absolute mt-2 left-0 w-full bg-gray-900 border border-gray-800 rounded-xl z-50">
@@ -347,9 +435,9 @@ export default function HomePage() {
       {err && <p className="text-red-400 mt-6">{t('common.error')}: {err}</p>}
 
       <div className="mt-6 grid gap-3">
-        {!loading && ideas.length === 0 && <p className="text-gray-400">{t('home.noPublicIdeas')}</p>}
+        {!loading && visibleIdeas.length === 0 && <p className="text-gray-400">{t('home.noPublicIdeas')}</p>}
 
-        {ideas.map((it) => (
+        {visibleIdeas.map((it) => (
           <Link
             to={`/ideas/${it._id}`}
             key={it._id}
@@ -380,6 +468,35 @@ export default function HomePage() {
               </div>
               {it.summary && <p className="text-gray-200 mt-1">{it.summary}</p>}
 
+              {sort === "recommended" && user && !q && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={feedbackLoadingId === it._id}
+                    className="rounded-full border border-rose-700/70 bg-rose-950/30 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/40 disabled:opacity-50"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRecommendationFeedback(it._id, "not_interested");
+                    }}
+                  >
+                    {t('home.notInterested')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={feedbackLoadingId === it._id}
+                    className="rounded-full border border-amber-700/70 bg-amber-950/30 px-3 py-1 text-xs text-amber-200 hover:bg-amber-900/40 disabled:opacity-50"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRecommendationFeedback(it._id, "already_recommended");
+                    }}
+                  >
+                    {t('home.alreadyRecommended')}
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2 mt-3 text-xs text-gray-300">
                 {it.externalSource ? (
                   <span className="px-2 py-1 rounded-full border border-purple-700 bg-purple-900/20 text-purple-300">
@@ -391,7 +508,13 @@ export default function HomePage() {
                   </span>
                 )}
                 {(it.tags || []).map((t) => (
-                  <span key={t} className="px-2 py-1 rounded-full border border-gray-700">
+                  <span
+                    key={t}
+                    className={`px-2 py-1 rounded-full border ${isMatchingSearchTag(t)
+                      ? "border-cyan-500 bg-cyan-900/30 text-cyan-200"
+                      : "border-gray-700"
+                      }`}
+                  >
                     #{t}
                   </span>
                 ))}

@@ -274,6 +274,26 @@ export type Idea = {
   feedbackStatus?: string;
   aiSummary?: string;
   externalSource?: ExternalSource;
+  recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
+
+export function submitIdeaRecommendationFeedback(
+  ideaId: string,
+  reason: "not_interested" | "already_recommended"
+) {
+  return apiFetch<{ ok: true; feedback: { reason: "not_interested" | "already_recommended" } }>(
+    `/api/ideas/${ideaId}/recommendation-feedback`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }
+  );
+}
+
+export function clearIdeaRecommendationFeedback(ideaId: string) {
+  return apiFetch<{ ok: true }>(`/api/ideas/${ideaId}/recommendation-feedback`, {
+    method: "DELETE",
+  });
+}
 
 
