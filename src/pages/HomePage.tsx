@@ -352,10 +352,6 @@ export default function HomePage() {
             }}
           />
 
-          <p className="mt-2 text-xs text-cyan-300">
-            {t('home.multiTagHint')}
-          </p>
-
           {suggestions.length > 0 && (
             <div ref={suggRef} className="absolute mt-2 left-0 w-full bg-gray-900 border border-gray-800 rounded-xl z-50">
               {suggestions.map((s, idx) => (
