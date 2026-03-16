@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
@@ -10,7 +10,10 @@ type IdeaLite = {
   title: string;
   tags?: string[];
   createdAt?: string;
+  ideaType?: "business" | "feedback" | "external" | "daily";
 };
+
+type IdeaTypeKey = "business" | "feedback" | "external" | "daily";
 
 type DotPoint = {
   id: string;
@@ -48,6 +51,19 @@ const TIME_WINDOWS: Array<{ key: TimeWindowKey; days: number }> = [
   { key: "365d", days: 365 },
 ];
 
+const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: string }> = [
+  { key: "business", emoji: "💼", activeClass: "border-emerald-500 text-emerald-200 bg-emerald-900/30" },
+  { key: "feedback", emoji: "🛠", activeClass: "border-sky-500 text-sky-200 bg-sky-900/30" },
+  { key: "external", emoji: "🔗", activeClass: "border-fuchsia-500 text-fuchsia-200 bg-fuchsia-900/30" },
+  { key: "daily", emoji: "📝", activeClass: "border-amber-500 text-amber-200 bg-amber-900/30" },
+];
+
+const IDEA_TYPE_STORAGE_KEY = "preferredHomeIdeaType";
+
+function isIdeaTypeKey(value: string): value is IdeaTypeKey {
+  return IDEA_TYPE_OPTIONS.some((item) => item.key === value);
+}
+
 const MAP_CENTER = { x: 50, y: 50 };
 
 function clamp(n: number, min: number, max: number) {
@@ -77,6 +93,10 @@ function pickClusterTag(tags: string[], globalTagCount: Map<string, number>) {
 export default function TagMapPage() {
   const { t } = useTranslation();
   const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const rawIdeaType = params.get("ideaType") || "";
+  const ideaType: IdeaTypeKey = isIdeaTypeKey(rawIdeaType) ? rawIdeaType : "daily";
+  const backHomeHref = `/${ideaType ? `?ideaType=${encodeURIComponent(ideaType)}` : ""}`;
 
   const [ideas, setIdeas] = useState<IdeaLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,12 +108,45 @@ export default function TagMapPage() {
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
 
+  function updateIdeaType(nextType: IdeaTypeKey) {
+    const next = new URLSearchParams(params);
+    next.set("ideaType", nextType);
+    setParams(next, { replace: true });
+    setZoomPath([]);
+    setDotTooltip(null);
+    try {
+      localStorage.setItem(IDEA_TYPE_STORAGE_KEY, nextType);
+    } catch (e) {
+      // ignore storage failures
+    }
+  }
+
+  useEffect(() => {
+    if (isIdeaTypeKey(rawIdeaType)) return;
+    try {
+      const stored = String(localStorage.getItem(IDEA_TYPE_STORAGE_KEY) || "").trim();
+      if (isIdeaTypeKey(stored)) {
+        const next = new URLSearchParams(params);
+        next.set("ideaType", stored);
+        setParams(next, { replace: true });
+        return;
+      }
+    } catch (e) {
+      // ignore storage failures
+    }
+
+    const next = new URLSearchParams(params);
+    next.set("ideaType", "daily");
+    setParams(next, { replace: true });
+  }, [rawIdeaType, params, setParams]);
+
   useEffect(() => {
     async function loadIdeas() {
       try {
         setLoading(true);
         setErr("");
         const qs = new URLSearchParams({ sort: "new", page: "1", limit: "240" });
+        qs.set("ideaType", ideaType);
         const res = await apiFetch<{ ideas: IdeaLite[] }>(`/api/ideas?${qs.toString()}`);
         setIdeas(res.ideas || []);
       } catch (e: any) {
@@ -105,7 +158,7 @@ export default function TagMapPage() {
       }
     }
     loadIdeas();
-  }, []);
+  }, [ideaType]);
 
   useEffect(() => {
     const media = window.matchMedia("(hover: hover) and (pointer: fine)");
@@ -398,7 +451,7 @@ export default function TagMapPage() {
           <p className="text-sm text-gray-300 mt-1">{t("tagMap.subtitle")}</p>
         </div>
         <Link
-          to="/"
+          to={backHomeHref}
           className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
         >
           {t("tagMap.backHome")}
@@ -408,6 +461,27 @@ export default function TagMapPage() {
       <p className="mt-3 text-xs text-cyan-300">{t("tagMap.hint")}</p>
 
       <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/60 p-3">
+        <div className="mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-gray-300">{t("tagMap.ideaTypeLabel")}</span>
+            <span className="text-xs text-cyan-300">
+              {t(`idea.createMode${ideaType.charAt(0).toUpperCase()}${ideaType.slice(1)}Title`)}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {IDEA_TYPE_OPTIONS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => updateIdeaType(item.key)}
+                className={`rounded-full border px-3 py-1 text-xs ${ideaType === item.key ? item.activeClass : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+              >
+                {item.emoji} {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Title`)}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-gray-300">{t("tagMap.timeWindowLabel")}</span>
           <span className="text-xs text-cyan-300">{t(`tagMap.window.${timeWindow}`)}</span>

@@ -523,7 +523,11 @@ export default function HomePage() {
               ))}
               <button
                 className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
-                onClick={() => nav("/tag-map")}
+                onClick={() => {
+                  const next = new URLSearchParams();
+                  if (ideaType) next.set("ideaType", ideaType);
+                  nav(`/tag-map${next.toString() ? `?${next.toString()}` : ""}`);
+                }}
                 aria-label={t("home.openTagMap")}
                 title={t("home.openTagMap")}
               >

@@ -547,6 +547,7 @@
     "home": "Overview",
     "hint": "Click a blue cluster to zoom in and view ideas inside. Click a dot to open idea details. Click empty space to zoom out.",
     "empty": "No public ideas in this time window.",
+    "ideaTypeLabel": "Idea Category",
     "timeWindowLabel": "Time Window",
     "window": {
       "7d": "Last 7 days",
