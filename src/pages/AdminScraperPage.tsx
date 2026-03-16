@@ -146,11 +146,8 @@ export default function AdminScraperPage() {
       console.error('[Crawler] Error status:', e.status);
       console.error('[Crawler] Error code:', e.code);
       console.error('[Crawler] Error message:', e.message);
-      
-      // 特别处理 412 和 401/403 错误
-      if (e.status === 412) {
-        toast.error('Precondition Failed (412): 请检查请求参数或服务器配置');
-      } else if (e.status === 401) {
+
+      if (e.status === 401) {
         toast.error('未授权 (401): 请重新登录');
       } else if (e.status === 403) {
         toast.error('权限不足 (403): 需要管理员权限');
