@@ -255,6 +255,7 @@ export type AiReview = {
 
 export type Idea = {
   _id: string;
+  ideaType?: "business" | "feedback" | "external" | "daily";
   title: string;
   summary: string;
   content: string;

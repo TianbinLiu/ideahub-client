@@ -43,6 +43,7 @@ import { useAuth } from "../authContext";
 
 type Idea = {
   _id: string;
+  ideaType?: "business" | "feedback" | "external" | "daily";
   title: string;
   summary: string;
   imageUrls?: string[];
@@ -59,6 +60,21 @@ type Idea = {
   recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
 
+type IdeaTypeKey = "business" | "feedback" | "external" | "daily";
+
+const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: string }> = [
+  { key: "business", emoji: "💼", activeClass: "border-emerald-400/70 bg-emerald-500/20 text-emerald-100" },
+  { key: "feedback", emoji: "🛠", activeClass: "border-sky-400/70 bg-sky-500/20 text-sky-100" },
+  { key: "external", emoji: "🔗", activeClass: "border-fuchsia-400/70 bg-fuchsia-500/20 text-fuchsia-100" },
+  { key: "daily", emoji: "📝", activeClass: "border-amber-400/70 bg-amber-500/20 text-amber-100" },
+];
+
+const IDEA_TYPE_STORAGE_KEY = "preferredHomeIdeaType";
+
+function isIdeaTypeKey(value: string): value is IdeaTypeKey {
+  return IDEA_TYPE_OPTIONS.some((item) => item.key === value);
+}
+
 export default function HomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -66,6 +82,8 @@ export default function HomePage() {
   const sort = params.get("sort") || "recommended";
   const q = params.get("q") || "";
   const page = Math.max(parseInt(params.get("page") || "1", 10), 1);
+  const rawIdeaType = params.get("ideaType") || "";
+  const ideaType = isIdeaTypeKey(rawIdeaType) ? rawIdeaType : "";
 
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [err, setErr] = useState("");
@@ -78,6 +96,7 @@ export default function HomePage() {
   const [hoveredIdeaId, setHoveredIdeaId] = useState<string | null>(null);
   const [dismissedIdeaIds, setDismissedIdeaIds] = useState<string[]>([]);
   const [feedbackLoadingId, setFeedbackLoadingId] = useState<string | null>(null);
+  const [showIdeaTypePicker, setShowIdeaTypePicker] = useState(false);
   const nav = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suggRef = useRef<HTMLDivElement | null>(null);
@@ -100,6 +119,13 @@ export default function HomePage() {
 
   async function load() {
     try {
+      if (!ideaType) {
+        setIdeas([]);
+        setTotalPages(1);
+        setLoading(false);
+        return;
+      }
+
       setErr("");
       setLoading(true);
 
@@ -113,6 +139,7 @@ export default function HomePage() {
       if (recentTags.length > 0) {
         qs.set("recentTags", recentTags.join(","));
       }
+      qs.set("ideaType", ideaType);
 
       const res = await apiFetch<{
         ideas: Idea[];
@@ -135,7 +162,7 @@ export default function HomePage() {
 
   useEffect(() => {
     load();
-  }, [sort, q, page, recentTags.join(",")]);
+  }, [sort, q, page, recentTags.join(","), ideaType]);
 
   useEffect(() => {
     setSearchInput(q);
@@ -143,7 +170,34 @@ export default function HomePage() {
 
   useEffect(() => {
     setDismissedIdeaIds([]);
-  }, [sort, q, page]);
+  }, [sort, q, page, ideaType]);
+
+  useEffect(() => {
+    if (ideaType) {
+      setShowIdeaTypePicker(false);
+      try {
+        localStorage.setItem(IDEA_TYPE_STORAGE_KEY, ideaType);
+      } catch (e) {
+        // ignore persistence failure
+      }
+      return;
+    }
+
+    try {
+      const stored = String(localStorage.getItem(IDEA_TYPE_STORAGE_KEY) || "").trim();
+      if (isIdeaTypeKey(stored)) {
+        const next = new URLSearchParams(params);
+        next.set("ideaType", stored);
+        next.set("page", "1");
+        setParams(next, { replace: true });
+        return;
+      }
+    } catch (e) {
+      // ignore persistence failure
+    }
+
+    setShowIdeaTypePicker(true);
+  }, [ideaType, params, setParams]);
 
   useEffect(() => {
     loadRecentTags();
@@ -221,6 +275,19 @@ export default function HomePage() {
     next.set("sort", nextSort);
     next.set("page", "1");
     setParams(next);
+  }
+
+  function updateIdeaType(nextType: IdeaTypeKey) {
+    const next = new URLSearchParams(params);
+    next.set("ideaType", nextType);
+    next.set("page", "1");
+    setParams(next);
+    setShowIdeaTypePicker(false);
+    try {
+      localStorage.setItem(IDEA_TYPE_STORAGE_KEY, nextType);
+    } catch (e) {
+      // ignore persistence failure
+    }
   }
 
   function isMatchingSearchTag(tag: string) {
@@ -301,6 +368,64 @@ export default function HomePage() {
           </button>
         </div>
       </div>
+
+      <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-gray-400">{t("home.currentIdeaType")}</p>
+            {ideaType ? (
+              <span className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.activeClass || "border-gray-700 text-gray-200"}`}>
+                {IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.emoji} {" "}
+                {t(`idea.createMode${ideaType.charAt(0).toUpperCase()}${ideaType.slice(1)}Title`)}
+              </span>
+            ) : (
+              <span className="mt-1 inline-flex items-center rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300">
+                {t("home.ideaTypeNotSelected")}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {IDEA_TYPE_OPTIONS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => updateIdeaType(item.key)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${ideaType === item.key ? item.activeClass : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+              >
+                {item.emoji} {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Title`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {showIdeaTypePicker && !ideaType && (
+        <div className="mt-4 rounded-2xl border border-purple-700/60 bg-gradient-to-br from-purple-950/70 via-gray-950 to-gray-950 p-5">
+          <h2 className="text-xl font-semibold text-white">{t("home.pickIdeaTypeTitle")}</h2>
+          <p className="mt-1 text-sm text-gray-300">{t("home.pickIdeaTypeSubtitle")}</p>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {IDEA_TYPE_OPTIONS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => updateIdeaType(item.key)}
+                className="rounded-xl border border-gray-700 bg-gray-900/70 p-4 text-left transition hover:border-purple-500/60 hover:bg-gray-900"
+              >
+                <div className="text-2xl">{item.emoji}</div>
+                <div className="mt-2 text-sm font-semibold text-white">
+                  {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Title`)}
+                </div>
+                <p className="mt-1 text-xs text-gray-300">
+                  {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Desc`)}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ideaType && (
+        <>
 
       <div className="mt-4 grid gap-2 md:grid-cols-3">
         <div className="relative">
@@ -552,6 +677,9 @@ export default function HomePage() {
           {t('home.next')}
         </button>
       </div>
+
+        </>
+      )}
 
     </div>
   );

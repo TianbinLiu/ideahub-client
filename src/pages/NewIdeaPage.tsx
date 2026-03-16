@@ -325,6 +325,8 @@ export default function NewIdeaPage() {
       setErr("");
       setLoading(true);
 
+      const ideaType = creationMode || "daily";
+
       const isOtherPlatform = externalPlatform.trim() === OTHER_PLATFORM_VALUE;
       const effectiveExternalPlatform = isOtherPlatform
         ? customExternalPlatform.trim()
@@ -373,6 +375,7 @@ export default function NewIdeaPage() {
       const res = await apiFetch<{ idea: { _id: string } }>(`/api/ideas`, {
         method: "POST",
         body: JSON.stringify({
+          ideaType,
           title,
           summary,
           content,
