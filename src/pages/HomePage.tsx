@@ -560,7 +560,11 @@ export default function HomePage() {
       {err && <p className="text-red-400 mt-6">{t('common.error')}: {err}</p>}
 
       <div className="mt-6 grid gap-3">
-        {!loading && visibleIdeas.length === 0 && <p className="text-gray-400">{t('home.noPublicIdeas')}</p>}
+        {!loading && visibleIdeas.length === 0 && (
+          <p className="text-gray-400">
+            {q.trim() ? t('home.noSearchTagIdeas') : t('home.noPublicIdeas')}
+          </p>
+        )}
 
         {visibleIdeas.map((it) => (
           <Link

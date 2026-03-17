@@ -532,6 +532,7 @@
     "tagSuggestion": "tag suggestion",
     "ideaTitle": "idea title",
     "recentTagsHint": "Hot tags will appear after you search",
+    "noSearchTagIdeas": "There are no ideas related to your searched tags right now.",
     "noPublicIdeas": "No public ideas yet.",
     "server": "Server",
     "unknownAuthor": "unknown",

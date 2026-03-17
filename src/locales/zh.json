@@ -526,6 +526,7 @@
     "tagSuggestion": "标签建议",
     "ideaTitle": "想法标题",
     "recentTagsHint": "热门标签会在你搜索后出现",
+    "noSearchTagIdeas": "当前没有与你搜索标签相关的 idea。",
     "noPublicIdeas": "还没有公开想法。",
     "server": "服务器",
     "unknownAuthor": "未知",
