@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+	--ws-accent: #22d3ee;
+	--ws-text: #f3f4f6;
+	--ws-card-radius: 16px;
+	--ws-card-opacity: 0.92;
+}
+
+body.workshop-template-active {
+	color: var(--ws-text);
+}
+
+body.workshop-template-active .ws-title {
+	color: var(--ws-text);
+}
+
+body.workshop-template-active .ws-button {
+	border-color: color-mix(in srgb, var(--ws-accent) 50%, #374151);
+}
+
+body.workshop-template-active .ws-card {
+	border-radius: var(--ws-card-radius);
+}

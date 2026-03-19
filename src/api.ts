@@ -75,6 +75,39 @@ export async function apiUploadImage(file: File, scope: "idea" | "comment" | "le
   return json as { ok: true; imageUrl: string; maxSizeBytes: number; mimeType: string; size: number };
 }
 
+export async function apiUploadMedia(file: File) {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const formData = new FormData();
+  formData.append("media", file);
+
+  const res = await fetch(`${API_BASE}/api/uploads/media`, {
+    method: "POST",
+    body: formData,
+    headers,
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err: any = new Error(json?.message || `HTTP ${res.status}`);
+    err.code = json?.code;
+    err.details = json?.details;
+    err.status = res.status;
+    throw err;
+  }
+
+  return json as {
+    ok: true;
+    mediaUrl: string;
+    maxSizeBytes: number;
+    mimeType: string;
+    size: number;
+    resourceType: "image" | "video";
+  };
+}
+
 export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED";
 
 export type NotificationItem = {
@@ -295,6 +328,214 @@ export function clearIdeaRecommendationFeedback(ideaId: string) {
   return apiFetch<{ ok: true }>(`/api/ideas/${ideaId}/recommendation-feedback`, {
     method: "DELETE",
   });
+}
+
+export type WorkshopTheme = {
+  backgroundType: "none" | "image" | "video" | "gradient";
+  backgroundUrl?: string;
+  accentColor?: string;
+  textColor?: string;
+  cardRadius?: number;
+  cardOpacity?: number;
+  customCss?: string;
+  componentCss?: {
+    card?: string;
+    button?: string;
+    title?: string;
+  };
+};
+
+export type WorkshopLayoutItem = {
+  id: string;
+  kind: "nav" | "hero" | "stats" | "feed" | "sidebar" | "panel" | "footer";
+  label: string;
+  description?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+  visible: boolean;
+};
+
+export type WorkshopLayout = {
+  version: number;
+  canvas: {
+    width: number;
+    height: number;
+  };
+  pages: {
+    home: {
+      items: WorkshopLayoutItem[];
+    };
+  };
+};
+
+export type WorkshopUpdateLog = {
+  _id?: string;
+  title: string;
+  summary?: string;
+  authorName?: string;
+  source?: "manual" | "ai" | "system";
+  createdAt?: string;
+};
+
+export type WorkshopTemplateComment = {
+  _id: string;
+  templateId: string;
+  content: string;
+  author?: { _id: string; username: string; role: string };
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type WorkshopHotTag = {
+  tag: string;
+  count: number;
+};
+
+export type WorkshopTemplate = {
+  _id: string;
+  title: string;
+  summary: string;
+  previewImageUrl?: string;
+  tags?: string[];
+  templateVersion?: string;
+  currentDefaultVersion?: string;
+  isCompatible?: boolean;
+  isDefault?: boolean;
+  shared: boolean;
+  theme: WorkshopTheme;
+  layout: WorkshopLayout;
+  stats?: {
+    viewCount?: number;
+    likeCount?: number;
+    bookmarkCount?: number;
+    commentCount?: number;
+  };
+  appliedCount?: number;
+  updateLogs?: WorkshopUpdateLog[];
+  author?: { _id: string; username: string; role: string };
+  createdAt?: string;
+  updatedAt?: string;
+  liked?: boolean;
+  bookmarked?: boolean;
+};
+
+export type WorkshopDraft = {
+  title: string;
+  summary: string;
+  tags: string[];
+  theme: WorkshopTheme;
+  layout: WorkshopLayout;
+};
+
+export function listWorkshopTemplates(params?: {
+  sort?: "for_you" | "new" | "hot";
+  q?: string;
+  page?: number;
+  limit?: number;
+  recentTags?: string[];
+}) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.recentTags && params.recentTags.length > 0) qs.set("recentTags", params.recentTags.join(","));
+
+  return apiFetch<{ ok: true; templates: WorkshopTemplate[]; total: number; page: number; totalPages: number }>(
+    `/api/workshop/templates${qs.toString() ? `?${qs.toString()}` : ""}`
+  );
+}
+
+export function listMyWorkshopTemplates() {
+  return apiFetch<{ ok: true; templates: WorkshopTemplate[] }>("/api/workshop/templates/mine");
+}
+
+export function getWorkshopTemplateDetail(id: string) {
+  return apiFetch<{ ok: true; template: WorkshopTemplate }>(`/api/workshop/templates/${id}`);
+}
+
+export function createWorkshopTemplate(payload: {
+  title: string;
+  summary?: string;
+  previewImageUrl?: string;
+  tags?: string[] | string;
+  shared?: boolean;
+  theme?: WorkshopTheme;
+  layout?: WorkshopLayout;
+  changeSummary?: string;
+}) {
+  return apiFetch<{ ok: true; template: WorkshopTemplate }>("/api/workshop/templates", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateWorkshopTemplate(id: string, payload: {
+  title?: string;
+  summary?: string;
+  previewImageUrl?: string;
+  tags?: string[] | string;
+  shared?: boolean;
+  theme?: WorkshopTheme;
+  layout?: WorkshopLayout;
+  changeSummary?: string;
+  changeSource?: "manual" | "ai";
+}) {
+  return apiFetch<{ ok: true; template: WorkshopTemplate }>(`/api/workshop/templates/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function toggleWorkshopTemplateLike(id: string) {
+  return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(`/api/workshop/templates/${id}/like`, {
+    method: "POST",
+  });
+}
+
+export function toggleWorkshopTemplateBookmark(id: string) {
+  return apiFetch<{ ok: true; bookmarked: boolean; bookmarkCount: number }>(`/api/workshop/templates/${id}/bookmark`, {
+    method: "POST",
+  });
+}
+
+export function applyWorkshopTemplate(id: string) {
+  return apiFetch<{ ok: true; activeTemplate: WorkshopTemplate }>(`/api/workshop/templates/${id}/apply`, {
+    method: "POST",
+  });
+}
+
+export function getActiveWorkshopTemplate() {
+  return apiFetch<{ ok: true; activeTemplate: WorkshopTemplate | null }>("/api/workshop/active-template");
+}
+
+export function previewWorkshopAiEdit(payload: {
+  instruction: string;
+  history?: { role: "user" | "assistant"; content: string }[];
+  draft: WorkshopDraft;
+}) {
+  return apiFetch<{ ok: true; assistantMessage: string; draft: WorkshopDraft; model?: string }>("/api/workshop/ai/edit", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listWorkshopTemplateComments(id: string) {
+  return apiFetch<{ ok: true; comments: WorkshopTemplateComment[] }>(`/api/workshop/templates/${id}/comments`);
+}
+
+export function createWorkshopTemplateComment(id: string, content: string) {
+  return apiFetch<{ ok: true; comment: WorkshopTemplateComment }>(`/api/workshop/templates/${id}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function getWorkshopTagInsights(limit = 240) {
+  return apiFetch<{ ok: true; templates: WorkshopTemplate[]; hotTags: WorkshopHotTag[] }>(`/api/workshop/tag-insights?limit=${limit}`);
 }
 
 

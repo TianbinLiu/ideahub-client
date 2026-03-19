@@ -11,6 +11,7 @@
  */
 
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
@@ -39,6 +40,12 @@ import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import BlacklistPage from "./pages/BlacklistPage";
 import TagMapPage from "./pages/TagMapPage";
+import WorkshopPage from "./pages/WorkshopPage";
+import WorkshopTemplateDetailPage from "./pages/WorkshopTemplateDetailPage";
+import WorkshopEditorPage from "./pages/WorkshopEditorPage";
+import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
+import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
+import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
@@ -54,8 +61,67 @@ function MeRedirect() {
 
 
 export default function App() {
+  const { user } = useAuth();
+  const [activeTemplate, setActiveTemplate] = useState<WorkshopTemplate | null>(readActiveWorkshopTemplate());
+
+  useEffect(() => {
+    applyWorkshopTemplateToDocument(activeTemplate);
+  }, [activeTemplate]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!user) {
+        setActiveTemplate(readActiveWorkshopTemplate());
+        return;
+      }
+      try {
+        const res = await getActiveWorkshopTemplate();
+        if (!mounted) return;
+        setActiveTemplate(res.activeTemplate || null);
+        saveActiveWorkshopTemplate(res.activeTemplate || null);
+      } catch {
+        // keep local fallback
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?._id]);
+
+  const bg: WorkshopTheme = activeTemplate?.theme || {
+    backgroundType: "none",
+    backgroundUrl: "",
+    accentColor: "#22d3ee",
+    textColor: "#f3f4f6",
+    cardRadius: 16,
+    cardOpacity: 0.92,
+    customCss: "",
+    componentCss: { card: "", button: "", title: "" },
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
+    <div className="min-h-screen bg-gray-950 text-gray-100 relative">
+      {bg.backgroundType === "image" && bg.backgroundUrl && (
+        <div
+          className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-45"
+          style={{ backgroundImage: `url(${bg.backgroundUrl})` }}
+        />
+      )}
+      {bg.backgroundType === "video" && bg.backgroundUrl && (
+        <video
+          className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover opacity-45"
+          src={bg.backgroundUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      )}
+      {bg.backgroundType === "gradient" && (
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.25)_0%,rgba(3,7,18,1)_55%)]" />
+      )}
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -117,6 +183,46 @@ export default function App() {
         <Route path="/leaderboard/:id" element={<LeaderboardDetailPage />} />
 
         <Route path="/users/:id" element={<UserProfilePage />} />
+        <Route
+          path="/workshop"
+          element={
+            <ProtectedRoute>
+              <WorkshopPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workshop/new"
+          element={
+            <ProtectedRoute>
+              <WorkshopEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workshop/tag-map"
+          element={
+            <ProtectedRoute>
+              <WorkshopTagMapPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workshop/templates/:id"
+          element={
+            <ProtectedRoute>
+              <WorkshopTemplateDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workshop/templates/:id/edit"
+          element={
+            <ProtectedRoute>
+              <WorkshopEditorPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/notifications"

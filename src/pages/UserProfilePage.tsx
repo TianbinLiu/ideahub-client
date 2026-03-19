@@ -672,6 +672,12 @@ export default function UserProfilePage() {
             <div className="mt-4 flex gap-2 flex-wrap">
               {isOwnProfile ? (
                 <>
+                  <Link
+                    to="/workshop"
+                    className="rounded-lg border border-cyan-700 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-900/20"
+                  >
+                    {t('profile.creativeWorkshop')}
+                  </Link>
                   <button
                     onClick={() => setEditing(!editing)}
                     className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
