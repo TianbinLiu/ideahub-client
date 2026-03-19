@@ -46,6 +46,7 @@ import WorkshopEditorPage from "./pages/WorkshopEditorPage";
 import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
+import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
@@ -123,6 +124,7 @@ export default function App() {
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.25)_0%,rgba(3,7,18,1)_55%)]" />
       )}
       <Navbar />
+      <SiteTemplateEditOverlay />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/ideas/:id" element={<IdeaDetailPage />} />

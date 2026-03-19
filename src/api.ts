@@ -25,6 +25,7 @@
 
 import { API_BASE } from "./config";
 import { getToken } from "./auth";
+import type { SiteDraft } from "./utils/siteDraft";
 
 export async function apiFetch<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
@@ -407,6 +408,7 @@ export type WorkshopTemplate = {
   shared: boolean;
   theme: WorkshopTheme;
   layout: WorkshopLayout;
+  siteDraft?: SiteDraft;
   stats?: {
     viewCount?: number;
     likeCount?: number;
@@ -465,6 +467,7 @@ export function createWorkshopTemplate(payload: {
   shared?: boolean;
   theme?: WorkshopTheme;
   layout?: WorkshopLayout;
+  siteDraft?: SiteDraft;
   changeSummary?: string;
 }) {
   return apiFetch<{ ok: true; template: WorkshopTemplate }>("/api/workshop/templates", {
@@ -481,6 +484,7 @@ export function updateWorkshopTemplate(id: string, payload: {
   shared?: boolean;
   theme?: WorkshopTheme;
   layout?: WorkshopLayout;
+  siteDraft?: SiteDraft;
   changeSummary?: string;
   changeSource?: "manual" | "ai";
 }) {

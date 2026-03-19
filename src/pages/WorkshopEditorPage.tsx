@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   apiUploadImage,
   apiUploadMedia,
@@ -17,6 +17,9 @@ import { humanizeError } from "../utils/humanizeError";
 import { CURRENT_DEFAULT_TEMPLATE_VERSION } from "../utils/workshopVersion";
 import { createDefaultWorkshopLayout } from "../utils/workshopLayout";
 import WorkshopLayoutCanvas from "../components/WorkshopLayoutCanvas";
+import { normalizeSiteDraft, type SiteDraft } from "../utils/siteDraft";
+
+const PENDING_TEMPLATE_DRAFT_KEY = "pendingWorkshopTemplateDraft";
 
 const DEFAULT_THEME: WorkshopTheme = {
   backgroundType: "none",
@@ -55,6 +58,7 @@ function updateLayoutItem(
 export default function WorkshopEditorPage() {
   const { t } = useTranslation();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
   const { id } = useParams();
   const isEdit = !!id;
 
@@ -78,6 +82,7 @@ export default function WorkshopEditorPage() {
   const [aiTouched, setAiTouched] = useState(false);
   const [cssModalOpen, setCssModalOpen] = useState<"card" | "button" | "title" | null>(null);
   const [hotTags, setHotTags] = useState<string[]>([]);
+  const [siteDraft, setSiteDraft] = useState<SiteDraft | null>(null);
 
   async function loadDetail() {
     if (!id) return;
@@ -104,6 +109,22 @@ export default function WorkshopEditorPage() {
   useEffect(() => {
     if (isEdit) loadDetail();
   }, [isEdit, id]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (searchParams.get("fromSiteEdit") !== "1") return;
+
+    try {
+      const raw = localStorage.getItem(PENDING_TEMPLATE_DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.siteDraft) {
+        setSiteDraft(normalizeSiteDraft(parsed.siteDraft));
+      }
+    } catch {
+      // ignore malformed payloads
+    }
+  }, [isEdit, searchParams, t]);
 
   useEffect(() => {
     (async () => {
@@ -250,16 +271,19 @@ export default function WorkshopEditorPage() {
         shared,
         theme,
         layout,
+        siteDraft: siteDraft || undefined,
         changeSummary,
         changeSource: aiTouched ? ("ai" as const) : ("manual" as const),
       };
 
       if (isEdit && id) {
         const res = await updateWorkshopTemplate(id, payload);
+        localStorage.removeItem(PENDING_TEMPLATE_DRAFT_KEY);
         toast.success(t("workshop.saved"));
         nav(`/workshop/templates/${res.template._id}`);
       } else {
         const res = await createWorkshopTemplate(payload);
+        localStorage.removeItem(PENDING_TEMPLATE_DRAFT_KEY);
         toast.success(t("workshop.saved"));
         nav(`/workshop/templates/${res.template._id}`);
       }

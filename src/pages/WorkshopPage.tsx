@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getWorkshopTagInsights, listMyWorkshopTemplates, listWorkshopTemplates, type WorkshopHotTag, type WorkshopTemplate } from "../api";
 import toast from "react-hot-toast";
@@ -10,6 +10,7 @@ const WORKSHOP_RECENT_TAGS_KEY = "recentWorkshopSearchTags";
 
 export default function WorkshopPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const sort = (params.get("sort") || "for_you") as SortKey;
   const q = params.get("q") || "";
@@ -79,6 +80,12 @@ export default function WorkshopPage() {
     setParams(next);
   }
 
+  function startGlobalTemplateEditing() {
+    localStorage.setItem("siteTemplateEditState", "on");
+    localStorage.setItem("siteTemplateEditDraft", JSON.stringify({ pages: {} }));
+    navigate("/?siteEdit=1");
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-4 ws-custom">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -86,17 +93,17 @@ export default function WorkshopPage() {
           <h1 className="text-2xl font-bold text-white ws-title">{t("workshop.title")}</h1>
           <p className="text-sm text-gray-300 mt-1">{t("workshop.subtitle")}</p>
         </div>
-        <Link to="/workshop/new" className="ws-button rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold">
+        <button type="button" onClick={startGlobalTemplateEditing} className="ws-button rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold">
           {t("workshop.createTemplate")}
-        </Link>
+        </button>
       </div>
 
       <div className="mt-4 grid md:grid-cols-2 gap-3">
-        <Link to="/workshop/new" className="ws-card rounded-2xl border border-emerald-700/60 bg-emerald-950/30 p-4 hover:bg-emerald-950/40">
+        <button type="button" onClick={startGlobalTemplateEditing} className="ws-card text-left rounded-2xl border border-emerald-700/60 bg-emerald-950/30 p-4 hover:bg-emerald-950/40">
           <div className="text-xl">🧩</div>
           <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.selfCreateTitle")}</h2>
           <p className="mt-1 text-sm text-gray-300">{t("workshop.selfCreateDesc")}</p>
-        </Link>
+        </button>
         <div className="ws-card rounded-2xl border border-cyan-700/60 bg-cyan-950/20 p-4">
           <div className="text-xl">🌐</div>
           <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.marketTitle")}</h2>

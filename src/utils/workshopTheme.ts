@@ -1,4 +1,5 @@
 import type { WorkshopTemplate } from "../api";
+import { getPageDraftKey, normalizeSiteDraft } from "./siteDraft";
 
 export const ACTIVE_WORKSHOP_TEMPLATE_KEY = "activeWorkshopTemplate";
 
@@ -75,6 +76,24 @@ export function applyWorkshopTemplateToDocument(template: WorkshopTemplate | nul
   const titleCss = sanitizeCssBlock(theme?.componentCss?.title);
   const customCss = sanitizeCssBlock(theme?.customCss);
 
+  const siteDraft = normalizeSiteDraft(template.siteDraft);
+  const pageKey = getPageDraftKey(window.location.pathname);
+  const pageDraft = siteDraft.pages[pageKey];
+
+  let nodeCss = "";
+  if (pageDraft?.nodes && typeof pageDraft.nodes === "object") {
+    nodeCss = Object.entries(pageDraft.nodes)
+      .slice(0, 500)
+      .map(([nodeId, item]) => {
+        const width = Number(item.width) > 0 ? `width:${Number(item.width)}px!important;` : "";
+        const height = Number(item.height) > 0 ? `height:${Number(item.height)}px!important;` : "";
+        const transform = `transform:translate(${Number(item.x) || 0}px,${Number(item.y) || 0}px)!important;`;
+        const css = String(item.css || "");
+        return `body.workshop-template-active [data-ws-node-id="${nodeId}"]{${transform}${width}${height}${css}}`;
+      })
+      .join("\n");
+  }
+
   styleEl.textContent = `
 body.workshop-template-active .rounded-2xl { border-radius: var(--ws-card-radius); }
 body.workshop-template-active .bg-gray-900 { background-color: rgba(17,24,39,var(--ws-card-opacity)); }
@@ -87,5 +106,33 @@ body.workshop-template-active .ws-card { ${cardCss} }
 body.workshop-template-active .ws-button { ${buttonCss} }
 body.workshop-template-active .ws-title { ${titleCss} }
 body.workshop-template-active .ws-custom { ${customCss} }
+${nodeCss}
 `;
+
+  const bgLayerId = "workshop-template-page-bg";
+  let bgLayer = document.getElementById(bgLayerId) as HTMLDivElement | null;
+  if (!bgLayer) {
+    bgLayer = document.createElement("div");
+    bgLayer.id = bgLayerId;
+    bgLayer.style.position = "fixed";
+    bgLayer.style.inset = "0";
+    bgLayer.style.pointerEvents = "none";
+    bgLayer.style.zIndex = "-2";
+    document.body.appendChild(bgLayer);
+  }
+
+  if (!pageDraft || pageDraft.backgroundType === "none" || !pageDraft.backgroundUrl) {
+    bgLayer.innerHTML = "";
+    return;
+  }
+
+  if (pageDraft.backgroundType === "video") {
+    bgLayer.innerHTML = `<video src="${pageDraft.backgroundUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;opacity:.45"></video>`;
+  } else {
+    bgLayer.innerHTML = "";
+    bgLayer.style.backgroundImage = `url(${pageDraft.backgroundUrl})`;
+    bgLayer.style.backgroundSize = "cover";
+    bgLayer.style.backgroundPosition = "center";
+    bgLayer.style.opacity = "0.45";
+  }
 }
