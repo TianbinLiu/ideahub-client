@@ -61,6 +61,7 @@ export default function WorkshopEditorPage() {
   const [searchParams] = useSearchParams();
   const { id } = useParams();
   const isEdit = !!id;
+  const fromSiteEdit = !isEdit && searchParams.get("fromSiteEdit") === "1";
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -308,6 +309,74 @@ export default function WorkshopEditorPage() {
   }
 
   const componentCssHint = "Allowed declarations only: color, background-color, border-radius, border-color, font-size, font-weight, letter-spacing, line-height, padding, margin, box-shadow, opacity.";
+
+  if (fromSiteEdit) {
+    return (
+      <div className="mx-auto max-w-3xl p-4 ws-custom">
+        <Link to="/workshop" className="text-sm text-gray-400 hover:text-white">{t("workshop.back")}</Link>
+        <div className="mt-2">
+          <h1 className="text-2xl font-bold text-white ws-title">{t("workshop.templateMeta")}</h1>
+          <p className="mt-1 text-sm text-gray-400">填写模板信息后即可发布。可视化编辑与 AI 对话改版已移动到全站编辑模式浮层。</p>
+        </div>
+
+        <section className="mt-4 rounded-3xl border border-gray-800 bg-gray-900/80 p-4 ws-card">
+          <div className="space-y-3">
+            <input value={title} onChange={(e) => { markManualChange(); setTitle(e.target.value); }} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2" placeholder={t("workshop.templateTitle")} />
+            <textarea value={summary} onChange={(e) => { markManualChange(); setSummary(e.target.value); }} rows={3} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2" placeholder={t("workshop.templateSummary")} />
+            <input value={tagsText} onChange={(e) => { markManualChange(); setTagsText(e.target.value); }} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2" placeholder={t("workshop.templateTags")} />
+
+            <div className="flex flex-wrap gap-2">
+              {parsedTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="rounded-full border border-cyan-700/60 px-3 py-1 text-xs text-cyan-200 hover:bg-cyan-950/30"
+                >
+                  #{tag} ×
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-400">{t("workshop.hotTagsLabel")}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {hotTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => appendTag(tag)}
+                    className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300 hover:bg-gray-800"
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-300">
+                <input type="checkbox" checked={shared} onChange={(e) => { markManualChange(); setShared(e.target.checked); }} />
+                {t("workshop.shareTemplate")}
+              </label>
+              <label className="ws-button cursor-pointer rounded-lg border border-gray-700 px-3 py-1.5 text-sm">
+                {t("workshop.uploadPreview")}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePreviewUpload(e.target.files?.[0] || null)} />
+              </label>
+            </div>
+
+            {previewImageUrl && <img src={previewImageUrl} alt="preview" className="h-44 w-full rounded-2xl border border-gray-800 object-cover" />}
+
+            <textarea value={changeSummary} onChange={(e) => setChangeSummary(e.target.value)} rows={2} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2" placeholder={t("workshop.saveNotePlaceholder")} />
+
+            <button disabled={saving || loading} onClick={handleSave} className="ws-button w-full rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
+              {saving ? t("workshop.saving") : t("workshop.saveTemplate")}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl p-4 ws-custom">
