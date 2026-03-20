@@ -242,6 +242,11 @@ export default function SiteTemplateEditOverlay() {
       styleElRef.current = style;
     }
 
+    const baseEditCss = `
+body.ws-site-edit-mode .min-h-screen.bg-gray-950{background-color:rgba(3,7,18,.35)!important;}
+body.ws-site-edit-mode .bg-gray-950\/80{background-color:rgba(3,7,18,.45)!important;}
+`;
+
     const css = Object.entries(pageDraft.nodes)
       .map(([nodeId, item]) => {
         const width = Number(item.width) > 0 ? `width:${Number(item.width)}px!important;` : "";
@@ -250,8 +255,19 @@ export default function SiteTemplateEditOverlay() {
       })
       .join("\n");
 
-    styleElRef.current.textContent = css;
+    styleElRef.current.textContent = `${baseEditCss}\n${css}`;
   }, [enabled, pageDraft]);
+
+  useEffect(() => {
+    if (enabled) {
+      document.body.classList.add("ws-site-edit-mode");
+    } else {
+      document.body.classList.remove("ws-site-edit-mode");
+    }
+    return () => {
+      document.body.classList.remove("ws-site-edit-mode");
+    };
+  }, [enabled]);
 
   // RAF loop: imperatively position hover + selection boxes without causing React re-renders
   useEffect(() => {
