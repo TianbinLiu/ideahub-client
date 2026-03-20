@@ -243,9 +243,8 @@ export default function SiteTemplateEditOverlay() {
     }
 
     const baseEditCss = `
-body.ws-site-edit-mode .min-h-screen.bg-gray-950{background-color:rgba(3,7,18,.35)!important;}
-body.ws-site-edit-mode .bg-gray-950\/80{background-color:rgba(3,7,18,.45)!important;}
-`;
+  body.ws-site-edit-video #root > .min-h-screen > *:not([data-ws-editor-ui='1']){position:relative;z-index:2;}
+  `;
 
     const css = Object.entries(pageDraft.nodes)
       .map(([nodeId, item]) => {
@@ -259,15 +258,37 @@ body.ws-site-edit-mode .bg-gray-950\/80{background-color:rgba(3,7,18,.45)!import
   }, [enabled, pageDraft]);
 
   useEffect(() => {
-    if (enabled) {
-      document.body.classList.add("ws-site-edit-mode");
-    } else {
-      document.body.classList.remove("ws-site-edit-mode");
-    }
+    const isVideo = enabled && pageDraft.backgroundType === "video" && !!pageDraft.backgroundUrl;
+    if (isVideo) document.body.classList.add("ws-site-edit-video");
+    else document.body.classList.remove("ws-site-edit-video");
     return () => {
-      document.body.classList.remove("ws-site-edit-mode");
+      document.body.classList.remove("ws-site-edit-video");
     };
-  }, [enabled]);
+  }, [enabled, pageDraft.backgroundType, pageDraft.backgroundUrl]);
+
+  useEffect(() => {
+    const shell = document.querySelector<HTMLElement>("#root > .min-h-screen");
+    if (!shell) return;
+
+    if (enabled && pageDraft.backgroundType === "image" && pageDraft.backgroundUrl) {
+      shell.style.backgroundImage = `url(${pageDraft.backgroundUrl})`;
+      shell.style.backgroundSize = "cover";
+      shell.style.backgroundPosition = "center";
+      shell.style.backgroundAttachment = "fixed";
+    } else {
+      shell.style.removeProperty("background-image");
+      shell.style.removeProperty("background-size");
+      shell.style.removeProperty("background-position");
+      shell.style.removeProperty("background-attachment");
+    }
+
+    return () => {
+      shell.style.removeProperty("background-image");
+      shell.style.removeProperty("background-size");
+      shell.style.removeProperty("background-position");
+      shell.style.removeProperty("background-attachment");
+    };
+  }, [enabled, pageDraft.backgroundType, pageDraft.backgroundUrl]);
 
   // RAF loop: imperatively position hover + selection boxes without causing React re-renders
   useEffect(() => {
@@ -538,25 +559,17 @@ body.ws-site-edit-mode .bg-gray-950\/80{background-color:rgba(3,7,18,.45)!import
         style={{ display: "none" }}
       />
 
-      {/* Page background preview */}
-      {pageDraft.backgroundType !== "none" && pageDraft.backgroundUrl ? (
-        pageDraft.backgroundType === "video" ? (
-          <video
-            data-ws-editor-ui="1"
-            className="pointer-events-none fixed inset-0 -z-[1] h-full w-full object-cover opacity-45"
-            src={pageDraft.backgroundUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
-        ) : (
-          <div
-            data-ws-editor-ui="1"
-            className="pointer-events-none fixed inset-0 -z-[1] bg-cover bg-center opacity-45"
-            style={{ backgroundImage: `url(${pageDraft.backgroundUrl})` }}
-          />
-        )
+      {/* Page background preview: image is applied on shell element via effect; video uses overlay layer. */}
+      {pageDraft.backgroundType === "video" && pageDraft.backgroundUrl ? (
+        <video
+          data-ws-editor-ui="1"
+          className="pointer-events-none fixed inset-0 z-[1] h-full w-full object-cover opacity-45"
+          src={pageDraft.backgroundUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
       ) : null}
 
       {/* Control panel */}
