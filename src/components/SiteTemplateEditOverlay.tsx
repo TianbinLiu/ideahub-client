@@ -444,6 +444,13 @@ export default function SiteTemplateEditOverlay() {
     }
   }
 
+  function onBackgroundFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] || null;
+    uploadPageBackground(file);
+    // Allow selecting the same file again to retrigger onChange.
+    event.target.value = "";
+  }
+
   function applyCss() {
     if (!selectedNodeId) return;
     const rawCss = formMode ? formToCss(formValues) : cssInput;
@@ -520,7 +527,7 @@ export default function SiteTemplateEditOverlay() {
         pageDraft.backgroundType === "video" ? (
           <video
             data-ws-editor-ui="1"
-            className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover opacity-45"
+            className="pointer-events-none fixed inset-0 -z-[1] h-full w-full object-cover opacity-45"
             src={pageDraft.backgroundUrl}
             autoPlay
             loop
@@ -530,7 +537,7 @@ export default function SiteTemplateEditOverlay() {
         ) : (
           <div
             data-ws-editor-ui="1"
-            className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-45"
+            className="pointer-events-none fixed inset-0 -z-[1] bg-cover bg-center opacity-45"
             style={{ backgroundImage: `url(${pageDraft.backgroundUrl})` }}
           />
         )
@@ -554,7 +561,7 @@ export default function SiteTemplateEditOverlay() {
               type="file"
               accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime"
               className="hidden"
-              onChange={(e) => uploadPageBackground(e.target.files?.[0] ?? null)}
+              onChange={onBackgroundFileChange}
               disabled={uploadingBg}
             />
           </label>
