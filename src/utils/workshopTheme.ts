@@ -123,10 +123,7 @@ ${nodeCss}
 
   if (!pageDraft || pageDraft.backgroundType === "none" || !pageDraft.backgroundUrl) {
     bgLayer.innerHTML = "";
-    return;
-  }
-
-  if (pageDraft.backgroundType === "video") {
+  } else if (pageDraft.backgroundType === "video") {
     bgLayer.innerHTML = `<video src="${pageDraft.backgroundUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;opacity:.45"></video>`;
   } else {
     bgLayer.innerHTML = "";
@@ -135,4 +132,52 @@ ${nodeCss}
     bgLayer.style.backgroundPosition = "center";
     bgLayer.style.opacity = "0.45";
   }
+
+  const widgetLayerId = "workshop-template-widget-layer";
+  let widgetLayer = document.getElementById(widgetLayerId) as HTMLDivElement | null;
+  if (!widgetLayer) {
+    widgetLayer = document.createElement("div");
+    widgetLayer.id = widgetLayerId;
+    widgetLayer.style.position = "fixed";
+    widgetLayer.style.inset = "0";
+    widgetLayer.style.pointerEvents = "none";
+    widgetLayer.style.zIndex = "3";
+    document.body.appendChild(widgetLayer);
+  }
+
+  const widgets = Array.isArray(pageDraft?.widgets) ? pageDraft.widgets : [];
+  if (!widgets.length) {
+    widgetLayer.innerHTML = "";
+    return;
+  }
+
+  widgetLayer.innerHTML = widgets
+    .slice(0, 80)
+    .map((widget) => {
+      const baseStyle = `position:fixed;left:${Number(widget.x) || 0}px;top:${Number(widget.y) || 0}px;width:${Number(widget.width) || 180}px;height:${Number(widget.height) || 44}px;pointer-events:auto;display:flex;align-items:center;justify-content:center;`;
+      const extra = String(widget.css || "");
+      const text = String(widget.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const type = String(widget.type || "text");
+      if (type === "button" && widget.href) {
+        return `<a href="${String(widget.href)}" style="${baseStyle}${extra}">${text}</a>`;
+      }
+      if (type === "image") {
+        const imageUrl = String(widget.imageUrl || "");
+        return `<div style="${baseStyle}${extra};overflow:hidden"><img src="${imageUrl}" alt="${text}" style="width:100%;height:100%;object-fit:cover"/></div>`;
+      }
+      if (type === "card") {
+        const lines = Array.isArray(widget.items) ? widget.items.slice(0, 3).map((x) => String(x || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")).join(" · ") : "";
+        return `<div style="${baseStyle}${extra};display:block;padding:12px"><div style="font-weight:600">${text}</div><div style="margin-top:6px;font-size:12px;opacity:.9">${lines}</div></div>`;
+      }
+      if (type === "link-list") {
+        const links = Array.isArray(widget.items) ? widget.items.slice(0, 5).map((x) => `<div>• ${String(x || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`).join("") : "";
+        return `<div style="${baseStyle}${extra};display:block;padding:8px">${links || text}</div>`;
+      }
+      if (type === "form") {
+        const fields = Array.isArray(widget.fields) ? widget.fields.slice(0, 4).map((x) => `<div style="border:1px solid rgba(255,255,255,.2);padding:4px 6px;margin-top:4px;border-radius:6px">${String(x || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`).join("") : "";
+        return `<div style="${baseStyle}${extra};display:block;padding:8px"><div style="font-size:12px">${text}</div>${fields}</div>`;
+      }
+      return `<div style="${baseStyle}${extra}">${text}</div>`;
+    })
+    .join("");
 }

@@ -6,10 +6,26 @@ export type SiteDraftNodeStyle = {
   css: string;
 };
 
+export type SiteDraftWidget = {
+  id: string;
+  type: "text" | "button" | "badge" | "image" | "card" | "link-list" | "form";
+  text: string;
+  href?: string;
+  imageUrl?: string;
+  items?: string[];
+  fields?: string[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  css: string;
+};
+
 export type SiteDraftPage = {
   backgroundType: "none" | "image" | "video" | "gradient";
   backgroundUrl?: string;
   nodes: Record<string, SiteDraftNodeStyle>;
+  widgets?: SiteDraftWidget[];
 };
 
 export type SiteDraft = {
@@ -98,6 +114,8 @@ export function normalizeSiteDraft(input: unknown): SiteDraft {
       : "none";
     const nodesIn = page.nodes && typeof page.nodes === "object" ? page.nodes : {};
     const nodes: Record<string, SiteDraftNodeStyle> = {};
+    const widgetsIn = Array.isArray(page.widgets) ? page.widgets : [];
+    const widgets: SiteDraftWidget[] = [];
 
     Object.entries(nodesIn).slice(0, 500).forEach(([nodeId, nodeValue]) => {
       const id = String(nodeId || "").trim().slice(0, 200);
@@ -112,10 +130,43 @@ export function normalizeSiteDraft(input: unknown): SiteDraft {
       };
     });
 
+    widgetsIn.slice(0, 80).forEach((item: any, index: number) => {
+      const id = String(item?.id || `widget_${index + 1}`).trim().slice(0, 120);
+      if (!id) return;
+      const typeRaw = String(item?.type || "text").toLowerCase();
+      const type: SiteDraftWidget["type"] =
+        typeRaw === "button" ? "button"
+          : typeRaw === "badge" ? "badge"
+            : typeRaw === "image" ? "image"
+              : typeRaw === "card" ? "card"
+                : typeRaw === "link-list" ? "link-list"
+                  : typeRaw === "form" ? "form"
+                    : "text";
+      widgets.push({
+        id,
+        type,
+        text: String(item?.text || "New widget").trim().slice(0, 200),
+        href: String(item?.href || "").trim().slice(0, 600),
+        imageUrl: String(item?.imageUrl || "").trim().slice(0, 1000),
+        items: Array.isArray(item?.items)
+          ? item.items.map((x: any) => String(x || "").trim()).filter(Boolean).slice(0, 20)
+          : [],
+        fields: Array.isArray(item?.fields)
+          ? item.fields.map((x: any) => String(x || "").trim()).filter(Boolean).slice(0, 12)
+          : [],
+        x: clamp(Number(item?.x) || 0, -4000, 4000),
+        y: clamp(Number(item?.y) || 0, -4000, 4000),
+        width: clamp(Number(item?.width) || 180, 40, 2000),
+        height: clamp(Number(item?.height) || 44, 20, 1200),
+        css: sanitizeCssBlock(item?.css || ""),
+      });
+    });
+
     pages[pageKey] = {
       backgroundType: bt,
       backgroundUrl: String(page.backgroundUrl || "").trim().slice(0, 1000),
       nodes,
+      widgets,
     };
   });
 

@@ -25,7 +25,7 @@
 
 import { API_BASE } from "./config";
 import { getToken } from "./auth";
-import type { SiteDraft } from "./utils/siteDraft";
+import type { SiteDraft, SiteDraftWidget } from "./utils/siteDraft";
 
 export async function apiFetch<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
@@ -522,6 +522,36 @@ export function previewWorkshopAiEdit(payload: {
   draft: WorkshopDraft;
 }) {
   return apiFetch<{ ok: true; assistantMessage: string; draft: WorkshopDraft; model?: string }>("/api/workshop/ai/edit", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type SiteEditAiOperations = {
+  updateNodes?: Array<{
+    nodeId: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    css?: string;
+  }>;
+  createWidgets?: Array<SiteDraftWidget>;
+  removeWidgetIds?: string[];
+  pageBackground?: {
+    backgroundType?: "none" | "image" | "video" | "gradient";
+    backgroundUrl?: string;
+  };
+};
+
+export function previewWorkshopAiSiteEdit(payload: {
+  instruction: string;
+  pageKey: string;
+  siteDraft: SiteDraft;
+  history?: { role: "user" | "assistant"; content: string }[];
+  nodeCatalog?: Array<{ nodeId: string; hint?: string }>;
+}) {
+  return apiFetch<{ ok: true; assistantMessage: string; operations: SiteEditAiOperations; model?: string }>("/api/workshop/ai/site-edit", {
     method: "POST",
     body: JSON.stringify(payload),
   });

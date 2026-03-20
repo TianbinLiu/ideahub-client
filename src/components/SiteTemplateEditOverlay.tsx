@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { apiUploadMedia, previewWorkshopAiEdit, type WorkshopTheme } from "../api";
+import { apiUploadMedia } from "../api";
 import {
   domPathSelector,
   extractStyleSnippet,
@@ -12,7 +12,7 @@ import {
 } from "../utils/siteDraft";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
-import { createDefaultWorkshopLayout } from "../utils/workshopLayout";
+import SiteGlobalAiAssistant, { applyOpsToDraft } from "./SiteGlobalAiAssistant";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,8 +43,6 @@ type CssFormValues = {
   textDecoration: string;
 };
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
-
 const EMPTY_FORM: CssFormValues = {
   color: "",
   backgroundColor: "",
@@ -60,17 +58,6 @@ const EMPTY_FORM: CssFormValues = {
   opacity: "",
   textTransform: "",
   textDecoration: "",
-};
-
-const DEFAULT_THEME: WorkshopTheme = {
-  backgroundType: "none",
-  backgroundUrl: "",
-  accentColor: "#22d3ee",
-  textColor: "#f3f4f6",
-  cardRadius: 16,
-  cardOpacity: 0.92,
-  customCss: "",
-  componentCss: { card: "", button: "", title: "" },
 };
 
 // ── CSS form utilities ───────────────────────────────────────────────────────
@@ -196,6 +183,21 @@ function cloneDraft(draft: SiteDraft): SiteDraft {
   return normalizeSiteDraft(JSON.parse(JSON.stringify(draft || { pages: {} })));
 }
 
+function cssTextToReactStyle(cssText?: string): React.CSSProperties {
+  const style: React.CSSProperties = {};
+  const raw = String(cssText || "").trim();
+  if (!raw) return style;
+  raw.split(";").map((x) => x.trim()).filter(Boolean).forEach((item) => {
+    const idx = item.indexOf(":");
+    if (idx <= 0) return;
+    const prop = item.slice(0, idx).trim();
+    const value = item.slice(idx + 1).trim();
+    const key = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    (style as any)[key] = value;
+  });
+  return style;
+}
+
 export default function SiteTemplateEditOverlay() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -213,9 +215,6 @@ export default function SiteTemplateEditOverlay() {
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [uploadingBg, setUploadingBg] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiMessages, setAiMessages] = useState<ChatMessage[]>([]);
   const [pastDrafts, setPastDrafts] = useState<SiteDraft[]>([]);
   const [futureDrafts, setFutureDrafts] = useState<SiteDraft[]>([]);
 
@@ -304,8 +303,6 @@ export default function SiteTemplateEditOverlay() {
     setSelectedNodeId(null);
     setHoveredNodeId(null);
     setDragState(null);
-    setAiPrompt("");
-    setAiMessages([]);
     setPastDrafts([]);
     setFutureDrafts([]);
     const empty = { pages: {} } as SiteDraft;
@@ -606,69 +603,6 @@ export default function SiteTemplateEditOverlay() {
     setShowCssPanel(false);
   }
 
-  async function applyAiCss() {
-    if (!selectedNodeId) {
-      toast.error("请先右键选择一个组件");
-      return;
-    }
-    if (!aiPrompt.trim()) {
-      toast.error("请输入 AI 指令");
-      return;
-    }
-
-    setAiBusy(true);
-    try {
-      const currentCss = formMode ? formToCss(formValues) : cssInput;
-      const nextHistory = [...aiMessages, { role: "user" as const, content: aiPrompt.trim() }];
-
-      const res = await previewWorkshopAiEdit({
-        instruction: `请只改写 card 组件 CSS，输出安全可用样式。场景：用户正在可视化页面编辑，目标组件 nodeId=${selectedNodeId}。需求：${aiPrompt.trim()}`,
-        history: aiMessages,
-        draft: {
-          title: "Site edit style assistant",
-          summary: "Apply safe component css",
-          tags: [],
-          theme: {
-            ...DEFAULT_THEME,
-            componentCss: {
-              card: currentCss,
-              button: "",
-              title: "",
-            },
-          },
-          layout: createDefaultWorkshopLayout(),
-        },
-      });
-
-      const aiCss = sanitizeCssBlock(res?.draft?.theme?.componentCss?.card || "");
-      if (!aiCss) {
-        toast.error("AI 未返回可用样式，请换个描述重试");
-        return;
-      }
-
-      setCssInput(aiCss);
-      setFormValues(parseCssToForm(aiCss));
-      setAiMessages([...nextHistory, { role: "assistant", content: res.assistantMessage || "已生成安全样式草案。" }]);
-      setAiPrompt("");
-
-      // Auto-apply to selected node immediately.
-      const safeCss = sanitizeCssBlock(aiCss);
-      commitDraftChange((prev) => {
-        const next = normalizeSiteDraft(prev);
-        const page = next.pages[pageKey] || { backgroundType: "none", backgroundUrl: "", nodes: {} };
-        const node = page.nodes[selectedNodeId] || { x: 0, y: 0, width: 0, height: 0, css: "" };
-        page.nodes[selectedNodeId] = { ...node, css: safeCss };
-        next.pages[pageKey] = page;
-        return next;
-      });
-      toast.success("AI 样式已应用");
-    } catch (e: any) {
-      toast.error(humanizeError(e));
-    } finally {
-      setAiBusy(false);
-    }
-  }
-
   function switchToForm() {
     setFormValues(parseCssToForm(cssInput));
     setFormMode(true);
@@ -697,6 +631,14 @@ export default function SiteTemplateEditOverlay() {
     );
     setEnabled(false);
     navigate("/workshop/new?fromSiteEdit=1");
+  }
+
+  function collectNodeCatalog() {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>("[data-ws-node-id]"));
+    return nodes.slice(0, 300).map((el) => ({
+      nodeId: el.dataset.wsNodeId || "",
+      hint: `${el.tagName.toLowerCase()} ${(el.className || "").split(/\s+/).slice(0, 3).join(".")}`,
+    })).filter((item) => item.nodeId);
   }
 
   if (!enabled) return null;
@@ -921,36 +863,101 @@ export default function SiteTemplateEditOverlay() {
             </button>
           </div>
 
-          <div className="mt-3 border-t border-gray-800 pt-3">
-            <div className="text-xs font-semibold text-cyan-200">AI 对话改版（组件样式）</div>
-            <textarea
-              rows={3}
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="例如：让这个卡片更像玻璃拟态，边框更柔和，字号略大"
-              className="mt-2 w-full rounded-xl border border-gray-700 bg-black/40 px-3 py-2 text-xs text-gray-100"
-            />
-            <button
-              type="button"
-              disabled={aiBusy || !selectedNodeId}
-              onClick={applyAiCss}
-              className="mt-2 rounded-lg border border-cyan-600 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100 disabled:opacity-50"
-            >
-              {aiBusy ? "AI 处理中..." : "AI 生成并应用"}
-            </button>
-            {aiMessages.length > 0 && (
-              <div className="mt-2 max-h-28 overflow-auto rounded-lg border border-gray-800 bg-black/25 p-2 text-[11px]">
-                {aiMessages.slice(-4).map((message, index) => (
-                  <div key={`${message.role}-${index}`} className={message.role === "assistant" ? "text-emerald-200" : "text-cyan-200"}>
-                    <span className="mr-1 uppercase text-[10px] text-gray-500">{message.role}</span>
-                    <span>{message.content}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
+
+      {/* AI global assistant: standalone panel, not tied to CSS panel */}
+      <SiteGlobalAiAssistant
+        enabled={enabled}
+        pageKey={pageKey}
+        draft={draft}
+        selectedNodeId={selectedNodeId}
+        collectNodeCatalog={collectNodeCatalog}
+        onApplyOperations={(operations) => {
+          commitDraftChange((prev) => applyOpsToDraft(prev, pageKey, operations));
+        }}
+      />
+
+      {/* Render draft widgets in edit mode for immediate preview and drag selection */}
+      {(pageDraft.widgets || []).slice(0, 80).map((widget) => {
+        const style: React.CSSProperties = {
+          position: "fixed",
+          left: widget.x,
+          top: widget.y,
+          width: widget.width,
+          height: widget.height,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "auto",
+          ...cssTextToReactStyle(widget.css),
+        };
+        const nodeId = `widget:${widget.id}`;
+        const className = widget.type === "badge"
+          ? "rounded-full border border-emerald-600/80 bg-emerald-900/40 px-3 py-1 text-xs text-emerald-100"
+          : widget.type === "button"
+            ? "rounded-lg border border-cyan-600/80 bg-cyan-900/30 px-3 py-2 text-sm text-cyan-100"
+            : widget.type === "image"
+              ? "overflow-hidden rounded-lg border border-gray-700/80 bg-gray-900/40"
+              : widget.type === "card"
+                ? "rounded-2xl border border-gray-700/80 bg-gray-900/65 p-3 text-sm text-gray-100"
+                : widget.type === "link-list"
+                  ? "rounded-xl border border-gray-700/80 bg-gray-900/60 p-2 text-sm text-cyan-100"
+                  : widget.type === "form"
+                    ? "rounded-xl border border-gray-700/80 bg-gray-900/60 p-3 text-sm text-gray-100"
+                    : "rounded-lg border border-gray-700/80 bg-gray-900/55 px-3 py-2 text-sm text-gray-100";
+
+        const body = widget.type === "image"
+          ? <img src={widget.imageUrl || ""} alt={widget.text || "widget-image"} className="h-full w-full object-cover" />
+          : widget.type === "card"
+            ? (
+              <div className="w-full">
+                <div className="font-semibold">{widget.text || "Card"}</div>
+                <div className="mt-1 text-xs text-gray-300">{(widget.items || []).slice(0, 3).join(" · ") || "Card content"}</div>
+              </div>
+            )
+            : widget.type === "link-list"
+              ? (
+                <div className="w-full space-y-1">
+                  <div className="text-xs text-gray-400">{widget.text || "Links"}</div>
+                  {(widget.items || []).slice(0, 4).map((item, idx) => <div key={`${widget.id}-link-${idx}`}>• {item}</div>)}
+                </div>
+              )
+              : widget.type === "form"
+                ? (
+                  <div className="w-full space-y-1">
+                    <div className="text-xs text-gray-300">{widget.text || "Form"}</div>
+                    {(widget.fields || ["Name", "Email"]).slice(0, 3).map((field, idx) => (
+                      <div key={`${widget.id}-field-${idx}`} className="rounded border border-gray-700/60 px-2 py-1 text-[11px] text-gray-400">{field}</div>
+                    ))}
+                  </div>
+                )
+                : <>{widget.text}</>;
+
+        return widget.type === "button" && widget.href ? (
+          <a
+            key={widget.id}
+            data-ws-node-id={nodeId}
+            data-ws-widget-id={widget.id}
+            href={widget.href}
+            className={className}
+            style={style}
+            onClick={(e) => e.preventDefault()}
+          >
+            {body}
+          </a>
+        ) : (
+          <div
+            key={widget.id}
+            data-ws-node-id={nodeId}
+            data-ws-widget-id={widget.id}
+            className={className}
+            style={style}
+          >
+            {body}
+          </div>
+        );
+      })}
     </>
   );
 }
