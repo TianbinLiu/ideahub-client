@@ -408,18 +408,10 @@ export default function UserProfilePage() {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const response = await fetch('/api/me/avatar', {
-        method: 'POST',
+      const data = await apiFetch<{ ok: true; user: UserProfile }>("/api/me/avatar", {
+        method: "POST",
         body: formData,
-        credentials: 'include',
       });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(error.error || 'Upload failed');
-      }
-
-      const data = await response.json();
       setProfile(data.user);
       toast.success('Avatar updated successfully');
     } catch (e: any) {

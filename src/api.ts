@@ -31,7 +31,8 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   const token = getToken();
   const headers = new Headers(init.headers);
 
-  if (init.body && !headers.has("Content-Type")) {
+  const isFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (init.body && !headers.has("Content-Type") && !isFormDataBody) {
     headers.set("Content-Type", "application/json");
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
