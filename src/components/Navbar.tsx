@@ -56,10 +56,10 @@ export default function Navbar() {
   const loginTo = `/login?next=${encodeURIComponent(next)}`;
   const registerTo = `/register?next=${encodeURIComponent(next)}`;
   
-  const userId = (user as any)?._id || (user as any)?.id;
+  const userId = user?._id;
 
   useEffect(() => {
-    let timer: any;
+    let timer: ReturnType<typeof setInterval> | undefined;
 
     async function load() {
       if (!user) {
@@ -85,7 +85,7 @@ export default function Navbar() {
     window.addEventListener('notificationsUpdated', handleNotificationsUpdate);
 
     return () => {
-      timer && clearInterval(timer);
+      if (timer) clearInterval(timer);
       window.removeEventListener('notificationsUpdated', handleNotificationsUpdate);
     };
   }, [user]);
