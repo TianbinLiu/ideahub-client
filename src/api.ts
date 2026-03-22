@@ -27,6 +27,21 @@ import { API_BASE } from "./config";
 import { getToken } from "./auth";
 import type { SiteDraft, SiteDraftWidget } from "./utils/siteDraft";
 
+type ApiError = Error & {
+  code?: string;
+  details?: unknown;
+  status?: number;
+};
+
+function createApiError(message: string, payload: { code?: string; details?: unknown; status: number }): ApiError {
+  const err = new Error(message) as ApiError;
+  err.code = payload.code;
+  err.details = payload.details;
+  err.status = payload.status;
+  return err;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiFetch<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
@@ -41,11 +56,11 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err: any = new Error(json?.message || `HTTP ${res.status}`);
-    err.code = json?.code;
-    err.details = json?.details;
-    err.status = res.status;
-    throw err;
+    throw createApiError(json?.message || `HTTP ${res.status}`, {
+      code: json?.code,
+      details: json?.details,
+      status: res.status,
+    });
   }
 
   return json as T;
@@ -67,11 +82,11 @@ export async function apiUploadImage(file: File, scope: "idea" | "comment" | "le
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err: any = new Error(json?.message || `HTTP ${res.status}`);
-    err.code = json?.code;
-    err.details = json?.details;
-    err.status = res.status;
-    throw err;
+    throw createApiError(json?.message || `HTTP ${res.status}`, {
+      code: json?.code,
+      details: json?.details,
+      status: res.status,
+    });
   }
 
   return json as { ok: true; imageUrl: string; maxSizeBytes: number; mimeType: string; size: number };
@@ -93,11 +108,11 @@ export async function apiUploadMedia(file: File) {
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err: any = new Error(json?.message || `HTTP ${res.status}`);
-    err.code = json?.code;
-    err.details = json?.details;
-    err.status = res.status;
-    throw err;
+    throw createApiError(json?.message || `HTTP ${res.status}`, {
+      code: json?.code,
+      details: json?.details,
+      status: res.status,
+    });
   }
 
   return json as {
@@ -119,7 +134,7 @@ export type NotificationItem = {
   createdAt: string;
   actorId?: { username?: string; role?: string };
   ideaId?: { _id: string; title?: string; visibility?: string };
-  payload?: any;
+  payload?: Record<string, unknown>;
 };
 
 export function getUnreadCount() {
@@ -178,6 +193,7 @@ export function getUserReputation(userId: string) {
 
 // Messages API
 export function sendMessageRequest(toUserId: string, initialMessage: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiFetch<{ ok: true; request: any }>(
     `/api/messages/request`,
     {
@@ -189,6 +205,7 @@ export function sendMessageRequest(toUserId: string, initialMessage: string) {
 
 export function listMessageRequests(status?: string) {
   const params = status ? `?status=${status}` : "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiFetch<{ ok: true; receivedRequests: any[]; sentRequests: any[] }>(`/api/messages/request${params}`);
 }
 
@@ -213,10 +230,12 @@ export function rejectMessageRequest(requestId: string, responseMessage?: string
 }
 
 export function listConversations() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiFetch<{ ok: true; conversations: any[] }>(`/api/messages/conversations`);
 }
 
 export function getConversationMessages(conversationId: string, page = 1, limit = 50) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiFetch<{ ok: true; messages: any[]; total: number; page: number; limit: number }>(
     `/api/messages/conversations/${conversationId}?page=${page}&limit=${limit}`
   );
@@ -229,6 +248,7 @@ export function deleteConversation(conversationId: string) {
 }
 
 export function listDmBlacklist() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiFetch<{ ok: true; items: any[] }>(`/api/messages/blacklist`);
 }
 
@@ -249,6 +269,7 @@ export function unblockDmUser(userId: string) {
 }
 
 export function sendDirectMessage(conversationId: string, toUserId: string, content: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiFetch<{ ok: true; message: any }>(
     `/api/messages/send`,
     {

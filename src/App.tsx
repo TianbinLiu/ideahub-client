@@ -51,12 +51,12 @@ import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
 // Redirect /me to the current user's profile
 function MeRedirect() {
   const { user } = useAuth();
-  const userId = (user as any)?._id || (user as any)?.id;
-  
+  const userId = user?._id;
+
   if (!userId) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <Navigate to={`/users/${userId}`} replace />;
 }
 
@@ -69,10 +69,12 @@ export default function App() {
     applyWorkshopTemplateToDocument(activeTemplate);
   }, [activeTemplate]);
 
+  const userId = user?._id;
+
   useEffect(() => {
     let mounted = true;
     (async () => {
-      if (!user) {
+      if (!userId) {
         setActiveTemplate(readActiveWorkshopTemplate());
         return;
       }
@@ -89,7 +91,7 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [user?._id]);
+  }, [userId]);
 
   const bg: WorkshopTheme = activeTemplate?.theme || {
     backgroundType: "none",
