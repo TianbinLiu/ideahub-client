@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch, blockDmUser, deleteAccount, getDmBlockStatus, getUserReputation, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
@@ -64,11 +64,23 @@ type Interest = {
 
 type TabType = "ideas" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests";
 
+const OWN_PROFILE_TABS: TabType[] = ["ideas", "bookmarks", "likes", "leaderboards", "followers", "following", "interests"];
+const PUBLIC_PROFILE_TABS: TabType[] = ["bookmarks", "leaderboards", "followers", "following"];
+
+function resolveInitialTab(tab: string | null, isOwnProfile: boolean): TabType {
+  const allowedTabs = isOwnProfile ? OWN_PROFILE_TABS : PUBLIC_PROFILE_TABS;
+  if (tab && allowedTabs.includes(tab as TabType)) {
+    return tab as TabType;
+  }
+  return isOwnProfile ? "ideas" : "bookmarks";
+}
+
 export default function UserProfilePage() {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
@@ -119,6 +131,8 @@ export default function UserProfilePage() {
   const FREE_PUBLIC_LIMIT = Number((import.meta as any).env?.VITE_FREE_PUBLIC_IDEA_LIMIT) || 5;
 
   useEffect(() => {
+    setActiveTab(resolveInitialTab(searchParams.get("tab"), isOwnProfile));
+
     loadProfile();
     loadBookmarks();
     loadUserLeaderboards();
@@ -135,10 +149,8 @@ export default function UserProfilePage() {
       loadLikes();
       loadReceivedInterests();
       setLocalIdeas(listLocalIdeas());
-      // Set initial tab to "ideas" for own profile
-      setActiveTab("ideas");
     }
-  }, [id, isOwnProfile]);
+  }, [id, isOwnProfile, userId, searchParams]);
 
   async function loadProfile() {
     if (!id) return;

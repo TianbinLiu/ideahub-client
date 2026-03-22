@@ -327,11 +327,11 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
               )}
 
               <div className="flex gap-4 text-sm">
-                <Link to={`/users/${userId}/following`} className="hover:underline">
+                <Link to={`/users/${userId}?tab=following`} className="hover:underline">
                   <span className="font-semibold text-white">{profile.followingCount}</span>{" "}
                   <span className="text-gray-400">{t('profile.following')}</span>
                 </Link>
-                <Link to={`/users/${userId}/followers`} className="hover:underline">
+                <Link to={`/users/${userId}?tab=followers`} className="hover:underline">
                   <span className="font-semibold text-white">{profile.followerCount}</span>{" "}
                   <span className="text-gray-400">{t('profile.followers')}</span>
                 </Link>
