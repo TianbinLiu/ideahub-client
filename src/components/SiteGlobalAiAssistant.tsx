@@ -33,7 +33,7 @@ function applyOpsToDraft(base: SiteDraft, pageKey: string, operations: SiteEditA
 
   const currentWidgets = Array.isArray(page.widgets) ? [...page.widgets] : [];
   const removed = new Set((operations.removeWidgetIds || []).map((id) => String(id || "")));
-  let widgets = currentWidgets.filter((w) => !removed.has(String(w.id)));
+  const widgets = currentWidgets.filter((w) => !removed.has(String(w.id)));
 
   for (const item of operations.createWidgets || []) {
     const id = String(item?.id || `widget_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
@@ -116,7 +116,7 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
       setMessages([...nextHistory, { role: "assistant", content: "已生成改版预览，请确认应用。" }]);
       setPrompt("");
       toast.success("已生成改版预览");
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error(humanizeError(e));
     } finally {
       setBusy(false);
@@ -225,4 +225,5 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { applyOpsToDraft };

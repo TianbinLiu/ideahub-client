@@ -60,6 +60,8 @@ type Comment = {
   author?: { _id: string; username: string; role: string };
   likes?: string[];
   likesCount?: number;
+  dislikes?: string[];
+  dislikesCount?: number;
   parentCommentId?: string | null;
   replyCount?: number;
 };
@@ -217,17 +219,74 @@ export default function IdeaDetailPage() {
   async function toggleCommentLike(commentId: string) {
     if (!id || !userId) return;
     try {
-      const res = await apiFetch<{ liked: boolean; likesCount: number }>(
+      const res = await apiFetch<{ liked: boolean; disliked: boolean; likesCount: number; dislikesCount: number }>(
         `/api/ideas/${id}/comments/${commentId}/like`,
         { method: "POST" }
       );
+
+      const applyVoteToComment = (target: Comment) => ({
+        ...target,
+        likesCount: res.likesCount,
+        dislikesCount: res.dislikesCount,
+        likes: res.liked
+          ? Array.from(new Set([...(target.likes || []), userId]))
+          : (target.likes || []).filter((uid: string) => uid !== userId),
+        dislikes: res.disliked
+          ? Array.from(new Set([...(target.dislikes || []), userId]))
+          : (target.dislikes || []).filter((uid: string) => uid !== userId),
+      });
+
       setComments((prev) =>
-        prev.map((c) =>
-          c._id === commentId
-            ? { ...c, likesCount: res.likesCount, likes: res.liked ? [...(c.likes || []), userId] : (c.likes || []).filter((uid: string) => uid !== userId) }
-            : c
-        )
+        prev.map((c) => (c._id === commentId ? applyVoteToComment(c) : c))
       );
+
+      setReplies((prev) => {
+        const next: { [commentId: string]: Comment[] } = {};
+        for (const [parentId, parentReplies] of Object.entries(prev)) {
+          next[parentId] = parentReplies.map((reply) =>
+            reply._id === commentId ? applyVoteToComment(reply) : reply
+          );
+        }
+        return next;
+      });
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  async function toggleCommentDislike(commentId: string) {
+    if (!id || !userId) return;
+    try {
+      const res = await apiFetch<{ liked: boolean; disliked: boolean; likesCount: number; dislikesCount: number }>(
+        `/api/ideas/${id}/comments/${commentId}/dislike`,
+        { method: "POST" }
+      );
+
+      const applyVoteToComment = (target: Comment) => ({
+        ...target,
+        likesCount: res.likesCount,
+        dislikesCount: res.dislikesCount,
+        likes: res.liked
+          ? Array.from(new Set([...(target.likes || []), userId]))
+          : (target.likes || []).filter((uid: string) => uid !== userId),
+        dislikes: res.disliked
+          ? Array.from(new Set([...(target.dislikes || []), userId]))
+          : (target.dislikes || []).filter((uid: string) => uid !== userId),
+      });
+
+      setComments((prev) =>
+        prev.map((c) => (c._id === commentId ? applyVoteToComment(c) : c))
+      );
+
+      setReplies((prev) => {
+        const next: { [commentId: string]: Comment[] } = {};
+        for (const [parentId, parentReplies] of Object.entries(prev)) {
+          next[parentId] = parentReplies.map((reply) =>
+            reply._id === commentId ? applyVoteToComment(reply) : reply
+          );
+        }
+        return next;
+      });
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
@@ -831,6 +890,7 @@ export default function IdeaDetailPage() {
               {comments.length === 0 && <p className="text-gray-400 text-sm">{t('comment.empty')}</p>}
               {comments.map((c) => {
                 const isCommentLiked = c.likes?.includes(userId);
+                const isCommentDisliked = c.dislikes?.includes(userId);
                 const hasReplies = (c.replyCount || 0) > 0;
                 const isExpanded = expandedReplies.has(c._id);
                 const commentReplies = replies[c._id] || [];
@@ -860,19 +920,32 @@ export default function IdeaDetailPage() {
                     )}
 
                     <div className="flex items-center gap-2 mt-2">
+                      <button
+                        onClick={() => toggleCommentLike(c._id)}
+                        disabled={!user}
+                        className={`text-xs px-2 py-1 rounded border disabled:opacity-50 ${
+                          isCommentLiked
+                            ? "border-white text-white"
+                            : "border-gray-700 text-gray-400 hover:text-gray-200"
+                        }`}
+                      >
+                        {isCommentLiked ? t('comment.liked') : t('comment.like')} {c.likesCount || 0}
+                      </button>
+
+                      <button
+                        onClick={() => toggleCommentDislike(c._id)}
+                        disabled={!user}
+                        className={`text-xs px-2 py-1 rounded border disabled:opacity-50 ${
+                          isCommentDisliked
+                            ? "border-white text-white"
+                            : "border-gray-700 text-gray-400 hover:text-gray-200"
+                        }`}
+                      >
+                        {isCommentDisliked ? t('comment.disliked') : t('comment.dislike')} {c.dislikesCount || 0}
+                      </button>
+
                       {user && (
                         <>
-                          <button
-                            onClick={() => toggleCommentLike(c._id)}
-                            className={`text-xs px-2 py-1 rounded border ${
-                              isCommentLiked
-                                ? "border-white text-white"
-                                : "border-gray-700 text-gray-400 hover:text-gray-200"
-                            }`}
-                          >
-                            {isCommentLiked ? "liked" : "like"} {c.likesCount || 0}
-                          </button>
-                          
                           <button
                             onClick={() => setReplyingTo(replyingTo === c._id ? null : c._id)}
                             className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 hover:text-gray-200"
@@ -971,6 +1044,7 @@ export default function IdeaDetailPage() {
                       <div className="mt-3 pl-4 space-y-2 border-l-2 border-gray-700">
                         {commentReplies.map((reply) => {
                           const isReplyLiked = reply.likes?.includes(userId);
+                          const isReplyDisliked = reply.dislikes?.includes(userId);
                           const canDeleteReply = !!user && (isAdmin || (reply.author?._id && String(reply.author._id) === String(userId)));
                           return (
                             <div key={reply._id} className="rounded-lg bg-gray-800 p-2">
@@ -987,6 +1061,13 @@ export default function IdeaDetailPage() {
                                 <span>{new Date(reply.createdAt).toLocaleString()}</span>
                               </div>
                               <p className="text-gray-200 mt-1 text-sm whitespace-pre-wrap">{reply.content}</p>
+                              <div className="mt-2 rounded-md border border-gray-700 bg-gray-900/70 p-2">
+                                <p className="text-[11px] text-gray-400">{t('comment.replyTo')}:</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap">{c.content}</p>
+                                <p className="text-[11px] text-gray-500 mt-1">
+                                  {t('comment.like')} {c.likesCount || 0} · {t('comment.dislike')} {c.dislikesCount || 0}
+                                </p>
+                              </div>
                               {!!reply.imageUrls?.length && (
                                 <div className="mt-2 grid grid-cols-2 gap-2">
                                   {reply.imageUrls.map((url) => (
@@ -998,13 +1079,25 @@ export default function IdeaDetailPage() {
                                 <div className="mt-1 flex items-center gap-2">
                                   <button
                                     onClick={() => toggleCommentLike(reply._id)}
+                                    disabled={!user}
                                     className={`text-xs px-2 py-0.5 rounded border ${
                                       isReplyLiked
                                         ? "border-white text-white"
                                         : "border-gray-700 text-gray-400 hover:text-gray-200"
                                     }`}
                                   >
-                                    {isReplyLiked ? "liked" : "like"} {reply.likesCount || 0}
+                                    {isReplyLiked ? t('comment.liked') : t('comment.like')} {reply.likesCount || 0}
+                                  </button>
+                                  <button
+                                    onClick={() => toggleCommentDislike(reply._id)}
+                                    disabled={!user}
+                                    className={`text-xs px-2 py-0.5 rounded border ${
+                                      isReplyDisliked
+                                        ? "border-white text-white"
+                                        : "border-gray-700 text-gray-400 hover:text-gray-200"
+                                    }`}
+                                  >
+                                    {isReplyDisliked ? t('comment.disliked') : t('comment.dislike')} {reply.dislikesCount || 0}
                                   </button>
                                   {canDeleteReply && (
                                     <button

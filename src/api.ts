@@ -125,7 +125,7 @@ export async function apiUploadMedia(file: File) {
   };
 }
 
-export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED";
+export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "DISLIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED";
 
 export type NotificationItem = {
   _id: string;

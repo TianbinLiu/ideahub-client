@@ -16,7 +16,7 @@ import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 
-type TabType = "all" | "system" | "mentions" | "likes" | "replies" | "messages";
+type TabType = "all" | "system" | "mentions" | "reactions" | "likes" | "dislikes" | "replies" | "messages";
 
 type Conversation = {
   conversationId: string;
@@ -74,7 +74,9 @@ export default function NotificationsPage() {
     { key: "all", label: t("notifications.tabAll") },
     { key: "system", label: t("notifications.tabSystem") },
     { key: "mentions", label: t("notifications.tabMentions") },
+    { key: "reactions", label: t("notifications.tabReactionsOverview") },
     { key: "likes", label: t("notifications.tabLikes") },
+    { key: "dislikes", label: t("notifications.tabDislikes") },
     { key: "replies", label: t("notifications.tabReplies") },
     { key: "messages", label: t("notifications.myMessages") },
   ];
@@ -87,8 +89,12 @@ export default function NotificationsPage() {
                (item.type === "COMMENT" && !item.payload?.parentCommentId);
       case "mentions":
         return item.type === "MENTION";
+      case "reactions":
+        return ["LIKE", "LIKE_COMMENT", "LIKE_POST", "DISLIKE_COMMENT"].includes(item.type);
       case "likes":
         return ["LIKE", "LIKE_COMMENT", "LIKE_POST"].includes(item.type);
+      case "dislikes":
+        return item.type === "DISLIKE_COMMENT";
       case "replies":
         // 只显示回复通知（COMMENT 类型且有 parentCommentId）
         return item.type === "COMMENT" && !!item.payload?.parentCommentId;
@@ -125,6 +131,8 @@ export default function NotificationsPage() {
         return t("notifications.invite", { actor, title });
       case "LIKE_COMMENT":
         return t("notifications.likeComment", { actor, title });
+      case "DISLIKE_COMMENT":
+        return t("notifications.dislikeComment", { actor, title });
       case "LIKE_POST":
         return t("notifications.likePost", { actor, title: n.payload?.postTitle || t("notifications.postUnknown") });
       case "MESSAGE_REQUEST_ACCEPTED":

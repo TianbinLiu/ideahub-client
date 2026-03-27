@@ -48,7 +48,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   const { t } = useTranslation();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; likes: number; replies: number; messages: number }>({ system: 0, mentions: 0, likes: 0, replies: 0, messages: 0 });
+  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; reactions: number; likes: number; dislikes: number; replies: number; messages: number }>({ system: 0, mentions: 0, reactions: 0, likes: 0, dislikes: 0, replies: 0, messages: 0 });
   const timeoutRef = useRef<number | null>(null);
 
   // Cleanup timeout on unmount
@@ -68,6 +68,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         
         const mentionTypes = ["MENTION"];
         const likeTypes = ["LIKE", "LIKE_COMMENT", "LIKE_POST"];
+        const dislikeTypes = ["DISLIKE_COMMENT"];
         
         // 区分 system 和 replies：
         // - system: 顶级评论（COMMENT 且无 parentCommentId）+ BOOKMARK + INTEREST + INVITE
@@ -83,6 +84,8 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         
         const mentionsCount = items.filter(n => mentionTypes.includes(n.type)).length;
         const likesCount = items.filter(n => likeTypes.includes(n.type)).length;
+        const dislikesCount = items.filter(n => dislikeTypes.includes(n.type)).length;
+        const reactionsCount = likesCount + dislikesCount;
         
         // Load unread message requests
         const msgRes = await listMessageRequests("pending");
@@ -92,7 +95,9 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         setUnreadByType({
           system: systemCount,
           mentions: mentionsCount,
+          reactions: reactionsCount,
           likes: likesCount,
+          dislikes: dislikesCount,
           replies: repliesCount,
           messages: unreadMessageCount,
         });
@@ -138,10 +143,22 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
       unread: unreadByType.replies,
     },
     {
+      key: "reactions",
+      label: t("notifications.likesDislikesOverview"),
+      path: "/notifications?tab=reactions",
+      unread: unreadByType.reactions,
+    },
+    {
       key: "likes",
       label: t("notifications.likesReceived"),
       path: "/notifications?tab=likes",
       unread: unreadByType.likes,
+    },
+    {
+      key: "dislikes",
+      label: t("notifications.dislikesReceived"),
+      path: "/notifications?tab=dislikes",
+      unread: unreadByType.dislikes,
     },
   ];
 
