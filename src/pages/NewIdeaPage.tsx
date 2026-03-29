@@ -348,7 +348,7 @@ export default function NewIdeaPage() {
         }
       }
 
-      const submitTagsBase = isFeedbackMode ? fixedFeedbackTag : tags;
+      const submitTagsBase = isFeedbackMode ? mergeTags(fixedFeedbackTag, tags) : tags;
       const submitTags = externalEnabled
         ? mergeTags(submitTagsBase, effectiveExternalPlatform)
         : submitTagsBase;
@@ -415,7 +415,7 @@ export default function NewIdeaPage() {
 
     setGeneratingDraft(true);
     try {
-      const ideaType = isBusinessMode ? "business" : "daily";
+      const ideaType = isBusinessMode ? "business" : isFeedbackMode ? "feedback" : "daily";
       const res = await generateIdeaDraft({ content: content.trim(), ideaType });
       const draft = res.draft;
 
@@ -482,7 +482,7 @@ export default function NewIdeaPage() {
             maxLength={LIMITS.CONTENT}
           />
           <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
-          {(isBusinessMode || isDailyMode) && (
+          {(isBusinessMode || isFeedbackMode || isDailyMode) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
