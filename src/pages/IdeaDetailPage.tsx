@@ -523,7 +523,6 @@ export default function IdeaDetailPage() {
 
             <div className="text-right text-xs text-gray-400">
               <div>{t('idea.visibilityLabel')}: {idea.visibility}</div>
-              <div>{t('idea.licenseLabel')}: {idea.licenseType}</div>
             </div>
 
             {canManageIdea && (

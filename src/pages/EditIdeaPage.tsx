@@ -18,6 +18,7 @@ const LIMITS = {
 
 type Idea = {
   _id: string;
+  ideaType?: "business" | "feedback" | "external" | "daily";
   title: string;
   summary: string;
   content: string;
@@ -68,6 +69,10 @@ export default function EditIdeaPage() {
     return isOwner || isAdmin;
   }, [idea, userId, isAdmin]);
 
+  const ideaType = idea?.ideaType || "daily";
+  const isBusinessIdea = ideaType === "business";
+  const isExternalIdea = ideaType === "external";
+
   async function load() {
     if (!id) return;
     setLoading(true);
@@ -86,7 +91,7 @@ export default function EditIdeaPage() {
       setLicenseType(i.licenseType || "default");
 
       // init external source values
-      if (i.externalSource?.platform) {
+      if (i.externalSource?.platform || i.externalSource?.url) {
         setIsFromExternal(true);
         setExternalPlatform(i.externalSource.platform || "");
         setExternalUrl(i.externalSource.url || "");
@@ -164,18 +169,23 @@ export default function EditIdeaPage() {
           }
         : undefined;
 
+      const payload: Record<string, unknown> = {
+        title,
+        summary,
+        content,
+        tags,
+        visibility,
+        isMonetizable: isBusinessIdea ? false : isMonetizable,
+        licenseType: isBusinessIdea ? "default" : licenseType,
+      };
+
+      if (isExternalIdea) {
+        payload.externalSource = externalSource;
+      }
+
       await apiFetch(`/api/ideas/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          title,
-          summary,
-          content,
-          tags, // 后端已支持 "a,b,c" → toStringArray
-          visibility,
-          isMonetizable,
-          licenseType,
-          externalSource,
-        }),
+        body: JSON.stringify(payload),
       });
 
       toast.success(t('idea.updated'));
@@ -279,36 +289,42 @@ export default function EditIdeaPage() {
                 <option value="private">{t('idea.private')}</option>
               </select>
 
-              <input
-                className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-                placeholder={t('idea.licenseType')}
-                value={licenseType}
-                onChange={(e) => setLicenseType(e.target.value)}
-                disabled={!canEdit || saving}
-              />
+              {!isBusinessIdea && (
+                <input
+                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+                  placeholder={t('idea.licenseType')}
+                  value={licenseType}
+                  onChange={(e) => setLicenseType(e.target.value)}
+                  disabled={!canEdit || saving}
+                />
+              )}
 
+              {!isBusinessIdea && (
+                <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
+                  <input
+                    type="checkbox"
+                    checked={isMonetizable}
+                    onChange={(e) => setIsMonetizable(e.target.checked)}
+                    disabled={!canEdit || saving}
+                  />
+                  {t('idea.monetizable')}
+                </label>
+              )}
+            </div>
+
+            {isExternalIdea && (
               <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
                 <input
                   type="checkbox"
-                  checked={isMonetizable}
-                  onChange={(e) => setIsMonetizable(e.target.checked)}
+                  checked={isFromExternal}
+                  onChange={(e) => setIsFromExternal(e.target.checked)}
                   disabled={!canEdit || saving}
                 />
-                {t('idea.monetizable')}
+                {t('idea.fromExternalSource')}
               </label>
-            </div>
+            )}
 
-            <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
-              <input
-                type="checkbox"
-                checked={isFromExternal}
-                onChange={(e) => setIsFromExternal(e.target.checked)}
-                disabled={!canEdit || saving}
-              />
-              {t('idea.fromExternalSource')}
-            </label>
-
-            {isFromExternal && (
+            {isExternalIdea && isFromExternal && (
               <div className="bg-purple-900/20 border border-purple-800 rounded-xl p-4 grid gap-3">
                 <div>
                   <label className="block text-sm text-gray-300 mb-2">

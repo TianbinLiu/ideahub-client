@@ -384,7 +384,6 @@ export default function NewIdeaPage() {
           tags: submitTags,
           visibility,
           isMonetizable: false,
-          licenseType: "default",
           isFeedback: submitIsFeedback,
           externalSource,
         }),
