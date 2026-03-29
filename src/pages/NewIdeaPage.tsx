@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { ExternalSource } from "../api";
-import { apiFetch, apiUploadImage } from "../api";
+import { apiFetch, apiUploadImage, generateIdeaDraft } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { saveLocalIdea } from "../utils/localIdeas";
@@ -43,9 +43,9 @@ export default function NewIdeaPage() {
   const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private" | "unlisted">("public");
   const [, setIsMonetizable] = useState(false);
-  const [licenseType, setLicenseType] = useState("default");
   const [requestAI, setRequestAI] = useState(false);
   const [, setIsFeedback] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
 
   // External source fields
   const [externalPlatform, setExternalPlatform] = useState("");
@@ -384,7 +384,7 @@ export default function NewIdeaPage() {
           tags: submitTags,
           visibility,
           isMonetizable: false,
-          licenseType,
+          licenseType: "default",
           isFeedback: submitIsFeedback,
           externalSource,
         }),
@@ -405,6 +405,31 @@ export default function NewIdeaPage() {
       setErr(msg); // 可选：保留页面内红字
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGenerateDraft() {
+    if (!content.trim()) {
+      toast.error(t('idea.aiDraftNeedContent'));
+      return;
+    }
+
+    setGeneratingDraft(true);
+    try {
+      const ideaType = isBusinessMode ? "business" : "daily";
+      const res = await generateIdeaDraft({ content: content.trim(), ideaType });
+      const draft = res.draft;
+
+      setTitle(draft.title || "");
+      setSummary(draft.summary || "");
+      if (showTagsInput && Array.isArray(draft.tags) && draft.tags.length > 0) {
+        setTags(draft.tags.join(", "));
+      }
+      toast.success(t('idea.aiDraftApplied'));
+    } catch (e: any) {
+      toast.error(humanizeError(e));
+    } finally {
+      setGeneratingDraft(false);
     }
   }
 
@@ -458,6 +483,19 @@ export default function NewIdeaPage() {
             maxLength={LIMITS.CONTENT}
           />
           <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
+          {(isBusinessMode || isDailyMode) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateDraft}
+                disabled={generatingDraft || !content.trim()}
+                className="rounded-lg border border-emerald-700/80 bg-emerald-900/30 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-900/50 disabled:opacity-50"
+              >
+                {generatingDraft ? t('idea.aiDraftGenerating') : t('idea.aiDraftGenerate')}
+              </button>
+              <span className="text-xs text-gray-400">{t('idea.aiDraftHint')}</span>
+            </div>
+          )}
         </div>
 
         <div>
@@ -551,8 +589,6 @@ export default function NewIdeaPage() {
             <option value="unlisted">{t('idea.unlisted')}</option>
             <option value="private">{t('idea.private')}</option>
           </select>
-          <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
-            placeholder={t('idea.licenseType')} value={licenseType} onChange={(e) => setLicenseType(e.target.value)} />
           {isBusinessMode && (
             <label className="flex items-center gap-2 text-sm text-gray-300 px-2">
               <input

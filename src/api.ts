@@ -160,6 +160,16 @@ export function markAllNotificationsRead() {
   return apiFetch<{ ok: true }>(`/api/notifications/read-all`, { method: "POST" });
 }
 
+export function generateIdeaDraft(payload: { content: string; ideaType?: "business" | "daily" }) {
+  return apiFetch<{ ok: true; draft: { title: string; summary: string; tags: string[]; model?: string } }>(
+    "/api/ideas/draft",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
 export function searchUsers(query: string, limit: number = 8) {
   const q = new URLSearchParams();
   if (query) q.set("q", query);
