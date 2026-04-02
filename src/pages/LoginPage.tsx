@@ -1,13 +1,13 @@
 // src/pages/LoginPage.tsx
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiFetch } from "../api";
+import { apiFetch, getAuthCapabilities, type AuthCapabilities } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
-import OAuthButtons from "../components/OAuthButtons";
+import { OAuthButtonsWithProviders } from "../components/OAuthButtons";
 import { safeNext } from "../utils/safeNext";
 
 export default function LoginPage() {
@@ -21,6 +21,7 @@ export default function LoginPage() {
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authCaps, setAuthCaps] = useState<AuthCapabilities | null>(null);
 
   const qNext = new URLSearchParams(loc.search).get("next");
   const state = loc.state as any;
@@ -31,6 +32,44 @@ export default function LoginPage() {
   // 支持 /login?next=/ideas/xxx 这种形式（现在先不强依赖后端 next，但前端先做好）
   const rawNext = qNext || sNext || "/";
   const next = safeNext(rawNext);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const caps = await getAuthCapabilities();
+        if (mounted) setAuthCaps(caps);
+      } catch {
+        // Keep null to fall back to default behavior.
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const oauthQueryOverride = new URLSearchParams(loc.search).get("oauth");
+  const forceShowOAuth =
+    oauthQueryOverride === "1" ||
+    oauthQueryOverride === "true" ||
+    (import.meta as any).env?.VITE_AUTH_FORCE_SHOW_OAUTH === "1";
+  const forceHideOAuth =
+    oauthQueryOverride === "0" ||
+    oauthQueryOverride === "false" ||
+    (import.meta as any).env?.VITE_AUTH_FORCE_HIDE_OAUTH === "1";
+
+  const shouldShowOAuth = forceShowOAuth
+    ? true
+    : forceHideOAuth
+      ? false
+      : authCaps
+        ? authCaps.oauthEnabled && authCaps.providers.length > 0
+        : true;
+
+  const oauthProviders: Array<"google" | "github"> = authCaps?.providers?.length
+    ? authCaps.providers
+    : ["google", "github"];
 
   async function submit() {
     try {
@@ -78,9 +117,13 @@ export default function LoginPage() {
           {t('auth.oauthDescription')}
         </p>
 
-        <div className="mt-3">
-          <OAuthButtons />
-        </div>
+        {shouldShowOAuth ? (
+          <div className="mt-3">
+            <OAuthButtonsWithProviders providers={oauthProviders} />
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mt-3">{t("auth.oauthUnavailableInRegion")}</p>
+        )}
 
         <div className="flex items-center gap-3 my-4">
           <div className="h-px flex-1 bg-gray-800" />

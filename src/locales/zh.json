@@ -47,6 +47,7 @@
     "phoneLogin": "手机登录",
     "orLoginWith": "或使用密码登录",
     "oauthHint": "提示：OAuth登录无需密码。",
+    "oauthUnavailableInRegion": "当前网络区域默认隐藏第三方登录，请使用邮箱登录。",
     "verificationCode": "验证码",
     "verifyEmail": "验证邮箱",
     "sendCode": "发送验证码",

@@ -49,6 +49,7 @@
     "phoneLogin": "Login with Phone",
     "orLoginWith": "or sign in with password",
     "oauthHint": "Tip: OAuth login does not require a password.",
+    "oauthUnavailableInRegion": "Third-party login is hidden in your current network region. Please use email login.",
     "verificationCode": "Verification Code",
     "verifyEmail": "Verify Email",
     "sendCode": "Send Code",

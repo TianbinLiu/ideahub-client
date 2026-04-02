@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiFetch } from "../api";
+import { apiFetch, getAuthCapabilities, type AuthCapabilities } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
-import OAuthButtons from "../components/OAuthButtons";
+import { OAuthButtonsWithProviders } from "../components/OAuthButtons";
 import { useLocation } from "react-router-dom";
 import { safeNext } from "../utils/safeNext";
 import { CharCount } from "../components/CharCount";
@@ -41,6 +41,45 @@ export default function RegisterPage() {
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authCaps, setAuthCaps] = useState<AuthCapabilities | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const caps = await getAuthCapabilities();
+        if (mounted) setAuthCaps(caps);
+      } catch {
+        // Keep null to fall back to default behavior.
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const oauthQueryOverride = new URLSearchParams(loc.search).get("oauth");
+  const forceShowOAuth =
+    oauthQueryOverride === "1" ||
+    oauthQueryOverride === "true" ||
+    (import.meta as any).env?.VITE_AUTH_FORCE_SHOW_OAUTH === "1";
+  const forceHideOAuth =
+    oauthQueryOverride === "0" ||
+    oauthQueryOverride === "false" ||
+    (import.meta as any).env?.VITE_AUTH_FORCE_HIDE_OAUTH === "1";
+
+  const shouldShowOAuth = forceShowOAuth
+    ? true
+    : forceHideOAuth
+      ? false
+      : authCaps
+        ? authCaps.oauthEnabled && authCaps.providers.length > 0
+        : true;
+
+  const oauthProviders: Array<"google" | "github"> = authCaps?.providers?.length
+    ? authCaps.providers
+    : ["google", "github"];
 
   async function sendCode() {
     try {
@@ -152,9 +191,13 @@ export default function RegisterPage() {
         <p className="text-xs text-gray-400 mt-1">
           {t('auth.oauthRegisterDescription')}
         </p>
-        <div className="mt-3">
-          <OAuthButtons />
-        </div>
+        {shouldShowOAuth ? (
+          <div className="mt-3">
+            <OAuthButtonsWithProviders providers={oauthProviders} />
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mt-3">{t("auth.oauthUnavailableInRegion")}</p>
+        )}
 
         <div className="flex items-center gap-3 my-4">
           <div className="h-px flex-1 bg-gray-800" />

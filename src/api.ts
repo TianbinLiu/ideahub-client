@@ -160,6 +160,21 @@ export function markAllNotificationsRead() {
   return apiFetch<{ ok: true }>(`/api/notifications/read-all`, { method: "POST" });
 }
 
+export type AuthRegion = "CN" | "GLOBAL" | "UNKNOWN";
+
+export type AuthCapabilities = {
+  ok: true;
+  region: AuthRegion;
+  country: string;
+  emailPasswordEnabled: boolean;
+  oauthEnabled: boolean;
+  providers: Array<"google" | "github">;
+};
+
+export function getAuthCapabilities() {
+  return apiFetch<AuthCapabilities>("/api/auth/capabilities");
+}
+
 export function generateIdeaDraft(payload: { content: string; ideaType?: "business" | "feedback" | "daily" }) {
   return apiFetch<{ ok: true; draft: { title: string; summary: string; tags: string[]; model?: string } }>(
     "/api/ideas/draft",

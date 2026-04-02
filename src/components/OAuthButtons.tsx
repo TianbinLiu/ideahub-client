@@ -86,19 +86,32 @@ function OAuthBtn({
 
 export default function OAuthButtons() {
   return (
+    <OAuthButtonsWithProviders providers={["google", "github"]} />
+  );
+}
+
+export function OAuthButtonsWithProviders({ providers }: { providers: Array<"google" | "github"> }) {
+  const showGoogle = providers.includes("google");
+  const showGithub = providers.includes("github");
+
+  return (
     <div className="grid gap-2">
-      <OAuthBtn
-        provider="google"
-        label="Continue with Google"
-        subLabel="Fast login • Email auto-verified"
-        path="/api/auth/oauth/google"
-      />
-      <OAuthBtn
-        provider="github"
-        label="Continue with GitHub"
-        subLabel="Developer-friendly • Uses your GitHub identity"
-        path="/api/auth/oauth/github"
-      />
+      {showGoogle && (
+        <OAuthBtn
+          provider="google"
+          label="Continue with Google"
+          subLabel="Fast login • Email auto-verified"
+          path="/api/auth/oauth/google"
+        />
+      )}
+      {showGithub && (
+        <OAuthBtn
+          provider="github"
+          label="Continue with GitHub"
+          subLabel="Developer-friendly • Uses your GitHub identity"
+          path="/api/auth/oauth/github"
+        />
+      )}
     </div>
   );
 }
