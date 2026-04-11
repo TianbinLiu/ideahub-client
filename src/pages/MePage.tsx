@@ -310,7 +310,6 @@ export default function MePage() {
             const canUnlink = oauthLinks?.canUnlink?.[provider] || false;
             const linking = linkingProvider === provider;
             const unlinking = unlinkingProvider === provider;
-            const busy = linking || unlinking;
             const providerLabel = provider === "google" ? t('auth.providerGoogle') : t('auth.providerGitHub');
 
             return (
