@@ -12,7 +12,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { apiFetch, type AuthUser } from "./api";
-import { clearToken, getToken, setToken } from "./auth";
+import { AUTH_EXPIRED_EVENT, clearToken, getToken, setToken } from "./auth";
 
 type AuthState = {
   user: AuthUser | null;
@@ -60,6 +60,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      clearToken();
+      setUser(null);
+
+      if (typeof window === "undefined") return;
+
+      const { pathname, search, hash } = window.location;
+      const authRoutes = new Set(["/login", "/register", "/reset", "/oauth/callback", "/login/phone"]);
+      if (authRoutes.has(pathname)) {
+        return;
+      }
+
+      const next = `${pathname}${search}${hash}`;
+      window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+    }
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired as EventListener);
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired as EventListener);
+    };
   }, []);
 
   return (

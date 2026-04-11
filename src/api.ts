@@ -24,7 +24,7 @@
  */
 
 import { API_BASE } from "./config";
-import { getToken } from "./auth";
+import { getToken, notifyAuthExpired } from "./auth";
 import type { SiteDraft, SiteDraftWidget } from "./utils/siteDraft";
 
 type ApiError = Error & {
@@ -44,6 +44,7 @@ function createApiError(message: string, payload: { code?: string; details?: unk
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiFetch<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
+  const hadToken = Boolean(token);
   const headers = new Headers(init.headers);
 
   const isFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
@@ -56,6 +57,10 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (res.status === 401 && hadToken) {
+      notifyAuthExpired(json?.code || "UNAUTHORIZED");
+    }
+
     throw createApiError(json?.message || `HTTP ${res.status}`, {
       code: json?.code,
       details: json?.details,
@@ -68,6 +73,7 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
 
 export async function apiUploadImage(file: File, scope: "idea" | "comment" | "leaderboard" = "idea") {
   const token = getToken();
+  const hadToken = Boolean(token);
   const headers = new Headers();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
@@ -82,6 +88,10 @@ export async function apiUploadImage(file: File, scope: "idea" | "comment" | "le
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && hadToken) {
+      notifyAuthExpired(json?.code || "UNAUTHORIZED");
+    }
+
     throw createApiError(json?.message || `HTTP ${res.status}`, {
       code: json?.code,
       details: json?.details,
@@ -94,6 +104,7 @@ export async function apiUploadImage(file: File, scope: "idea" | "comment" | "le
 
 export async function apiUploadMedia(file: File) {
   const token = getToken();
+  const hadToken = Boolean(token);
   const headers = new Headers();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
@@ -108,6 +119,10 @@ export async function apiUploadMedia(file: File) {
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && hadToken) {
+      notifyAuthExpired(json?.code || "UNAUTHORIZED");
+    }
+
     throw createApiError(json?.message || `HTTP ${res.status}`, {
       code: json?.code,
       details: json?.details,
