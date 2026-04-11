@@ -161,6 +161,7 @@ export function markAllNotificationsRead() {
 }
 
 export type AuthRegion = "CN" | "GLOBAL" | "UNKNOWN";
+export type OauthProvider = "google" | "github";
 
 export type AuthCapabilities = {
   ok: true;
@@ -168,11 +169,64 @@ export type AuthCapabilities = {
   country: string;
   emailPasswordEnabled: boolean;
   oauthEnabled: boolean;
-  providers: Array<"google" | "github">;
+  providers: OauthProvider[];
+};
+
+export type OauthLinks = {
+  ok: true;
+  availableProviders: OauthProvider[];
+  hasPassword: boolean;
+  linkedProviders: Record<OauthProvider, boolean>;
+  canUnlink: Record<OauthProvider, boolean>;
+};
+
+export type AuthUser = {
+  _id: string;
+  username: string;
+  email: string;
+  role: "user" | "company" | "admin";
+  hasPassword: boolean;
 };
 
 export function getAuthCapabilities() {
   return apiFetch<AuthCapabilities>("/api/auth/capabilities");
+}
+
+export function getOauthLinks() {
+  return apiFetch<OauthLinks>("/api/auth/oauth/links");
+}
+
+export function startOauthLink(provider: OauthProvider, next: string = "/me") {
+  return apiFetch<{ ok: true; redirectUrl: string }>("/api/auth/oauth/link/start", {
+    method: "POST",
+    body: JSON.stringify({ provider, next }),
+  });
+}
+
+export function unlinkOauthProvider(provider: OauthProvider) {
+  return apiFetch<OauthLinks>(`/api/auth/oauth/links/${provider}`, {
+    method: "DELETE",
+  });
+}
+
+export function setPassword(newPassword: string) {
+  return apiFetch<{ ok: true; token: string; user: AuthUser }>("/api/auth/set-password", {
+    method: "POST",
+    body: JSON.stringify({ newPassword }),
+  });
+}
+
+export function changePassword(currentPassword: string, newPassword: string) {
+  return apiFetch<{ ok: true; token: string; user: AuthUser }>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export function logoutAllSessions() {
+  return apiFetch<{ ok: true }>("/api/auth/logout-all", {
+    method: "POST",
+  });
 }
 
 export function generateIdeaDraft(payload: { content: string; ideaType?: "business" | "feedback" | "daily" }) {

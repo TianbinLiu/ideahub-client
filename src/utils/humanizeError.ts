@@ -26,6 +26,16 @@ export function humanizeError(err: any) {
       return i18n.t('errors.notFound');
     case "DUPLICATE":
       return i18n.t('errors.duplicate');
+    case "OAUTH_NOT_LINKED":
+      return i18n.t('auth.oauthNotLinkedError');
+    case "OAUTH_UNLINK_LAST_METHOD":
+      return i18n.t('auth.oauthUnlinkLastMethod');
+    case "PASSWORD_ALREADY_SET":
+      return i18n.t('auth.passwordAlreadySet');
+    case "PASSWORD_NOT_SET":
+      return i18n.t('auth.passwordNotSet');
+    case "INVALID_CURRENT_PASSWORD":
+      return i18n.t('auth.invalidCurrentPassword');
     default:
       return err.message || i18n.t('errors.serverError');
   }

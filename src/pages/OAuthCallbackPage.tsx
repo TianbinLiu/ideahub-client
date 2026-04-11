@@ -12,7 +12,7 @@ export default function OAuthCallbackPage() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const [sp] = useSearchParams();
-  const { loginWithToken } = useAuth();
+  const { loginWithToken, refreshMe } = useAuth();
 
   const [err, setErr] = useState("");
   const [status, setStatus] = useState<"loading" | "error">("loading");
@@ -25,12 +25,30 @@ export default function OAuthCallbackPage() {
         const token = sp.get("token");
         const error = sp.get("error");
         const message = sp.get("message");
+        const linked = sp.get("linked");
 
         if (error) {
-          const msg = message ? `${error}: ${message}` : error;
+          const msg = error === "oauth_conflict"
+            ? t('auth.oauthConflict')
+            : (message ? `${error}: ${message}` : error);
           setErr(msg);
           setStatus("error");
           toast.error(msg);
+          return;
+        }
+
+        if (linked) {
+          if (token) {
+            await loginWithToken(token);
+          } else {
+            await refreshMe();
+          }
+          toast.success(
+            t('auth.oauthLinkedSuccess', {
+              provider: linked === "google" ? t('auth.providerGoogle') : t('auth.providerGitHub'),
+            })
+          );
+          nav(next, { replace: true });
           return;
         }
 
@@ -52,7 +70,7 @@ export default function OAuthCallbackPage() {
         toast.error(msg);
       }
     })();
-  }, [sp, nav, loginWithToken, next]);
+  }, [sp, nav, loginWithToken, next, refreshMe, t]);
 
   return (
     <div className="max-w-md mx-auto p-4">

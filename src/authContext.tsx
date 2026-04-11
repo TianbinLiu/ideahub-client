@@ -11,15 +11,8 @@
  */
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { apiFetch } from "./api";
+import { apiFetch, type AuthUser } from "./api";
 import { clearToken, getToken, setToken } from "./auth";
-
-export type AuthUser = {
-  _id: string;
-  username: string;
-  email: string;
-  role: "user" | "company" | "admin";
-};
 
 type AuthState = {
   user: AuthUser | null;
