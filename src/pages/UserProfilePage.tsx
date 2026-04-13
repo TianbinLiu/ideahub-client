@@ -384,6 +384,8 @@ export default function UserProfilePage() {
         await blockDmUser(id);
         setDmBlocked(true);
         toast.success(t('messages.blockedUser'));
+        navigate('/blacklist');
+        return;
       }
     } catch (e: any) {
       toast.error(humanizeError(e));

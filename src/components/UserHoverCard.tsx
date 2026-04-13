@@ -237,6 +237,7 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
         await blockDmUser(userId);
         setDmBlocked(true);
         toast.success(t('messages.blockedUser'));
+        setIsOpen(false);
       }
     } catch (e: any) {
       toast.error(humanizeError(e));

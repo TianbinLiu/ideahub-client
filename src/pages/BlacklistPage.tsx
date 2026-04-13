@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listDmBlacklist, unblockDmUser } from "../api";
 import toast from "react-hot-toast";
@@ -84,9 +83,9 @@ export default function BlacklistPage() {
                   </div>
                 )}
                 <div className="min-w-0">
-                  <Link to={`/users/${u._id}`} className="text-white font-semibold hover:underline block truncate">
+                  <p className="text-white font-semibold block truncate">
                     {u.displayName || u.username}
-                  </Link>
+                  </p>
                   <p className="text-xs text-gray-400 truncate">@{u.username}</p>
                 </div>
               </div>

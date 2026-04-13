@@ -3,6 +3,14 @@ import i18n from '../i18n';
 export function humanizeError(err: any) {
   if (!err) return i18n.t('errors.unknown');
 
+  if (err?.message === 'You can only block this user after they have replied to you at least once.') {
+    return i18n.t('messages.blockRequiresReplyBack');
+  }
+
+  if (typeof err?.message === 'string' && err.message.startsWith('Blocked users cannot')) {
+    return i18n.t('messages.blockedInteraction');
+  }
+
   switch (err.code) {
     case "UNAUTHORIZED":
       return i18n.t('auth.unauthorized');
