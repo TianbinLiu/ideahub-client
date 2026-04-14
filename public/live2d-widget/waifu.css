@@ -32,6 +32,7 @@
 	position: fixed;
 	transform: translateY(25px);
 	transition: transform .3s ease-in-out, bottom 3s ease-in-out;
+	width: 300px;
 	z-index: 1;
 }
 
@@ -76,6 +77,12 @@
 	color: #0099cc;
 }
 
+#waifu-canvas {
+	height: 300px;
+	position: relative;
+	width: 300px;
+}
+
 #live2d {
 	cursor: grab;
 	height: 300px;
@@ -94,8 +101,9 @@
 	gap: 5px;
 	opacity: 0;
 	position: absolute;
-	right: -10px;
-	top: 70px;
+	right: -38px;
+	top: 50%;
+	transform: translateY(-50%);
 	transition: opacity 1s;
 }
 
