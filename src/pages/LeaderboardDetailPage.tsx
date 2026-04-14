@@ -7,6 +7,7 @@ import { useAuth } from "../authContext";
 import { CharCount } from "../components/CharCount";
 import { UserHoverCard } from "../components/UserHoverCard";
 import { useTranslation } from "react-i18next";
+import TagRankAccessGate from "../components/TagRankAccessGate";
 
 const LIMITS = {
   NOMINATION_TITLE: 150,
@@ -17,6 +18,14 @@ const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 export default function LeaderboardDetailPage() {
+  return (
+    <TagRankAccessGate>
+      <LeaderboardDetailPageContent />
+    </TagRankAccessGate>
+  );
+}
+
+function LeaderboardDetailPageContent() {
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();

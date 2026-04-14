@@ -4,8 +4,17 @@ import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { useTranslation } from "react-i18next";
+import TagRankAccessGate from "../components/TagRankAccessGate";
 
 export default function TagRankPage() {
+  return (
+    <TagRankAccessGate>
+      <TagRankPageContent />
+    </TagRankAccessGate>
+  );
+}
+
+function TagRankPageContent() {
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const { t } = useTranslation();
