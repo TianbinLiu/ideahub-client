@@ -156,7 +156,7 @@ export default function SiteLive2D() {
           waifuPath: waifuConfigUrlRef.current,
           cubism2Path: `${LIVE2D_BASE}/live2d.min.js`,
           cubism5Path: "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
-          tools: ["hitokoto", "switch-model", "photo", "quit"],
+          tools: ["hitokoto", "photo", "quit"],
           modelId: 0,
           drag: true,
           logLevel: "warn",

@@ -97,7 +97,6 @@ export default function Navbar() {
 
         <div className="flex items-center gap-4 text-sm">
           <NavLink to="/" className={({ isActive }) => cls(isActive)}>{t('nav.home')}</NavLink>
-          <NavLink to="/tag-rank" className={({ isActive }) => cls(isActive)}>{t('nav.tagRank')}</NavLink>
 
           {user && <NotificationsDropdown unreadCount={unread} />}
 
