@@ -53,7 +53,7 @@ export default function TagRankPage() {
   }
 
   // Search for leaderboards
-  async function handleSearch(inputOverride?: string, skipParamSync: boolean = false) {
+  async function handleSearch(inputOverride?: string, skipParamSync: boolean = false): Promise<void> {
     try {
       const rawInput = inputOverride ?? tagsInput;
       const tagsArr = rawInput
@@ -63,7 +63,8 @@ export default function TagRankPage() {
         .map((s) => s.toLowerCase());
 
       if (tagsArr.length === 0) {
-        return toast.error(t('tagRank.enterTag'));
+        toast.error(t('tagRank.enterTag'));
+        return;
       }
 
       setSearchLoading(true);
@@ -178,7 +179,9 @@ export default function TagRankPage() {
 
           <div className="flex gap-2">
             <button
-              onClick={handleSearch}
+              onClick={() => {
+                void handleSearch();
+              }}
               disabled={searchLoading}
               className="rounded-xl bg-white text-black px-3 py-2 font-semibold disabled:opacity-50"
             >
