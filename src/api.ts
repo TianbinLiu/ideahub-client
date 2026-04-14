@@ -203,6 +203,36 @@ export type AuthUser = {
   hasPassword: boolean;
 };
 
+export type Live2DComponentSettings = {
+  enabled: boolean;
+  source: "remote" | "uploaded";
+  modelJsonUrl: string;
+  uploadedModelJsonUrl: string;
+  uploadedBundleName: string;
+};
+
+export type ToggleComponentSettings = {
+  enabled: boolean;
+};
+
+export type SiteComponentCatalogItem = {
+  key: "live2d" | "tagRank";
+  title: string;
+  description: string;
+  enabled: boolean;
+  hasSettings: boolean;
+  settingsPath?: string;
+};
+
+export type MyComponentsResponse = {
+  ok: true;
+  components: {
+    live2d: Live2DComponentSettings;
+    tagRank: ToggleComponentSettings;
+  };
+  catalog: SiteComponentCatalogItem[];
+};
+
 export function getAuthCapabilities() {
   return apiFetch<AuthCapabilities>("/api/auth/capabilities");
 }
@@ -235,6 +265,35 @@ export function changePassword(currentPassword: string, newPassword: string) {
   return apiFetch<{ ok: true; token: string; user: AuthUser }>("/api/auth/change-password", {
     method: "POST",
     body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export function getMyComponents() {
+  return apiFetch<MyComponentsResponse>("/api/me/components");
+}
+
+export function updateMyComponents(payload: {
+  live2d?: Partial<Live2DComponentSettings> & { enabled: boolean; source: "remote" | "uploaded" };
+  tagRank?: Partial<ToggleComponentSettings> & { enabled: boolean };
+}) {
+  return apiFetch<MyComponentsResponse>("/api/me/components", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function uploadLive2dBundle(file: File) {
+  const formData = new FormData();
+  formData.append("bundle", file);
+  return apiFetch<{
+    ok: true;
+    uploadedModelJsonUrl: string;
+    uploadedBundleName: string;
+    maxSizeBytes: number;
+    components: MyComponentsResponse["components"];
+  }>("/api/me/components/live2d/upload", {
+    method: "POST",
+    body: formData,
   });
 }
 

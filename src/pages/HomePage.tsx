@@ -35,7 +35,12 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiFetch, clearIdeaRecommendationFeedback, submitIdeaRecommendationFeedback } from "../api";
+import {
+  apiFetch,
+  clearIdeaRecommendationFeedback,
+  getMyComponents,
+  submitIdeaRecommendationFeedback,
+} from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { getPlatformIcon } from "../utils/platformConfig";
@@ -97,6 +102,8 @@ export default function HomePage() {
   const [dismissedIdeaIds, setDismissedIdeaIds] = useState<string[]>([]);
   const [feedbackLoadingId, setFeedbackLoadingId] = useState<string | null>(null);
   const [showIdeaTypePicker, setShowIdeaTypePicker] = useState(false);
+  const [tagRankComponentEnabled, setTagRankComponentEnabled] = useState(false);
+  const [isTagRankSearchMode, setIsTagRankSearchMode] = useState(false);
   const nav = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suggRef = useRef<HTMLDivElement | null>(null);
@@ -203,6 +210,45 @@ export default function HomePage() {
     loadRecentTags();
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function syncComponents() {
+      if (!user?._id) {
+        if (!mounted) return;
+        setTagRankComponentEnabled(false);
+        setIsTagRankSearchMode(false);
+        return;
+      }
+
+      try {
+        const res = await getMyComponents();
+        if (!mounted) return;
+        const enabled = Boolean(res.components.tagRank.enabled);
+        setTagRankComponentEnabled(enabled);
+        if (!enabled) {
+          setIsTagRankSearchMode(false);
+        }
+      } catch {
+        if (!mounted) return;
+        setTagRankComponentEnabled(false);
+        setIsTagRankSearchMode(false);
+      }
+    }
+
+    void syncComponents();
+
+    function handleComponentsUpdated() {
+      void syncComponents();
+    }
+
+    window.addEventListener("ideahub:components-updated", handleComponentsUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener("ideahub:components-updated", handleComponentsUpdated);
+    };
+  }, [user?._id]);
+
   // fetch suggestions for tags and idea titles
   function fetchSuggestionsDebounced(v: string) {
     if (suggTimer.current) clearTimeout(suggTimer.current);
@@ -210,18 +256,48 @@ export default function HomePage() {
       try {
         const token = v.trim();
         if (!token) return setSuggestions([]);
-        const [tagsRes, ideasRes] = await Promise.all([
-          apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ tags: [] })),
-          apiFetch(`/api/ideas/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ ideas: [] })),
-        ]);
-        const tagSug = (tagsRes.tags || []).slice(0, 6).map((t: string) => ({ type: "tag", text: t }));
-        const ideaSug = (ideasRes.ideas || []).slice(0, 6).map((it: any) => ({ type: "idea", text: it.title, id: it.id }));
-        setSuggestions([...tagSug, ...ideaSug]);
+        if (isTagRankSearchMode) {
+          const tagsRes = await apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ tags: [] }));
+          const tagSug = (tagsRes.tags || []).slice(0, 8).map((tag: string) => ({ type: "tag", text: tag }));
+          setSuggestions(tagSug);
+        } else {
+          const [tagsRes, ideasRes] = await Promise.all([
+            apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ tags: [] })),
+            apiFetch(`/api/ideas/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ ideas: [] })),
+          ]);
+          const tagSug = (tagsRes.tags || []).slice(0, 6).map((tag: string) => ({ type: "tag", text: tag }));
+          const ideaSug = (ideasRes.ideas || []).slice(0, 6).map((it: any) => ({ type: "idea", text: it.title, id: it.id }));
+          setSuggestions([...tagSug, ...ideaSug]);
+        }
         setHighlight(-1);
       } catch (e) {
         // ignore
       }
     }, 180);
+  }
+
+  function submitIdeaSearch() {
+    const next = new URLSearchParams(params);
+    next.set("page", "1");
+
+    if (searchInput.trim()) {
+      next.set("q", searchInput.trim());
+      updateRecentTagsFromInput(searchInput);
+    } else {
+      next.delete("q");
+    }
+
+    setParams(next);
+  }
+
+  function submitTagRankSearch() {
+    const keyword = searchInput.trim();
+    if (!keyword) {
+      return;
+    }
+
+    updateRecentTagsFromInput(keyword);
+    nav(`/tag-rank?q=${encodeURIComponent(keyword)}`);
   }
 
   function replaceLastTokenWith(input: string, replacement: string) {
@@ -431,7 +507,7 @@ export default function HomePage() {
         <div className="relative">
           <input
             className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm w-full"
-            placeholder={t('home.searchPlaceholder')}
+            placeholder={isTagRankSearchMode ? t('components.tagRankSearchPlaceholder') : t('home.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => { setSearchInput(e.target.value); fetchSuggestionsDebounced(e.target.value); }}
             ref={inputRef}
@@ -445,7 +521,7 @@ export default function HomePage() {
               } else if (e.key === "Enter") {
                 if (highlight >= 0 && suggestions[highlight]) {
                   const s = suggestions[highlight];
-                  if (s.type === "idea" && s.id) {
+                  if (!isTagRankSearchMode && s.type === "idea" && s.id) {
                     nav(`/ideas/${s.id}`);
                   } else if (s.type === "tag") {
                     setSearchInput(prev => replaceLastTokenWith(prev, s.text));
@@ -453,20 +529,14 @@ export default function HomePage() {
                   setSuggestions([]);
                   e.preventDefault();
                 } else {
-                  // trigger search
-                    const next = new URLSearchParams(params);
-                    next.set("page", "1");
-                    if (searchInput.trim()) {
-                      next.set("q", searchInput.trim());
-                      updateRecentTagsFromInput(searchInput);
-                    } else next.delete("q");
-                    setParams(next);
+                  if (isTagRankSearchMode) submitTagRankSearch();
+                  else submitIdeaSearch();
                 }
               } else if (e.key === "Tab") {
                 if (highlight >= 0 && suggestions[highlight]) {
                   e.preventDefault();
                   const s = suggestions[highlight];
-                  if (s.type === "idea" && s.id) {
+                  if (!isTagRankSearchMode && s.type === "idea" && s.id) {
                     nav(`/ideas/${s.id}`);
                   } else if (s.type === "tag") {
                     setSearchInput(prev => replaceLastTokenWith(prev, s.text));
@@ -485,13 +555,13 @@ export default function HomePage() {
                   onMouseEnter={() => setHighlight(idx)}
                   onMouseLeave={() => setHighlight(-1)}
                   onClick={() => {
-                    if (s.type === "idea" && s.id) nav(`/ideas/${s.id}`);
+                    if (!isTagRankSearchMode && s.type === "idea" && s.id) nav(`/ideas/${s.id}`);
                     else setSearchInput(prev => replaceLastTokenWith(prev, s.text));
                     setSuggestions([]);
                   }}
                 >
                   <div className="text-sm text-gray-200">{s.text}</div>
-                  <div className="text-xs text-gray-500">{s.type === "tag" ? t('home.tagSuggestion') : t('home.ideaTitle')}</div>
+                  <div className="text-xs text-gray-500">{s.type === "tag" ? t(isTagRankSearchMode ? 'components.tagRankTagSuggestion' : 'home.tagSuggestion') : t('home.ideaTitle')}</div>
                 </div>
               ))}
             </div>
@@ -537,22 +607,34 @@ export default function HomePage() {
           )}
         </div>
 
-        <button
-          className="rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold"
-          onClick={() => {
-            const next = new URLSearchParams(params);
-            next.set("page", "1");
-
-            if (searchInput.trim()) {
-              next.set("q", searchInput.trim());
-              updateRecentTagsFromInput(searchInput);
-            } else next.delete("q");
-
-            setParams(next);
-          }}
-        >
-          {t('home.searchButton')}
-        </button>
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          {tagRankComponentEnabled ? (
+            <button
+              type="button"
+              className={`rounded-xl px-4 py-2 text-sm font-semibold border ${
+                isTagRankSearchMode
+                  ? "border-cyan-500 bg-cyan-500/15 text-cyan-200"
+                  : "border-gray-700 text-gray-200 hover:bg-gray-900"
+              }`}
+              onClick={() => {
+                setIsTagRankSearchMode((prev) => !prev);
+                setSuggestions([]);
+                setHighlight(-1);
+              }}
+            >
+              {isTagRankSearchMode ? t("components.ideaSearchMode") : t("components.tagRankSearchMode")}
+            </button>
+          ) : null}
+          <button
+            className="rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold"
+            onClick={() => {
+              if (isTagRankSearchMode) submitTagRankSearch();
+              else submitIdeaSearch();
+            }}
+          >
+            {isTagRankSearchMode ? t('components.tagRankSearchButton') : t('home.searchButton')}
+          </button>
+        </div>
       </div>
 
 

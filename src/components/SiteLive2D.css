@@ -1,0 +1,48 @@
+#waifu-toggle {
+  left: auto;
+  right: 0;
+  justify-content: flex-start;
+  margin-left: 0;
+  margin-right: -100px;
+  z-index: 45;
+  transition: margin-right 1s;
+}
+
+#waifu-toggle.waifu-toggle-active {
+  margin-right: -50px;
+}
+
+#waifu-toggle.waifu-toggle-active:hover {
+  margin-right: -30px;
+}
+
+#waifu {
+  left: auto;
+  right: 12px;
+  transform-origin: bottom right;
+  z-index: 44;
+}
+
+#waifu-tips {
+  margin: -30px 44px 0 0;
+}
+
+@media (max-width: 768px) {
+  #waifu {
+    right: -24px;
+    transform: scale(0.78) translateY(25px);
+    transform-origin: bottom right;
+  }
+
+  #waifu:hover {
+    transform: scale(0.78) translateY(20px);
+  }
+
+  #waifu-toggle {
+    bottom: 52px;
+  }
+
+  #waifu-tips {
+    width: 220px;
+  }
+}

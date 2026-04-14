@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -7,7 +7,9 @@ import { useTranslation } from "react-i18next";
 
 export default function TagRankPage() {
   const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
   const { t } = useTranslation();
+  const query = params.get("q") || "";
 
   const [tagsInput, setTagsInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -51,9 +53,10 @@ export default function TagRankPage() {
   }
 
   // Search for leaderboards
-  async function handleSearch() {
+  async function handleSearch(inputOverride?: string, skipParamSync: boolean = false) {
     try {
-      const tagsArr = tagsInput
+      const rawInput = inputOverride ?? tagsInput;
+      const tagsArr = rawInput
         .split(/[,，]/)
         .map((s) => s.trim())
         .filter(Boolean)
@@ -65,6 +68,12 @@ export default function TagRankPage() {
 
       setSearchLoading(true);
       setSearchResults(null);
+
+      if (!skipParamSync) {
+        const next = new URLSearchParams(params);
+        next.set("q", tagsArr.join(","));
+        setParams(next, { replace: true });
+      }
 
       const res = await apiFetch(
         `/api/tag-rank/search?q=${encodeURIComponent(tagsArr.join(","))}`
@@ -114,6 +123,16 @@ export default function TagRankPage() {
     loadDiscovery();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discoverySort]);
+
+  useEffect(() => {
+    setTagsInput(query);
+    if (!query.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    void handleSearch(query, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   return (
     <div className="max-w-4xl mx-auto p-4">

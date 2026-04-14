@@ -696,6 +696,12 @@ export default function UserProfilePage() {
                   >
                     {t('messages.blacklistManage')}
                   </Link>
+                  <Link
+                    to="/components"
+                    className="rounded-lg border border-violet-700 px-4 py-2 text-sm font-semibold text-violet-300 hover:bg-violet-900/20"
+                  >
+                    {t('components.title')}
+                  </Link>
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
                     className="rounded-lg border border-red-600 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/20"

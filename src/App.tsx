@@ -27,6 +27,9 @@ import CompanyPage from "./pages/CompanyPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import MessagesPage from "./pages/MessagesPage";
 import MessageRequestsPage from "./pages/MessageRequestsPage";
+import ComponentsPage from "./pages/ComponentsPage";
+import Live2DSettingsPage from "./pages/Live2DSettingsPage";
+import TagRankSettingsPage from "./pages/TagRankSettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import FeedbackAdminPage from "./pages/FeedbackAdminPage";
 import DocsAdminPage from "./pages/DocsAdminPage";
@@ -47,6 +50,7 @@ import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
+import SiteLive2D from "./components/SiteLive2D";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
@@ -127,6 +131,7 @@ export default function App() {
       )}
       <Navbar />
       <SiteTemplateEditOverlay />
+      <SiteLive2D />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/ideas/:id" element={<IdeaDetailPage />} />
@@ -260,6 +265,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <BlacklistPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/components"
+          element={
+            <ProtectedRoute>
+              <ComponentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/components/live2d"
+          element={
+            <ProtectedRoute>
+              <Live2DSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/components/tag-rank"
+          element={
+            <ProtectedRoute>
+              <TagRankSettingsPage />
             </ProtectedRoute>
           }
         />

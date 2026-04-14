@@ -1,0 +1,140 @@
+{
+  "mouseover": [
+    {
+      "selector": "#waifu-tool-hitokoto",
+      "text": ["想听一句灵感补给吗？", "点一下，我给你找一句随机的话。"]
+    },
+    {
+      "selector": "#waifu-tool-switch-model",
+      "text": ["想换个搭档继续逛 IdeaHub 吗？", "切一下模型，看看今天谁陪你想点子。"]
+    },
+    {
+      "selector": "#waifu-tool-photo",
+      "text": ["要合影留念吗？", "记得把这张截图发给朋友。"]
+    },
+    {
+      "selector": "#waifu-tool-quit",
+      "text": ["先躲起来也行，需要时再叫我。", "要暂时把我收起来吗？"]
+    },
+    {
+      "selector": "a[href='/']",
+      "text": ["首页上常常有新的灵感。", "回首页看看今天有什么新内容吧。"]
+    },
+    {
+      "selector": "a[href='/tag-rank']",
+      "text": ["这里能快速看大家最近在关注什么标签。"]
+    },
+    {
+      "selector": "a[href='/workshop']",
+      "text": ["创意工坊里可以继续打磨你的页面和模板。"]
+    },
+    {
+      "selector": "a[href='/notifications']",
+      "text": ["别忘了看看有没有新的回复、点赞或兴趣表达。"]
+    },
+    {
+      "selector": "a[href^='/users/']",
+      "text": ["这是一个用户主页，也许能发现新的灵感来源。"]
+    },
+    {
+      "selector": "button",
+      "text": ["点按钮前，先确认这是不是你想做的操作。", "继续操作吧，我在旁边看着。"]
+    }
+  ],
+  "click": [
+    {
+      "selector": "a[href='/ideas/new']",
+      "text": ["开始发布一个新想法吧。", "把脑海里的点子落下来。"]
+    },
+    {
+      "selector": "a[href='/login']",
+      "text": ["登录后就能保存、评论和收藏啦。"]
+    },
+    {
+      "selector": "a[href='/register']",
+      "text": ["注册一个账号，把灵感沉淀下来。"]
+    },
+    {
+      "selector": "a[href='/company']",
+      "text": ["公司页里可以查看兴趣表达相关内容。"]
+    },
+    {
+      "selector": "a[href='/blacklist']",
+      "text": ["这里可以管理你拉黑的用户。"]
+    }
+  ],
+  "seasons": [],
+  "time": [
+    {
+      "hour": "6-10",
+      "text": "早上好，适合整理今天最想推进的一个想法。"
+    },
+    {
+      "hour": "11-13",
+      "text": "中午了，别忘了休息一下，灵感也需要充电。"
+    },
+    {
+      "hour": "14-18",
+      "text": "下午常常适合把模糊点子拆成可执行的小步骤。"
+    },
+    {
+      "hour": "19-23",
+      "text": "晚上好，适合看看评论、排行榜，或者继续打磨创意。"
+    },
+    {
+      "hour": "0-5",
+      "text": "已经很晚了，记得保护眼睛，也别把休息时间都换成灵感。"
+    }
+  ],
+  "message": {
+    "default": [
+      "欢迎回来，今天想先看灵感流还是继续完善旧想法？",
+      "如果没有头绪，可以先去首页和标签排行转一圈。",
+      "写不出长文也没关系，先把一句核心想法记下来。",
+      "想法卡住时，换个模型也许会有新手感。"
+    ],
+    "console": "控制台也被你打开了，看来你是认真在折腾这个站。",
+    "copy": "复制内容时别忘了标注出处，也别让好想法丢失背景。",
+    "visibilitychange": "你回来了，我们继续。",
+    "changeSuccess": "这位新搭档也准备好了。",
+    "changeFail": "这个模型暂时没有更多可切换的外观。",
+    "photo": "截图已经准备好了，希望这张图能留下今天的灵感。",
+    "goodbye": "先忙你的，想继续的时候再叫我。",
+    "hitokoto": "这句一言来自 <span>「$1」</span>，由 <span>$2</span> 投稿。",
+    "welcome": "欢迎来到 <span>「$1」</span>",
+    "referrer": "欢迎你，来自 <span>$1</span> 的访客。",
+    "hoverBody": [
+      "我在呢，不过别一直戳我。",
+      "需要提示的话可以点旁边的工具。",
+      "有问题就说，别只用鼠标试探。"
+    ],
+    "tapBody": [
+      "收到。",
+      "这里是工作区，我们保持一点职业素养。",
+      "想互动的话，切模型或者来句一言更合适。"
+    ]
+  },
+  "models": [
+    {
+      "name": "Hiyori",
+      "paths": [
+        "https://fastly.jsdelivr.net/gh/Live2D/CubismWebSamples/Samples/Resources/Hiyori/Hiyori.model3.json"
+      ],
+      "message": "Hiyori 来值班了。"
+    },
+    {
+      "name": "Potion-Maker/Pio",
+      "paths": [
+        "https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/model/Potion-Maker/Pio/index.json"
+      ],
+      "message": "Pio 已上线，准备陪你继续看点子。"
+    },
+    {
+      "name": "Potion-Maker/Tia",
+      "paths": [
+        "https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/model/Potion-Maker/Tia/index.json"
+      ],
+      "message": "Tia 已就位。"
+    }
+  ]
+}
