@@ -32,6 +32,7 @@ type Live2DWindow = Window & {
 
 const LIVE2D_BASE = "/live2d-widget";
 const LIVE2D_VISIBILITY_KEY = "ideahub-live2d-visible";
+const LIVE2D_CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>';
 
 function getStoredVisibility() {
   if (typeof window === "undefined") {
@@ -65,6 +66,24 @@ function teardownLive2D(live2dWindow: Live2DWindow) {
   live2dWindow.__ideahubLive2dManager = null;
   live2dWindow.__ideahubLive2dBootstrapped = false;
   removeWidgetDom();
+}
+
+function mountCloseToolButton(onHide: () => void) {
+  const toolContainer = document.getElementById("waifu-tool");
+  if (!toolContainer) {
+    return;
+  }
+
+  toolContainer.replaceChildren();
+
+  const closeButton = document.createElement("span");
+  closeButton.id = "waifu-tool-close";
+  closeButton.innerHTML = LIVE2D_CLOSE_ICON;
+  closeButton.setAttribute("role", "button");
+  closeButton.setAttribute("aria-label", "Hide Live2D assistant");
+  closeButton.title = "Hide Live2D assistant";
+  closeButton.addEventListener("click", onHide);
+  toolContainer.appendChild(closeButton);
 }
 
 async function buildWaifuConfigUrl(activeModelUrl: string) {
@@ -197,12 +216,15 @@ export default function SiteLive2D() {
           waifuPath: waifuConfigUrlRef.current,
           cubism2Path: `${LIVE2D_BASE}/live2d.min.js`,
           cubism5Path: "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
-          tools: ["hitokoto", "photo"],
+          tools: [],
           modelId: 0,
           drag: true,
           logLevel: "warn",
         });
         document.getElementById("waifu-toggle")?.remove();
+        window.requestAnimationFrame(() => {
+          mountCloseToolButton(hideLive2D);
+        });
 
         live2dWindow.__ideahubLive2dBootstrapped = true;
         live2dWindow.__ideahubLive2dConfigKey = nextConfigKey;
@@ -241,17 +263,7 @@ export default function SiteLive2D() {
 
   return (
     <>
-      {isVisible ? (
-        <button
-          type="button"
-          className="site-live2d-close"
-          onClick={hideLive2D}
-          aria-label="Hide Live2D assistant"
-          title="Hide Live2D assistant"
-        >
-          ×
-        </button>
-      ) : (
+      {!isVisible ? (
         <button
           type="button"
           className="site-live2d-reopen"
@@ -259,9 +271,11 @@ export default function SiteLive2D() {
           aria-label="Show Live2D assistant"
           title="Show Live2D assistant"
         >
-          Live2D
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" aria-hidden="true">
+            <path d="M96 64a64 64 0 1 1 128 0A64 64 0 1 1 96 64zm48 320l0 96c0 17.7-14.3 32-32 32s-32-14.3-32-32l0-192.2L59.1 321c-9.4 15-29.2 19.4-44.1 10S-4.5 301.9 4.9 287l39.9-63.3C69.7 184 113.2 160 160 160s90.3 24 115.2 63.6L315.1 287c9.4 15 4.9 34.7-10 44.1s-34.7 4.9-44.1-10L240 287.8 240 480c0 17.7-14.3 32-32 32s-32-14.3-32-32l0-96-32 0z" />
+          </svg>
         </button>
-      )}
+      ) : null}
     </>
   );
 }

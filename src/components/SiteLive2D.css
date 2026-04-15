@@ -9,46 +9,39 @@
   z-index: 44;
 }
 
-.site-live2d-close,
 .site-live2d-reopen {
   align-items: center;
-  background: linear-gradient(135deg, #ffb347, #ff8c42);
+  background-color: #fa0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px 0 0 8px;
   bottom: 68px;
-  box-shadow: 0 10px 24px rgba(83, 48, 17, 0.22);
+  box-shadow: 0 10px 24px rgba(83, 48, 17, 0.18);
   color: #fff;
   cursor: pointer;
   display: inline-flex;
   font-size: 14px;
   font-weight: 700;
-  justify-content: center;
-  letter-spacing: 0.02em;
-  min-height: 44px;
-  padding: 0 16px;
+  height: 36px;
+  justify-content: flex-start;
+  margin-right: -46px;
+  min-height: 36px;
+  padding: 0 8px 0 10px;
   position: fixed;
-  right: 18px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  right: 0;
+  transition: margin-right 0.35s ease, box-shadow 0.2s ease;
+  width: 60px;
   z-index: 46;
 }
 
-.site-live2d-close {
-  border-radius: 50%;
-  font-size: 28px;
-  height: 44px;
-  line-height: 1;
-  padding: 0;
-  width: 44px;
-}
-
-.site-live2d-close:hover,
 .site-live2d-reopen:hover {
   box-shadow: 0 14px 30px rgba(83, 48, 17, 0.28);
-  transform: translateY(-2px);
+  margin-right: -26px;
 }
 
-.site-live2d-reopen {
-  font-family: Georgia, "Times New Roman", serif;
+.site-live2d-reopen svg {
+  fill: #fff;
+  height: 24px;
+  width: 24px;
 }
 
 #waifu-tips {
@@ -70,9 +63,12 @@
     width: 220px;
   }
 
-  .site-live2d-close,
   .site-live2d-reopen {
     bottom: 52px;
-    right: 12px;
+    margin-right: -42px;
+  }
+
+  .site-live2d-reopen:hover {
+    margin-right: -22px;
   }
 }
