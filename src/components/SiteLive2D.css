@@ -33,8 +33,31 @@
   z-index: 46;
 }
 
+.site-live2d-reopen-left {
+  border-radius: 0 8px 8px 0;
+  left: 0;
+  margin-left: -46px;
+  margin-right: 0;
+  padding: 0 10px 0 8px;
+  right: auto;
+  transition: margin-left 0.35s ease, box-shadow 0.2s ease;
+}
+
+.site-live2d-reopen-right {
+  right: 0;
+}
+
 .site-live2d-reopen:hover {
   box-shadow: 0 14px 30px rgba(83, 48, 17, 0.28);
+  margin-right: -26px;
+}
+
+.site-live2d-reopen-left:hover {
+  margin-left: -26px;
+  margin-right: 0;
+}
+
+.site-live2d-reopen-right:hover {
   margin-right: -26px;
 }
 
@@ -68,7 +91,15 @@
     margin-right: -42px;
   }
 
-  .site-live2d-reopen:hover {
+  .site-live2d-reopen-right:hover {
     margin-right: -22px;
+  }
+
+  .site-live2d-reopen-left {
+    margin-left: -42px;
+  }
+
+  .site-live2d-reopen-left:hover {
+    margin-left: -22px;
   }
 }
