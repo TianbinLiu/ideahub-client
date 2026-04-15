@@ -29,6 +29,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listNotifications, listMessageRequests } from "../api";
@@ -49,7 +50,9 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; reactions: number; likes: number; dislikes: number; replies: number; messages: number }>({ system: 0, mentions: 0, reactions: 0, likes: 0, dislikes: 0, replies: 0, messages: 0 });
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -115,6 +118,36 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
     window.addEventListener('notificationsUpdated', loadUnreadByType);
     
     return () => window.removeEventListener('notificationsUpdated', loadUnreadByType);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) {
+      return;
+    }
+
+    function updateMenuPosition() {
+      if (!triggerRef.current) return;
+
+      const rect = triggerRef.current.getBoundingClientRect();
+      const menuWidth = 224;
+      let left = rect.left;
+      const top = rect.bottom + 8;
+
+      if (left + menuWidth > window.innerWidth - 16) {
+        left = Math.max(16, window.innerWidth - menuWidth - 16);
+      }
+
+      setMenuPosition({ top, left });
+    }
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
   }, [isOpen]);
 
   const menuItems: NotificationMenuItem[] = [
@@ -190,6 +223,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
 
   return (
     <div
+      ref={triggerRef}
       className="relative"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -208,11 +242,12 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         )}
       </Link>
 
-      {isOpen && (
+      {isOpen && menuPosition && createPortal(
         <div
           onMouseEnter={handleMenuEnter}
           onMouseLeave={handleMenuLeave}
-          className="absolute left-0 top-full mt-2 z-50 w-56 rounded-xl border border-gray-700 bg-gray-900 py-2 shadow-2xl"
+          className="fixed z-[100000] w-56 rounded-xl border border-gray-700 bg-gray-900 py-2 shadow-2xl"
+          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
           onClick={(e) => e.stopPropagation()}
         >
           {menuItems.map((item) => (
@@ -232,7 +267,8 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
               </div>
             </Link>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
