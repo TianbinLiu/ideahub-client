@@ -29,9 +29,11 @@
 #waifu {
 	bottom: -500px;
 	left: 0;
+	opacity: 1;
 	position: fixed;
 	transform: translateY(25px);
-	transition: transform .3s ease-in-out, bottom 3s ease-in-out;
+	transition: transform .3s ease-in-out, bottom 3s ease-in-out, opacity .3s ease-in-out, visibility .3s ease-in-out;
+	visibility: visible;
 	width: 300px;
 	z-index: 1;
 }
@@ -41,7 +43,9 @@
 }
 
 #waifu.waifu-hidden {
-	display: none;
+	opacity: 0;
+	pointer-events: none;
+	visibility: hidden;
 }
 
 #waifu:hover {
