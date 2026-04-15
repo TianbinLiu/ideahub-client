@@ -25,7 +25,6 @@ import toast from "react-hot-toast";
 import { deleteAccount } from "../api";
 import { useAuth } from "../authContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
-import SettingsComponentsPanel from "../components/SettingsComponentsPanel";
 import { clearToken } from "../auth";
 import { humanizeError } from "../utils/humanizeError";
 
@@ -75,34 +74,23 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-white">{t("settings.componentsTitle")}</h2>
-          <p className="mt-1 text-sm text-gray-400">{t("settings.componentsDescription")}</p>
-        </div>
-        <SettingsComponentsPanel />
-      </section>
-
       <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-4">
         <div>
-          <h2 className="text-xl font-semibold text-white">{t("settings.accountTitle")}</h2>
-          <p className="mt-1 text-sm text-gray-400">{t("settings.accountDescription")}</p>
+          <h2 className="text-xl font-semibold text-white">{t("settings.pagesTitle")}</h2>
+          <p className="mt-1 text-sm text-gray-400">{t("settings.pagesDescription")}</p>
         </div>
-
         <div className="grid gap-3 md:grid-cols-2">
-          {userId ? (
-            <Link
-              to={`/users/${userId}`}
-              className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-100 hover:bg-gray-800"
-            >
-              {t("settings.editProfileAction")}
-            </Link>
-          ) : null}
+          <Link
+            to="/components"
+            className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-100 hover:bg-gray-800"
+          >
+            {t("settings.componentsPageAction")}
+          </Link>
           <Link
             to="/blacklist"
             className="rounded-xl border border-red-700 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-900/20"
           >
-            {t("settings.blockedUsersAction")}
+            {t("settings.blacklistPageAction")}
           </Link>
         </div>
       </section>
