@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./SiteLive2D.css";
 import { getMyComponents, type Live2DComponentSettings } from "../api";
 import { useAuth } from "../authContext";
@@ -25,13 +25,46 @@ type Live2DWindow = Window & {
   __ideahubLive2dBootstrapped?: boolean;
   __ideahubLive2dLoading?: Promise<void>;
   __ideahubLive2dConfigKey?: string;
+  __ideahubLive2dManager?: {
+    destroy?: () => void;
+  } | null;
 };
 
 const LIVE2D_BASE = "/live2d-widget";
+const LIVE2D_VISIBILITY_KEY = "ideahub-live2d-visible";
+
+function getStoredVisibility() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const value = window.localStorage.getItem(LIVE2D_VISIBILITY_KEY);
+  return value !== "hidden";
+}
+
+function setStoredVisibility(visible: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(LIVE2D_VISIBILITY_KEY, visible ? "visible" : "hidden");
+}
 
 function removeWidgetDom() {
   document.getElementById("waifu")?.remove();
   document.getElementById("waifu-toggle")?.remove();
+}
+
+function teardownLive2D(live2dWindow: Live2DWindow) {
+  try {
+    live2dWindow.__ideahubLive2dManager?.destroy?.();
+  } catch (error) {
+    console.warn("[IdeaHub] Failed to destroy Live2D runtime.", error);
+  }
+
+  live2dWindow.__ideahubLive2dManager = null;
+  live2dWindow.__ideahubLive2dBootstrapped = false;
+  removeWidgetDom();
 }
 
 async function buildWaifuConfigUrl(activeModelUrl: string) {
@@ -97,6 +130,8 @@ export default function SiteLive2D() {
   const { user } = useAuth();
   const latestConfigKeyRef = useRef("");
   const waifuConfigUrlRef = useRef<string | null>(null);
+  const [isVisible, setIsVisible] = useState(getStoredVisibility);
+  const [isEnabled, setIsEnabled] = useState(false);
 
   useEffect(() => {
     const live2dWindow = window as Live2DWindow;
@@ -109,10 +144,11 @@ export default function SiteLive2D() {
     }
 
     if (!user?._id) {
-      removeWidgetDom();
+      teardownLive2D(live2dWindow);
       live2dWindow.__ideahubLive2dBootstrapped = false;
       live2dWindow.__ideahubLive2dConfigKey = "";
       latestConfigKeyRef.current = "";
+      setIsEnabled(false);
       void disposeRuntimeConfig();
       return;
     }
@@ -121,15 +157,20 @@ export default function SiteLive2D() {
       try {
         const res = await getMyComponents();
         const live2d = res.components.live2d;
+        setIsEnabled(live2d.enabled);
         const nextConfigKey = getConfigKey(live2d);
-        if (nextConfigKey === latestConfigKeyRef.current && live2dWindow.__ideahubLive2dBootstrapped) {
+        if (
+          isVisible &&
+          nextConfigKey === latestConfigKeyRef.current &&
+          live2dWindow.__ideahubLive2dBootstrapped
+        ) {
           return;
         }
 
         latestConfigKeyRef.current = nextConfigKey;
 
-        if (!live2d.enabled) {
-          removeWidgetDom();
+        if (!live2d.enabled || !isVisible) {
+          teardownLive2D(live2dWindow);
           live2dWindow.__ideahubLive2dBootstrapped = false;
           live2dWindow.__ideahubLive2dConfigKey = nextConfigKey;
           return;
@@ -150,17 +191,18 @@ export default function SiteLive2D() {
         await disposeRuntimeConfig();
         waifuConfigUrlRef.current = await buildWaifuConfigUrl(activeModelUrl);
 
-        removeWidgetDom();
+        teardownLive2D(live2dWindow);
         localStorage.removeItem("waifu-display");
         live2dWindow.initWidget({
           waifuPath: waifuConfigUrlRef.current,
           cubism2Path: `${LIVE2D_BASE}/live2d.min.js`,
           cubism5Path: "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
-          tools: ["hitokoto", "photo", "quit"],
+          tools: ["hitokoto", "photo"],
           modelId: 0,
           drag: true,
           logLevel: "warn",
         });
+        document.getElementById("waifu-toggle")?.remove();
 
         live2dWindow.__ideahubLive2dBootstrapped = true;
         live2dWindow.__ideahubLive2dConfigKey = nextConfigKey;
@@ -178,9 +220,48 @@ export default function SiteLive2D() {
     window.addEventListener("ideahub:components-updated", handleComponentsUpdated);
     return () => {
       window.removeEventListener("ideahub:components-updated", handleComponentsUpdated);
+      teardownLive2D(live2dWindow);
       void disposeRuntimeConfig();
     };
-  }, [user?._id]);
+  }, [isVisible, user?._id]);
 
-  return null;
+  function hideLive2D() {
+    setStoredVisibility(false);
+    setIsVisible(false);
+  }
+
+  function showLive2D() {
+    setStoredVisibility(true);
+    setIsVisible(true);
+  }
+
+  if (!user?._id || !isEnabled) {
+    return null;
+  }
+
+  return (
+    <>
+      {isVisible ? (
+        <button
+          type="button"
+          className="site-live2d-close"
+          onClick={hideLive2D}
+          aria-label="Hide Live2D assistant"
+          title="Hide Live2D assistant"
+        >
+          ×
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="site-live2d-reopen"
+          onClick={showLive2D}
+          aria-label="Show Live2D assistant"
+          title="Show Live2D assistant"
+        >
+          Live2D
+        </button>
+      )}
+    </>
+  );
 }
