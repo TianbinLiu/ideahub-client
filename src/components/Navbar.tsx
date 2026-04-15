@@ -8,7 +8,6 @@
  * 
  * 职责:
  * - 显示全局导航链接（Home, Tag Rank, Notifications等）
- * - 集成语言切换器（中英文）
  * - 显示未读通知徽章
  * - 用户登录状态显示
  * - 登录/注册/登出按钮
@@ -18,7 +17,6 @@
  * @uses ../authContext.tsx - 获取用户状态和登出方法
  * @uses ../api.ts - 获取未读通知数 (getUnreadCount)
  * @uses ./UserHoverCard.tsx - 用户悬浮卡片
- * @uses ./LanguageSwitcher.tsx - 语言切换组件
  * 
  * 被使用于:
  * @used_in App.tsx - 所有页面的头部
@@ -38,7 +36,6 @@ import { useEffect, useState } from "react";
 import { getUnreadCount } from "../api";
 import { UserHoverCard } from "./UserHoverCard";
 import { useTranslation } from "react-i18next";
-import LanguageSwitcher from "./LanguageSwitcher";
 import NotificationsDropdown from "./NotificationsDropdown";
 
 
@@ -120,8 +117,6 @@ export default function Navbar() {
               </NavLink>
             </>
           )}
-
-          <LanguageSwitcher />
 
           {!user ? (
             <>

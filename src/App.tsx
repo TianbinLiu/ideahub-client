@@ -42,6 +42,7 @@ import TagRankPage from "./pages/TagRankPage";
 import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import BlacklistPage from "./pages/BlacklistPage";
+import SettingsPage from "./pages/SettingsPage";
 import TagMapPage from "./pages/TagMapPage";
 import WorkshopPage from "./pages/WorkshopPage";
 import WorkshopTemplateDetailPage from "./pages/WorkshopTemplateDetailPage";
@@ -265,6 +266,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <BlacklistPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

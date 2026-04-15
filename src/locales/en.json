@@ -746,6 +746,22 @@
     "currentUploadedBundle": "Current uploaded bundle",
     "unnamedBundle": "Unnamed bundle"
   },
+  "settings": {
+    "button": "Settings",
+    "title": "Settings",
+    "subtitle": "Manage language, site components, blocked users, and account-level actions from one place.",
+    "languageTitle": "Language",
+    "languageDescription": "Choose the language used across the site interface.",
+    "languageLabel": "Display language",
+    "componentsTitle": "Components",
+    "componentsDescription": "Enable or disable optional site components and open detailed configuration when needed.",
+    "accountTitle": "Account",
+    "accountDescription": "Open profile-related management pages and keep personal controls together.",
+    "editProfileAction": "Edit Profile",
+    "blockedUsersAction": "Blocked Users",
+    "dangerTitle": "Danger Zone",
+    "deleteAccountDescription": "Delete your account permanently. This action cannot be undone."
+  },
   "tagMap": {
     "title": "Heat Map",
     "subtitle": "Each dot is one idea. Newer ideas sit closer to the center, and related tags gather into larger hotspot regions.",

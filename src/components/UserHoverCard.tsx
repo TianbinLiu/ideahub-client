@@ -417,10 +417,10 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                     {t('profile.editProfile')}
                   </Link>
                   <Link
-                    to="/blacklist"
-                    className="block w-full text-center rounded-lg border border-red-700 px-4 py-2 font-semibold text-sm text-red-300 hover:bg-red-900/20"
+                    to="/settings"
+                    className="block w-full text-center rounded-lg border border-cyan-700 px-4 py-2 font-semibold text-sm text-cyan-300 hover:bg-cyan-900/20"
                   >
-                    {t('messages.blacklistManage')}
+                    {t('settings.button')}
                   </Link>
                 </div>
               )}

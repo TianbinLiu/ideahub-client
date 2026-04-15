@@ -740,6 +740,22 @@
     "currentUploadedBundle": "当前已上传模型包",
     "unnamedBundle": "未命名模型包"
   },
+  "settings": {
+    "button": "设置",
+    "title": "设置",
+    "subtitle": "在一个页面里统一管理语言、网站组件、黑名单和账号级操作。",
+    "languageTitle": "语言",
+    "languageDescription": "选择整个网站界面使用的语言。",
+    "languageLabel": "显示语言",
+    "componentsTitle": "组件",
+    "componentsDescription": "启用或停用可选网站组件，并在需要时进入它们的详细设置。",
+    "accountTitle": "账号",
+    "accountDescription": "把个人资料相关管理入口集中到一起。",
+    "editProfileAction": "编辑资料",
+    "blockedUsersAction": "已屏蔽用户",
+    "dangerTitle": "危险操作",
+    "deleteAccountDescription": "永久删除你的账号，此操作不可撤销。"
+  },
   "tagMap": {
     "title": "热点图谱",
     "subtitle": "每个点代表一个想法。越靠近中心表示发布时间越新，相关标签会聚成更大的热点区域。",
