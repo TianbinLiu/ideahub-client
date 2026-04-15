@@ -102,7 +102,7 @@ export default function HomePage() {
   const [dismissedIdeaIds, setDismissedIdeaIds] = useState<string[]>([]);
   const [feedbackLoadingId, setFeedbackLoadingId] = useState<string | null>(null);
   const [showIdeaTypePicker, setShowIdeaTypePicker] = useState(false);
-  const [tagRankComponentEnabled, setTagRankComponentEnabled] = useState(false);
+  const [tagRankComponentEnabled, setTagRankComponentEnabled] = useState(() => !user?._id);
   const [isTagRankSearchMode, setIsTagRankSearchMode] = useState(false);
   const nav = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -216,8 +216,7 @@ export default function HomePage() {
     async function syncComponents() {
       if (!user?._id) {
         if (!mounted) return;
-        setTagRankComponentEnabled(false);
-        setIsTagRankSearchMode(false);
+        setTagRankComponentEnabled(true);
         return;
       }
 
