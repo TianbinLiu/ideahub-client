@@ -216,7 +216,7 @@ export type ToggleComponentSettings = {
 };
 
 export type SiteComponentCatalogItem = {
-  key: "live2d" | "tagRank";
+  key: "live2d" | "tagRank" | "siteTemplateEditor";
   title: string;
   description: string;
   enabled: boolean;
@@ -229,6 +229,7 @@ export type MyComponentsResponse = {
   components: {
     live2d: Live2DComponentSettings;
     tagRank: ToggleComponentSettings;
+    siteTemplateEditor: ToggleComponentSettings;
   };
   catalog: SiteComponentCatalogItem[];
 };
@@ -275,6 +276,7 @@ export function getMyComponents() {
 export function updateMyComponents(payload: {
   live2d?: Partial<Live2DComponentSettings> & { enabled: boolean; source: "remote" | "uploaded" };
   tagRank?: Partial<ToggleComponentSettings> & { enabled: boolean };
+  siteTemplateEditor?: Partial<ToggleComponentSettings> & { enabled: boolean };
 }) {
   return apiFetch<MyComponentsResponse>("/api/me/components", {
     method: "PUT",

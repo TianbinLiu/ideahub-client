@@ -52,6 +52,7 @@ import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } 
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
 import SiteLive2D from "./components/SiteLive2D";
+import WorkshopSiteEditorAccessGate from "./components/WorkshopSiteEditorAccessGate";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
@@ -205,7 +206,9 @@ export default function App() {
           path="/workshop/new"
           element={
             <ProtectedRoute>
-              <WorkshopEditorPage />
+              <WorkshopSiteEditorAccessGate>
+                <WorkshopEditorPage />
+              </WorkshopSiteEditorAccessGate>
             </ProtectedRoute>
           }
         />
@@ -229,7 +232,9 @@ export default function App() {
           path="/workshop/templates/:id/edit"
           element={
             <ProtectedRoute>
-              <WorkshopEditorPage />
+              <WorkshopSiteEditorAccessGate>
+                <WorkshopEditorPage />
+              </WorkshopSiteEditorAccessGate>
             </ProtectedRoute>
           }
         />

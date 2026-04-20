@@ -34,6 +34,7 @@ export default function SettingsComponentsPanel() {
   const [items, setItems] = useState<SiteComponentCatalogItem[]>([]);
   const [live2dSettings, setLive2dSettings] = useState<Live2DComponentSettings | null>(null);
   const [tagRankSettings, setTagRankSettings] = useState<ToggleComponentSettings | null>(null);
+  const [siteTemplateEditorSettings, setSiteTemplateEditorSettings] = useState<ToggleComponentSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
@@ -48,6 +49,7 @@ export default function SettingsComponentsPanel() {
         setItems(res.catalog || []);
         setLive2dSettings(res.components.live2d);
         setTagRankSettings(res.components.tagRank);
+        setSiteTemplateEditorSettings(res.components.siteTemplateEditor);
       } catch (e: any) {
         toast.error(humanizeError(e));
       } finally {
@@ -74,25 +76,39 @@ export default function SettingsComponentsPanel() {
                 },
               }
             : null
-          : tagRankSettings
-            ? {
-                tagRank: {
-                  enabled: !item.enabled,
-                },
-              }
-            : null;
+          : item.key === "tagRank"
+            ? tagRankSettings
+              ? {
+                  tagRank: {
+                    enabled: !item.enabled,
+                  },
+                }
+              : null
+            : siteTemplateEditorSettings
+              ? {
+                  siteTemplateEditor: {
+                    enabled: !item.enabled,
+                  },
+                }
+              : null;
 
       if (!nextPayload) return;
 
       const res = await updateMyComponents(nextPayload);
       setLive2dSettings(res.components.live2d);
       setTagRankSettings(res.components.tagRank);
+      setSiteTemplateEditorSettings(res.components.siteTemplateEditor);
       setItems((prev) =>
         prev.map((entry) =>
           entry.key === item.key
             ? {
                 ...entry,
-                enabled: item.key === "live2d" ? res.components.live2d.enabled : res.components.tagRank.enabled,
+                enabled:
+                  item.key === "live2d"
+                    ? res.components.live2d.enabled
+                    : item.key === "tagRank"
+                      ? res.components.tagRank.enabled
+                      : res.components.siteTemplateEditor.enabled,
               }
             : entry
         )
@@ -114,8 +130,18 @@ export default function SettingsComponentsPanel() {
     <div className="grid gap-4">
       {items.map((item) => {
         const saving = savingKey === item.key;
-        const titleKey = item.key === "live2d" ? "components.live2dTitle" : "components.tagRankTitle";
-        const descriptionKey = item.key === "live2d" ? "components.live2dDescription" : "components.tagRankDescription";
+        const titleKey =
+          item.key === "live2d"
+            ? "components.live2dTitle"
+            : item.key === "tagRank"
+              ? "components.tagRankTitle"
+              : "components.siteTemplateEditorTitle";
+        const descriptionKey =
+          item.key === "live2d"
+            ? "components.live2dDescription"
+            : item.key === "tagRank"
+              ? "components.tagRankDescription"
+              : "components.siteTemplateEditorDescription";
 
         return (
           <div key={item.key} className="rounded-2xl border border-gray-800 bg-gray-900 p-5">

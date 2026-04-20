@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { apiUploadMedia } from "../api";
+import { apiUploadMedia, getMyComponents } from "../api";
 import {
   domPathSelector,
   extractStyleSnippet,
@@ -13,6 +13,7 @@ import {
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import SiteGlobalAiAssistant, { applyOpsToDraft } from "./SiteGlobalAiAssistant";
+import { useAuth } from "../authContext";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -201,8 +202,11 @@ function cssTextToReactStyle(cssText?: string): React.CSSProperties {
 export default function SiteTemplateEditOverlay() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
 
   const [enabled, setEnabled] = useState(readEnabled());
+  const [accessEnabled, setAccessEnabled] = useState(false);
+  const [accessChecked, setAccessChecked] = useState(false);
   const [draft, setDraft] = useState<SiteDraft>(readDraft());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -241,13 +245,60 @@ export default function SiteTemplateEditOverlay() {
   const pageDraft = draft.pages[pageKey] || { backgroundType: "none" as const, backgroundUrl: "", nodes: {} };
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function verifyAccess() {
+      if (authLoading) return;
+
+      if (!user?._id) {
+        if (!cancelled) {
+          setAccessEnabled(false);
+          setAccessChecked(true);
+          setEnabled(false);
+          writeEnabled(false);
+        }
+        return;
+      }
+
+      try {
+        const res = await getMyComponents();
+        if (!cancelled) {
+          const canAccess = res.components.siteTemplateEditor.enabled;
+          setAccessEnabled(canAccess);
+          setAccessChecked(true);
+          if (!canAccess) {
+            setEnabled(false);
+            writeEnabled(false);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setAccessEnabled(false);
+          setAccessChecked(true);
+          setEnabled(false);
+          writeEnabled(false);
+        }
+      }
+    }
+
+    void verifyAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?._id]);
+
+  useEffect(() => {
+    if (!accessEnabled) {
+      return;
+    }
     const query = new URLSearchParams(location.search);
     if (query.get("siteEdit") === "1") {
       setEnabled(true);
       query.delete("siteEdit");
       navigate({ pathname: location.pathname, search: query.toString() ? `?${query.toString()}` : "" }, { replace: true });
     }
-  }, [location.pathname, location.search, navigate]);
+  }, [accessEnabled, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -641,7 +692,7 @@ export default function SiteTemplateEditOverlay() {
     })).filter((item) => item.nodeId);
   }
 
-  if (!enabled) return null;
+  if (!accessChecked || !accessEnabled || !enabled) return null;
 
   return (
     <>

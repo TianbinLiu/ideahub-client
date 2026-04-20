@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { getWorkshopTagInsights, listMyWorkshopTemplates, listWorkshopTemplates, type WorkshopHotTag, type WorkshopTemplate } from "../api";
+import { getMyComponents, getWorkshopTagInsights, listMyWorkshopTemplates, listWorkshopTemplates, type WorkshopHotTag, type WorkshopTemplate } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 
@@ -22,6 +22,7 @@ export default function WorkshopPage() {
   const [myTemplates, setMyTemplates] = useState<WorkshopTemplate[]>([]);
   const [hotTags, setHotTags] = useState<WorkshopHotTag[]>([]);
   const [totalPages, setTotalPages] = useState(1);
+  const [siteTemplateEditorEnabled, setSiteTemplateEditorEnabled] = useState(true);
 
   useEffect(() => {
     setSearchInput(q);
@@ -52,16 +53,18 @@ export default function WorkshopPage() {
   async function load() {
     try {
       setLoading(true);
-      const [marketRes, mineRes, insightsRes] = await Promise.all([
+      const [marketRes, mineRes, insightsRes, componentsRes] = await Promise.all([
         listWorkshopTemplates({ sort, q, page, limit: 12, recentTags }),
         listMyWorkshopTemplates().catch(() => ({ templates: [] as WorkshopTemplate[] } as any)),
         getWorkshopTagInsights(180).catch(() => ({ hotTags: [] as WorkshopHotTag[] } as any)),
+        getMyComponents().catch(() => null),
       ]);
 
       setTemplates(marketRes.templates || []);
       setTotalPages(marketRes.totalPages || 1);
       setMyTemplates(mineRes.templates || []);
       setHotTags(insightsRes.hotTags || []);
+      setSiteTemplateEditorEnabled(componentsRes?.components.siteTemplateEditor.enabled !== false);
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -93,17 +96,34 @@ export default function WorkshopPage() {
           <h1 className="text-2xl font-bold text-white ws-title">{t("workshop.title")}</h1>
           <p className="text-sm text-gray-300 mt-1">{t("workshop.subtitle")}</p>
         </div>
-        <button type="button" onClick={startGlobalTemplateEditing} className="ws-button rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold">
-          {t("workshop.createTemplate")}
-        </button>
+        {siteTemplateEditorEnabled ? (
+          <button type="button" onClick={startGlobalTemplateEditing} className="ws-button rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold">
+            {t("workshop.createTemplate")}
+          </button>
+        ) : (
+          <Link to="/components" className="ws-button rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950/20">
+            {t("workshop.enableSiteEditorAction")}
+          </Link>
+        )}
       </div>
 
       <div className="mt-4 grid md:grid-cols-2 gap-3">
-        <button type="button" onClick={startGlobalTemplateEditing} className="ws-card text-left rounded-2xl border border-emerald-700/60 bg-emerald-950/30 p-4 hover:bg-emerald-950/40">
-          <div className="text-xl">🧩</div>
-          <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.selfCreateTitle")}</h2>
-          <p className="mt-1 text-sm text-gray-300">{t("workshop.selfCreateDesc")}</p>
-        </button>
+        {siteTemplateEditorEnabled ? (
+          <button type="button" onClick={startGlobalTemplateEditing} className="ws-card text-left rounded-2xl border border-emerald-700/60 bg-emerald-950/30 p-4 hover:bg-emerald-950/40">
+            <div className="text-xl">🧩</div>
+            <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.selfCreateTitle")}</h2>
+            <p className="mt-1 text-sm text-gray-300">{t("workshop.selfCreateDesc")}</p>
+          </button>
+        ) : (
+          <div className="ws-card rounded-2xl border border-amber-700/60 bg-amber-950/20 p-4">
+            <div className="text-xl">🔒</div>
+            <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.siteEditorDisabledTitle")}</h2>
+            <p className="mt-1 text-sm text-gray-300">{t("workshop.siteEditorDisabledDesc")}</p>
+            <Link to="/components" className="mt-4 inline-flex rounded-lg border border-amber-700 px-3 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950/20">
+              {t("workshop.enableSiteEditorAction")}
+            </Link>
+          </div>
+        )}
         <div className="ws-card rounded-2xl border border-cyan-700/60 bg-cyan-950/20 p-4">
           <div className="text-xl">🌐</div>
           <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.marketTitle")}</h2>
@@ -264,7 +284,11 @@ export default function WorkshopPage() {
                 </div>
                 <div className="flex gap-2">
                   <Link to={`/workshop/templates/${tpl._id}`} className="ws-button rounded-md border border-gray-700 px-2 py-1 text-xs">{t("workshop.viewDetail")}</Link>
-                  <Link to={`/workshop/templates/${tpl._id}/edit`} className="ws-button rounded-md border border-cyan-700 px-2 py-1 text-xs text-cyan-300">{t("workshop.edit")}</Link>
+                  {siteTemplateEditorEnabled ? (
+                    <Link to={`/workshop/templates/${tpl._id}/edit`} className="ws-button rounded-md border border-cyan-700 px-2 py-1 text-xs text-cyan-300">{t("workshop.edit")}</Link>
+                  ) : (
+                    <Link to="/components" className="ws-button rounded-md border border-amber-700 px-2 py-1 text-xs text-amber-200">{t("workshop.enableSiteEditorAction")}</Link>
+                  )}
                 </div>
               </div>
             ))}
