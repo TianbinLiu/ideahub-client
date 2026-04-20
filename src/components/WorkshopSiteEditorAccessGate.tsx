@@ -74,7 +74,7 @@ export default function WorkshopSiteEditorAccessGate({ children }: { children: R
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => nav("/components")}
+            onClick={() => nav("/workshop#workshop-component-settings")}
             className="rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
           >
             {t("components.siteTemplateEditorAccessAction")}

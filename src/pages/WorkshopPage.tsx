@@ -4,9 +4,11 @@ import { useTranslation } from "react-i18next";
 import { getMyComponents, getWorkshopTagInsights, listMyWorkshopTemplates, listWorkshopTemplates, type WorkshopHotTag, type WorkshopTemplate } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import SettingsComponentsPanel from "../components/SettingsComponentsPanel";
 
 type SortKey = "for_you" | "new" | "hot";
 const WORKSHOP_RECENT_TAGS_KEY = "recentWorkshopSearchTags";
+const COMPONENT_SETTINGS_ID = "workshop-component-settings";
 
 export default function WorkshopPage() {
   const { t } = useTranslation();
@@ -50,6 +52,10 @@ export default function WorkshopPage() {
     }
   }
 
+  function scrollToComponentSettings() {
+    document.getElementById(COMPONENT_SETTINGS_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function load() {
     try {
       setLoading(true);
@@ -74,6 +80,17 @@ export default function WorkshopPage() {
 
   useEffect(() => {
     load();
+  }, [sort, q, page]);
+
+  useEffect(() => {
+    function handleComponentsUpdated() {
+      void load();
+    }
+
+    window.addEventListener("ideahub:components-updated", handleComponentsUpdated as EventListener);
+    return () => {
+      window.removeEventListener("ideahub:components-updated", handleComponentsUpdated as EventListener);
+    };
   }, [sort, q, page]);
 
   function updateSort(nextSort: SortKey) {
@@ -101,11 +118,19 @@ export default function WorkshopPage() {
             {t("workshop.createTemplate")}
           </button>
         ) : (
-          <Link to="/components" className="ws-button rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950/20">
+          <button type="button" onClick={scrollToComponentSettings} className="ws-button rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950/20">
             {t("workshop.enableSiteEditorAction")}
-          </Link>
+          </button>
         )}
       </div>
+
+      <section id={COMPONENT_SETTINGS_ID} className="mt-5 rounded-2xl border border-gray-800 bg-gray-900/70 p-5 ws-card space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold text-white">{t("components.title")}</h2>
+          <p className="mt-1 text-sm text-gray-400">{t("workshop.componentSettingsDescription")}</p>
+        </div>
+        <SettingsComponentsPanel />
+      </section>
 
       <div className="mt-4 grid md:grid-cols-2 gap-3">
         {siteTemplateEditorEnabled ? (
@@ -119,9 +144,9 @@ export default function WorkshopPage() {
             <div className="text-xl">🔒</div>
             <h2 className="mt-2 text-lg font-semibold text-white">{t("workshop.siteEditorDisabledTitle")}</h2>
             <p className="mt-1 text-sm text-gray-300">{t("workshop.siteEditorDisabledDesc")}</p>
-            <Link to="/components" className="mt-4 inline-flex rounded-lg border border-amber-700 px-3 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950/20">
+            <button type="button" onClick={scrollToComponentSettings} className="mt-4 inline-flex rounded-lg border border-amber-700 px-3 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950/20">
               {t("workshop.enableSiteEditorAction")}
-            </Link>
+            </button>
           </div>
         )}
         <div className="ws-card rounded-2xl border border-cyan-700/60 bg-cyan-950/20 p-4">
@@ -287,7 +312,7 @@ export default function WorkshopPage() {
                   {siteTemplateEditorEnabled ? (
                     <Link to={`/workshop/templates/${tpl._id}/edit`} className="ws-button rounded-md border border-cyan-700 px-2 py-1 text-xs text-cyan-300">{t("workshop.edit")}</Link>
                   ) : (
-                    <Link to="/components" className="ws-button rounded-md border border-amber-700 px-2 py-1 text-xs text-amber-200">{t("workshop.enableSiteEditorAction")}</Link>
+                    <button type="button" onClick={scrollToComponentSettings} className="ws-button rounded-md border border-amber-700 px-2 py-1 text-xs text-amber-200">{t("workshop.enableSiteEditorAction")}</button>
                   )}
                 </div>
               </div>

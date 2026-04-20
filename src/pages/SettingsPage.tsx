@@ -81,10 +81,10 @@ export default function SettingsPage() {
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <Link
-            to="/components"
+            to="/workshop"
             className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-100 hover:bg-gray-800"
           >
-            {t("settings.componentsPageAction")}
+            {t("workshop.title")}
           </Link>
           <Link
             to="/blacklist"

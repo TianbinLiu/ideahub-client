@@ -60,7 +60,7 @@ export default function TagRankSettingsPage() {
           <h1 className="text-3xl font-bold text-white">{t("components.tagRankSettingsTitle")}</h1>
           <p className="mt-2 text-gray-400">{t("components.tagRankSettingsSubtitle")}</p>
         </div>
-        <Link to="/components" className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-900">
+        <Link to="/workshop#workshop-component-settings" className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-900">
           {t("components.backToComponents")}
         </Link>
       </div>
@@ -82,7 +82,7 @@ export default function TagRankSettingsPage() {
           <button onClick={save} disabled={saving} className="rounded-lg bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200 disabled:opacity-60">
             {saving ? t("common.loading") : t("common.save")}
           </button>
-          <Link to="/components" className="rounded-lg border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-900">
+          <Link to="/workshop#workshop-component-settings" className="rounded-lg border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-900">
             {t("common.cancel")}
           </Link>
         </div>
