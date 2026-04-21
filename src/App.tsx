@@ -48,6 +48,7 @@ import WorkshopPage from "./pages/WorkshopPage";
 import WorkshopTemplateDetailPage from "./pages/WorkshopTemplateDetailPage";
 import WorkshopEditorPage from "./pages/WorkshopEditorPage";
 import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
+import GroupsPage from "./pages/GroupsPage";
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -194,6 +195,14 @@ export default function App() {
         <Route path="/leaderboard/:id" element={<LeaderboardDetailPage />} />
 
         <Route path="/users/:id" element={<UserProfilePage />} />
+        <Route
+          path="/groups"
+          element={
+            <ProtectedRoute>
+              <GroupsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/workshop"
           element={

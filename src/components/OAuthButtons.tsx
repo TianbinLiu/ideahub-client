@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
+import { API_BASE } from "../config";
 
 function getServerBase() {
-  const envBase = (import.meta as any).env?.VITE_API_BASE as string | undefined;
-  return envBase && envBase.trim() ? envBase.trim().replace(/\/$/, "") : window.location.origin;
+  return API_BASE ? API_BASE.replace(/\/$/, "") : window.location.origin;
 }
 
 function GoogleIcon() {

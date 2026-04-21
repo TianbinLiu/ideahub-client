@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { ExternalSource } from "../api";
-import { apiFetch, apiUploadImage, generateIdeaDraft } from "../api";
+import type { ExternalSource, Group } from "../api";
+import { apiFetch, apiUploadImage, generateIdeaDraft, listGroups } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { saveLocalIdea } from "../utils/localIdeas";
@@ -26,7 +26,7 @@ export default function NewIdeaPage() {
   const { t } = useTranslation();
 
   const creationMode = useMemo(() => {
-    if (mode === "business" || mode === "feedback" || mode === "external" || mode === "daily") {
+    if (mode === "business" || mode === "feedback" || mode === "external" || mode === "daily" || mode === "dynamic") {
       return mode;
     }
     return null;
@@ -56,11 +56,14 @@ export default function NewIdeaPage() {
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
+  const [groupSlug, setGroupSlug] = useState("world");
 
   const isBusinessMode = creationMode === "business";
   const isFeedbackMode = creationMode === "feedback";
   const isExternalMode = creationMode === "external";
   const isDailyMode = creationMode === "daily";
+  const isDynamicMode = creationMode === "dynamic";
   const showTagsInput = !isFeedbackMode;
   const externalEnabled = isExternalMode;
   const fixedFeedbackTag = "反馈bug/网站建议";
@@ -72,7 +75,9 @@ export default function NewIdeaPage() {
       ? "border-sky-400/70 bg-sky-500/20 text-sky-100"
       : isExternalMode
         ? "border-fuchsia-400/70 bg-fuchsia-500/20 text-fuchsia-100"
-        : "border-amber-400/70 bg-amber-500/20 text-amber-100";
+        : isDailyMode
+          ? "border-amber-400/70 bg-amber-500/20 text-amber-100"
+          : "border-cyan-400/70 bg-cyan-500/20 text-cyan-100";
 
   useEffect(() => {
     if (!creationMode) {
@@ -100,12 +105,35 @@ export default function NewIdeaPage() {
       return;
     }
 
-    if (isDailyMode) {
+    if (isDailyMode || isDynamicMode) {
       setIsMonetizable(false);
       setRequestAI(false);
       setIsFeedback(false);
     }
-  }, [creationMode, isBusinessMode, isDailyMode, isExternalMode, isFeedbackMode, nav]);
+  }, [creationMode, isBusinessMode, isDailyMode, isDynamicMode, isExternalMode, isFeedbackMode, nav]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await listGroups();
+        if (!mounted) return;
+        const joinedGroups = (res.groups || []).filter((group) => group.isWorld || group.joined);
+        setAvailableGroups(joinedGroups);
+        if (!joinedGroups.some((group) => group.slug === groupSlug)) {
+          setGroupSlug("world");
+        }
+      } catch {
+        if (!mounted) return;
+        setAvailableGroups([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
+        setGroupSlug("world");
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [groupSlug]);
 
   function isValidUrl(url: string): boolean {
     try {
@@ -382,6 +410,7 @@ export default function NewIdeaPage() {
           imageUrls,
           coverImageUrl,
           tags: submitTags,
+          groupSlug,
           visibility,
           isMonetizable: false,
           isFeedback: submitIsFeedback,
@@ -482,7 +511,7 @@ export default function NewIdeaPage() {
             maxLength={LIMITS.CONTENT}
           />
           <CharCount current={content.length} max={LIMITS.CONTENT} className="mt-1" />
-          {(isBusinessMode || isFeedbackMode || isDailyMode) && (
+          {(isBusinessMode || isFeedbackMode || isDailyMode || isDynamicMode) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -580,6 +609,24 @@ export default function NewIdeaPage() {
             {t('idea.feedbackFixedTagLabel')}: <span className="font-semibold">{fixedFeedbackTag}</span>
           </div>
         )}
+
+        <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
+          <div>
+            <p className="text-sm font-medium text-white">{t('idea.groupLabel')}</p>
+            <p className="mt-1 text-xs text-gray-400">{t('idea.groupHint')}</p>
+          </div>
+          <select
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+            value={groupSlug}
+            onChange={(e) => setGroupSlug(e.target.value)}
+          >
+            {(availableGroups.length > 0 ? availableGroups : [{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]).map((group) => (
+              <option key={group.slug} value={group.slug}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-2">
           <select className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"

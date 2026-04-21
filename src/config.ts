@@ -14,7 +14,9 @@ const DEFAULT_GITHUB_REPO_URL = "https://github.com/TianbinLiu/ideahub-server";
 const DEFAULT_GITHUB_DOCS_URL =
 	"https://github.com/TianbinLiu/ideahub-server/blob/main/PROJECT_STRUCTURE.md";
 
-export const API_BASE = import.meta.env.VITE_API_BASE || "";
+const explicitApiBase = import.meta.env.VITE_API_BASE?.trim();
+
+export const API_BASE = explicitApiBase || "";
 export const GITHUB_REPO_URL =
 	import.meta.env.VITE_GITHUB_REPO_URL || DEFAULT_GITHUB_REPO_URL;
 export const GITHUB_DOCS_URL =

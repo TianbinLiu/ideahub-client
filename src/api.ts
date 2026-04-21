@@ -305,7 +305,7 @@ export function logoutAllSessions() {
   });
 }
 
-export function generateIdeaDraft(payload: { content: string; ideaType?: "business" | "feedback" | "daily" }) {
+export function generateIdeaDraft(payload: { content: string; ideaType?: "business" | "feedback" | "daily" | "dynamic" }) {
   return apiFetch<{ ok: true; draft: { title: string; summary: string; tags: string[]; model?: string } }>(
     "/api/ideas/draft",
     {
@@ -464,9 +464,21 @@ export type AiReview = {
   createdAt?: string;
 };
 
+export type Group = {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  memberCount?: number | null;
+  joined?: boolean;
+  isWorld?: boolean;
+  createdAt?: string;
+  creator?: string | { _id: string; username?: string } | null;
+};
+
 export type Idea = {
   _id: string;
-  ideaType?: "business" | "feedback" | "external" | "daily";
+  ideaType?: "business" | "feedback" | "external" | "daily" | "dynamic";
   title: string;
   summary: string;
   content: string;
@@ -474,6 +486,8 @@ export type Idea = {
   coverImageUrl?: string;
   author?: { _id: string; username: string; role: string };
   tags?: string[];
+  groupSlug?: string;
+  groupName?: string;
   visibility?: "public" | "private" | "unlisted";
   isMonetizable?: boolean;
   licenseType?: string;
@@ -488,6 +502,36 @@ export type Idea = {
   externalSource?: ExternalSource;
   recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
+
+export function listGroups() {
+  return apiFetch<{ ok: true; groups: Group[]; joinedGroupSlugs: string[] }>("/api/groups");
+}
+
+export function createGroup(payload: { name: string; slug?: string; description?: string }) {
+  return apiFetch<{ ok: true; group: Group }>("/api/groups", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function joinGroup(slug: string) {
+  return apiFetch<{ ok: true; joined: boolean; slug: string }>(`/api/groups/${encodeURIComponent(slug)}/join`, {
+    method: "POST",
+  });
+}
+
+export function leaveGroup(slug: string) {
+  return apiFetch<{ ok: true; joined: boolean; slug: string }>(`/api/groups/${encodeURIComponent(slug)}/leave`, {
+    method: "POST",
+  });
+}
+
+export function listUserIdeas(userId: string, params?: { ideaType?: string; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.ideaType) qs.set("ideaType", params.ideaType);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<{ ok: true; ideas: Idea[] }>(`/api/users/${userId}/ideas${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
 
 export function submitIdeaRecommendationFeedback(
   ideaId: string,

@@ -6,6 +6,7 @@ const MODE_CARDS = [
   { key: "feedback", emoji: "🛠" },
   { key: "external", emoji: "🔗" },
   { key: "daily", emoji: "📝" },
+  { key: "dynamic", emoji: "📣" },
 ] as const;
 
 export default function NewIdeaTypePage() {

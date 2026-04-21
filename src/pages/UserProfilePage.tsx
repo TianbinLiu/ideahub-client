@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
@@ -31,6 +31,9 @@ type Idea = {
   title: string;
   summary: string;
   tags: string[];
+  ideaType?: "business" | "feedback" | "external" | "daily" | "dynamic";
+  groupSlug?: string;
+  groupName?: string;
   visibility?: string;
   createdAt: string;
   author?: { username: string; role: string; _id: string };
@@ -61,17 +64,17 @@ type Interest = {
   companyUser?: { username: string; email: string };
 };
 
-type TabType = "ideas" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests";
+type TabType = "home" | "ideas" | "dynamics" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests";
 
-const OWN_PROFILE_TABS: TabType[] = ["ideas", "bookmarks", "likes", "leaderboards", "followers", "following", "interests"];
-const PUBLIC_PROFILE_TABS: TabType[] = ["bookmarks", "leaderboards", "followers", "following"];
+const OWN_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "likes", "leaderboards", "followers", "following", "interests"];
+const PUBLIC_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "leaderboards", "followers", "following"];
 
 function resolveInitialTab(tab: string | null, isOwnProfile: boolean): TabType {
   const allowedTabs = isOwnProfile ? OWN_PROFILE_TABS : PUBLIC_PROFILE_TABS;
   if (tab && allowedTabs.includes(tab as TabType)) {
     return tab as TabType;
   }
-  return isOwnProfile ? "ideas" : "bookmarks";
+  return "home";
 }
 
 export default function UserProfilePage() {
@@ -99,12 +102,13 @@ export default function UserProfilePage() {
   
   // My content (only for own profile)
   const [myIdeas, setMyIdeas] = useState<Idea[]>([]);
+  const [profileIdeas, setProfileIdeas] = useState<Idea[]>([]);
   const [localIdeas, setLocalIdeas] = useState<any[]>([]);
   const [likedIdeas, setLikedIdeas] = useState<Idea[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<Interest[]>([]);
   const [publicUsed, setPublicUsed] = useState(0);
 
-  const [activeTab, setActiveTab] = useState<TabType>("bookmarks");
+  const [activeTab, setActiveTab] = useState<TabType>("home");
 
   // Search and mutual following
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,6 +139,7 @@ export default function UserProfilePage() {
     loadUserLeaderboards();
     loadFollowers();
     loadFollowing();
+    loadProfileIdeas();
     
     // Load current user's following list for mutual following comparison
     if (userId && !isOwnProfile) {
@@ -148,6 +153,17 @@ export default function UserProfilePage() {
       setLocalIdeas(listLocalIdeas());
     }
   }, [id, isOwnProfile, userId, searchParams]);
+
+  const combinedOwnIdeas = useMemo(
+    () => [...localIdeas, ...myIdeas].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+    [localIdeas, myIdeas]
+  );
+
+  const visibleIdeas = useMemo(() => (isOwnProfile ? combinedOwnIdeas : profileIdeas), [combinedOwnIdeas, isOwnProfile, profileIdeas]);
+  const dynamicIdeas = useMemo(
+    () => visibleIdeas.filter((idea) => idea.ideaType === "dynamic"),
+    [visibleIdeas]
+  );
 
   async function loadProfile() {
     if (!id) return;
@@ -267,6 +283,17 @@ export default function UserProfilePage() {
       setPublicUsed(used);
     } catch (e) {
       console.error("Failed to load my ideas", e);
+    }
+  }
+
+  async function loadProfileIdeas() {
+    if (!id) return;
+    try {
+      const res = await apiFetch<{ ideas: Idea[] }>(`/api/users/${id}/ideas`);
+      setProfileIdeas(res.ideas || []);
+    } catch (e) {
+      console.error("Failed to load profile ideas", e);
+      setProfileIdeas([]);
     }
   }
 
@@ -480,7 +507,9 @@ export default function UserProfilePage() {
   // Define available tabs based on whether viewing own profile
   const availableTabs: { key: TabType; label: string }[] = isOwnProfile
     ? [
+        { key: "home", label: t('profile.home') },
         { key: "ideas", label: t('profile.myIdeas') },
+        { key: "dynamics", label: t('profile.dynamics') },
         { key: "leaderboards", label: t('profile.myLeaderboards') },
         { key: "bookmarks", label: t('profile.bookmarks') },
         { key: "likes", label: t('profile.likes') },
@@ -489,7 +518,11 @@ export default function UserProfilePage() {
         { key: "following", label: t('profile.following') },
       ]
     : [
+        { key: "home", label: t('profile.home') },
+        { key: "ideas", label: t('profile.ideas') },
+        { key: "dynamics", label: t('profile.dynamics') },
         { key: "bookmarks", label: t('profile.bookmarks') },
+        { key: "leaderboards", label: t('profile.leaderboards') },
         { key: "followers", label: t('profile.followers') },
         { key: "following", label: t('profile.following') },
       ];
@@ -862,8 +895,12 @@ export default function UserProfilePage() {
 
   function renderTabContent() {
     switch (activeTab) {
+      case "home":
+        return renderProfileHome();
       case "ideas":
         return renderMyIdeas();
+      case "dynamics":
+        return renderDynamics();
       case "bookmarks":
         return renderBookmarks();
       case "likes":
@@ -881,57 +918,153 @@ export default function UserProfilePage() {
     }
   }
 
-  function renderMyIdeas() {
-    if (!isOwnProfile) return null;
+  function renderProfileHome() {
+    const sections: Array<{ key: TabType; title: string; items: any[]; empty: string; renderer: (item: any) => React.ReactNode }> = [
+      {
+        key: "ideas",
+        title: isOwnProfile ? t('profile.myIdeas') : t('profile.ideas'),
+        items: visibleIdeas,
+        empty: t('profile.noIdeasYet'),
+        renderer: (idea: Idea) => renderIdeaCard(idea),
+      },
+      {
+        key: "leaderboards",
+        title: isOwnProfile ? t('profile.myLeaderboards') : t('profile.leaderboards'),
+        items: userLeaderboards,
+        empty: t('profile.noLeaderboardsYet'),
+        renderer: (board: UserLeaderboard) => renderUserLeaderboardCard(board),
+      },
+      {
+        key: "bookmarks",
+        title: t('profile.bookmarks'),
+        items: [
+          ...bookmarkedIdeas.map((idea) => ({ kind: "idea" as const, item: idea })),
+          ...bookmarkedLeaderboards.map((board) => ({ kind: "leaderboard" as const, item: board })),
+        ],
+        empty: t('profile.noBookmarksYet'),
+        renderer: (entry: { kind: "idea" | "leaderboard"; item: Idea | UserLeaderboard | Leaderboard }) =>
+          entry.kind === "idea"
+            ? renderIdeaCard(entry.item as Idea)
+            : renderLeaderboardBookmarkCard(entry.item as Leaderboard),
+      },
+    ];
+
+    if (isOwnProfile) {
+      sections.push({
+        key: "likes",
+        title: t('profile.likes'),
+        items: likedIdeas,
+        empty: t('profile.noLikedIdeasYet'),
+        renderer: (idea: Idea) => renderIdeaCard(idea),
+      });
+    }
 
     return (
-      <div className="space-y-3">
-        {localIdeas.map((it) => (
-          <Link
-            key={it._id}
-            to={`/ideas/${it._id}`}
-            className="block rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-white font-semibold">{it.title}</h3>
-              <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
-            </div>
-            {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-gray-500">{t('profile.visibilityPrivateLocal')}</p>
-              <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">
-                {t('profile.local')}
-              </span>
-            </div>
-          </Link>
-        ))}
-
-        {myIdeas.map((it) => (
-          <Link
-            key={it._id}
-            to={`/ideas/${it._id}`}
-            className="block rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-white font-semibold">{it.title}</h3>
-              <span className="text-xs text-gray-500">
-                {new Date(it.createdAt).toLocaleString()}
-              </span>
-            </div>
-            {it.summary && <p className="text-gray-300 mt-1">{it.summary}</p>}
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-gray-500">{t('profile.visibility')}: {it.visibility}</p>
-              <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">
-                {t('profile.server')}
-              </span>
-            </div>
-          </Link>
-        ))}
-
-        {localIdeas.length === 0 && myIdeas.length === 0 && (
-          <p className="text-gray-400">{t('profile.noIdeasYet')}</p>
-        )}
+      <div className="space-y-6">
+        {sections.map((section) => {
+          const preview = section.items.slice(0, 8);
+          return (
+            <section key={section.key} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold text-white">{section.title}</h3>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(section.key)}
+                  className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-200 hover:bg-gray-800"
+                >
+                  {t('profile.viewAll')}
+                </button>
+              </div>
+              {preview.length === 0 ? (
+                <p className="text-sm text-gray-400">{section.empty}</p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{preview.map((item) => section.renderer(item))}</div>
+              )}
+            </section>
+          );
+        })}
       </div>
+    );
+  }
+
+  function renderDynamics() {
+    return renderIdeaGrid(dynamicIdeas, t('profile.noDynamicsYet'));
+  }
+
+  function renderMyIdeas() {
+    return renderIdeaGrid(visibleIdeas, t('profile.noIdeasYet'));
+  }
+
+  function renderIdeaGrid(items: Idea[], emptyText: string) {
+    return (
+      <div className="grid gap-3">
+        {items.length === 0 && <p className="text-gray-400">{emptyText}</p>}
+        {items.map((idea) => renderIdeaCard(idea))}
+      </div>
+    );
+  }
+
+  function renderIdeaCard(idea: Idea) {
+    const isLocalIdea = !idea.author && idea.visibility === "private";
+    return (
+      <Link
+        key={idea._id}
+        to={`/ideas/${idea._id}`}
+        className="block rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-white font-semibold">{idea.title}</h3>
+          <span className="text-xs text-gray-500">{new Date(idea.createdAt).toLocaleString()}</span>
+        </div>
+        {idea.summary && <p className="mt-1 text-sm text-gray-300">{idea.summary}</p>}
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+          {idea.ideaType ? (
+            <span className="rounded-full border border-cyan-700/60 px-2 py-1 text-cyan-200">{t(`idea.createMode${idea.ideaType.charAt(0).toUpperCase()}${idea.ideaType.slice(1)}Title`)}</span>
+          ) : null}
+          {idea.groupName || idea.groupSlug ? (
+            <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-300">#{idea.groupName || idea.groupSlug}</span>
+          ) : null}
+          <span className="ml-auto rounded-full border border-gray-700 px-2 py-1 text-gray-300">
+            {isLocalIdea ? t('profile.local') : t('profile.server')}
+          </span>
+        </div>
+      </Link>
+    );
+  }
+
+  function renderUserLeaderboardCard(board: UserLeaderboard) {
+    return (
+      <Link
+        key={board._id}
+        to={`/leaderboard/${board._id}`}
+        className="block rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
+      >
+        <div className="flex flex-wrap gap-2">
+          {board.tags && board.tags.length > 0 ? board.tags.map((tag) => (
+            <span key={tag} className="rounded bg-gray-800 px-2 py-1 text-sm text-gray-300">{tag}</span>
+          )) : <span className="text-sm text-gray-400">{t('profile.noTags')}</span>}
+        </div>
+        <p className="mt-2 text-sm text-gray-400">
+          {t('profile.entries')}: {board.entriesCount || 0} · {t('profile.nominations')}: {board.postsCount || 0}
+        </p>
+      </Link>
+    );
+  }
+
+  function renderLeaderboardBookmarkCard(board: Leaderboard) {
+    return (
+      <Link
+        key={board._id}
+        to={`/leaderboard/${board._id}`}
+        className="block rounded-xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700"
+      >
+        <div className="flex flex-wrap gap-2">
+          {(board.tags || []).map((tag) => (
+            <span key={tag} className="rounded bg-gray-800 px-2 py-1 text-sm text-gray-300">{tag}</span>
+          ))}
+        </div>
+        <p className="mt-2 text-sm text-gray-400">{board.entries?.length || 0} {t('profile.nominations')}</p>
+      </Link>
     );
   }
 
@@ -1030,8 +1163,6 @@ export default function UserProfilePage() {
   }
 
   function renderMyLeaderboards() {
-    if (!isOwnProfile) return null;
-
     return (
       <div className="grid gap-3">
         {userLeaderboards.length === 0 && (

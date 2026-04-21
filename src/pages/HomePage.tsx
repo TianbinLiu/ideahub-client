@@ -39,7 +39,9 @@ import {
   apiFetch,
   clearIdeaRecommendationFeedback,
   getMyComponents,
+  listGroups,
   submitIdeaRecommendationFeedback,
+  type Group,
 } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -48,12 +50,14 @@ import { useAuth } from "../authContext";
 
 type Idea = {
   _id: string;
-  ideaType?: "business" | "feedback" | "external" | "daily";
+  ideaType?: "business" | "feedback" | "external" | "daily" | "dynamic";
   title: string;
   summary: string;
   imageUrls?: string[];
   coverImageUrl?: string;
   tags: string[];
+  groupSlug?: string;
+  groupName?: string;
   createdAt: string;
   author?: { username: string; role: string };
   stats?: { likeCount?: number; viewCount?: number };
@@ -65,16 +69,18 @@ type Idea = {
   recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
 
-type IdeaTypeKey = "business" | "feedback" | "external" | "daily";
+type IdeaTypeKey = "business" | "feedback" | "external" | "daily" | "dynamic";
 
 const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: string }> = [
   { key: "business", emoji: "💼", activeClass: "border-emerald-400/70 bg-emerald-500/20 text-emerald-100" },
   { key: "feedback", emoji: "🛠", activeClass: "border-sky-400/70 bg-sky-500/20 text-sky-100" },
   { key: "external", emoji: "🔗", activeClass: "border-fuchsia-400/70 bg-fuchsia-500/20 text-fuchsia-100" },
   { key: "daily", emoji: "📝", activeClass: "border-amber-400/70 bg-amber-500/20 text-amber-100" },
+  { key: "dynamic", emoji: "📣", activeClass: "border-cyan-400/70 bg-cyan-500/20 text-cyan-100" },
 ];
 
 const IDEA_TYPE_STORAGE_KEY = "preferredHomeIdeaType";
+const IDEA_GROUP_STORAGE_KEY = "preferredHomeIdeaGroup";
 
 function isIdeaTypeKey(value: string): value is IdeaTypeKey {
   return IDEA_TYPE_OPTIONS.some((item) => item.key === value);
@@ -89,6 +95,7 @@ export default function HomePage() {
   const page = Math.max(parseInt(params.get("page") || "1", 10), 1);
   const rawIdeaType = params.get("ideaType") || "";
   const ideaType = isIdeaTypeKey(rawIdeaType) ? rawIdeaType : "";
+  const groupSlug = (params.get("group") || "world").trim().toLowerCase() || "world";
 
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [err, setErr] = useState("");
@@ -102,6 +109,7 @@ export default function HomePage() {
   const [dismissedIdeaIds, setDismissedIdeaIds] = useState<string[]>([]);
   const [feedbackLoadingId, setFeedbackLoadingId] = useState<string | null>(null);
   const [showIdeaTypePicker, setShowIdeaTypePicker] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
   const [tagRankComponentEnabled, setTagRankComponentEnabled] = useState(() => !user?._id);
   const [isTagRankSearchMode, setIsTagRankSearchMode] = useState(false);
   const nav = useNavigate();
@@ -119,6 +127,10 @@ export default function HomePage() {
   const visibleIdeas = useMemo(
     () => ideas.filter((idea) => !dismissedIdeaIds.includes(idea._id)),
     [ideas, dismissedIdeaIds]
+  );
+  const accessibleGroups = useMemo(
+    () => groups.filter((group) => group.isWorld || group.joined),
+    [groups]
   );
 
   // debounce timer
@@ -147,6 +159,7 @@ export default function HomePage() {
         qs.set("recentTags", recentTags.join(","));
       }
       qs.set("ideaType", ideaType);
+      qs.set("group", groupSlug);
 
       const res = await apiFetch<{
         ideas: Idea[];
@@ -169,7 +182,7 @@ export default function HomePage() {
 
   useEffect(() => {
     load();
-  }, [sort, q, page, recentTags.join(","), ideaType]);
+  }, [sort, q, page, recentTags.join(","), ideaType, groupSlug]);
 
   useEffect(() => {
     setSearchInput(q);
@@ -177,7 +190,7 @@ export default function HomePage() {
 
   useEffect(() => {
     setDismissedIdeaIds([]);
-  }, [sort, q, page, ideaType]);
+  }, [sort, q, page, ideaType, groupSlug]);
 
   useEffect(() => {
     if (ideaType) {
@@ -207,8 +220,63 @@ export default function HomePage() {
   }, [ideaType, params, setParams]);
 
   useEffect(() => {
+    if (params.get("group")) {
+      try {
+        localStorage.setItem(IDEA_GROUP_STORAGE_KEY, groupSlug);
+      } catch (e) {
+        // ignore persistence failure
+      }
+      return;
+    }
+
+    try {
+      const stored = String(localStorage.getItem(IDEA_GROUP_STORAGE_KEY) || "world").trim().toLowerCase() || "world";
+      const next = new URLSearchParams(params);
+      next.set("group", stored);
+      next.set("page", "1");
+      setParams(next, { replace: true });
+    } catch (e) {
+      const next = new URLSearchParams(params);
+      next.set("group", "world");
+      next.set("page", "1");
+      setParams(next, { replace: true });
+    }
+  }, [groupSlug, params, setParams]);
+
+  useEffect(() => {
     loadRecentTags();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function syncGroups() {
+      try {
+        const res = await listGroups();
+        if (!mounted) return;
+        const nextGroups = (res.groups || []).filter((group) => group.isWorld || group.joined);
+        const fallbackGroups = [{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }];
+        const resolvedGroups = nextGroups.length > 0 ? nextGroups : fallbackGroups;
+        setGroups(resolvedGroups);
+
+        if (!resolvedGroups.some((group) => group.slug === groupSlug)) {
+          const next = new URLSearchParams(params);
+          next.set("group", "world");
+          next.set("page", "1");
+          setParams(next, { replace: true });
+        }
+      } catch {
+        if (!mounted) return;
+        setGroups([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
+      }
+    }
+
+    void syncGroups();
+
+    return () => {
+      mounted = false;
+    };
+  }, [groupSlug, params, setParams, user?._id]);
 
   useEffect(() => {
     let mounted = true;
@@ -365,6 +433,18 @@ export default function HomePage() {
     }
   }
 
+  function updateGroup(nextGroup: string) {
+    const next = new URLSearchParams(params);
+    next.set("group", nextGroup);
+    next.set("page", "1");
+    setParams(next);
+    try {
+      localStorage.setItem(IDEA_GROUP_STORAGE_KEY, nextGroup);
+    } catch (e) {
+      // ignore persistence failure
+    }
+  }
+
   function isMatchingSearchTag(tag: string) {
     const normalizedTag = String(tag || "").trim().toLowerCase();
     return activeSearchTokens.some((token) => normalizedTag === token || normalizedTag.includes(token) || token.includes(normalizedTag));
@@ -446,20 +526,28 @@ export default function HomePage() {
 
       <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-gray-400">{t("home.currentIdeaType")}</p>
-            {ideaType ? (
-              <span className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.activeClass || "border-gray-700 text-gray-200"}`}>
-                {IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.emoji} {" "}
-                {t(`idea.createMode${ideaType.charAt(0).toUpperCase()}${ideaType.slice(1)}Title`)}
+          <div className="space-y-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">{t("home.currentIdeaType")}</p>
+              {ideaType ? (
+                <span className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.activeClass || "border-gray-700 text-gray-200"}`}>
+                  {IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.emoji} {" "}
+                  {t(`idea.createMode${ideaType.charAt(0).toUpperCase()}${ideaType.slice(1)}Title`)}
+                </span>
+              ) : (
+                <span className="mt-1 inline-flex items-center rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300">
+                  {t("home.ideaTypeNotSelected")}
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">{t("home.currentGroup")}</p>
+              <span className="mt-1 inline-flex items-center rounded-full border border-cyan-500/60 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+                #{accessibleGroups.find((group) => group.slug === groupSlug)?.name || groupSlug}
               </span>
-            ) : (
-              <span className="mt-1 inline-flex items-center rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300">
-                {t("home.ideaTypeNotSelected")}
-              </span>
-            )}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {IDEA_TYPE_OPTIONS.map((item) => (
               <button
                 key={item.key}
@@ -470,6 +558,17 @@ export default function HomePage() {
                 {item.emoji} {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Title`)}
               </button>
             ))}
+            <select
+              value={groupSlug}
+              onChange={(e) => updateGroup(e.target.value)}
+              className="rounded-full border border-gray-700 bg-gray-950 px-3 py-1 text-xs text-gray-200"
+            >
+              {accessibleGroups.map((group) => (
+                <option key={group.slug} value={group.slug}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -717,6 +816,9 @@ export default function HomePage() {
                     {it.author?.username || t('home.unknownAuthor')}
                   </span>
                 )}
+                <span className="px-2 py-1 rounded-full border border-cyan-700/60 bg-cyan-950/20 text-cyan-200">
+                  #{it.groupName || it.groupSlug || "world"}
+                </span>
                 {(it.tags || []).map((t) => (
                   <span
                     key={t}
