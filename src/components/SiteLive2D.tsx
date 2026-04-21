@@ -31,6 +31,7 @@ type Live2DWindow = Window & {
 };
 
 const LIVE2D_BASE = "/live2d-widget";
+const LIVE2D_SCRIPT_VERSION = "20260421-live2d-fix";
 const LIVE2D_VISIBILITY_KEY = "ideahub-live2d-visible";
 const LIVE2D_REOPEN_SIDE_KEY = "ideahub-live2d-reopen-side";
 const LIVE2D_CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>';
@@ -44,6 +45,9 @@ const DEFAULT_LIVE2D_SETTINGS: Live2DComponentSettings = {
 };
 
 type ReopenSide = "left" | "right";
+
+const live2dStyleLoads = new Map<string, Promise<void>>();
+const live2dScriptLoads = new Map<string, Promise<void>>();
 
 function getStoredVisibility() {
   if (typeof window === "undefined") {
@@ -152,35 +156,99 @@ function getConfigKey(settings: Live2DComponentSettings) {
 }
 
 function ensureStyle(href: string) {
-  if (document.querySelector(`link[data-live2d-style=\"${href}\"]`)) {
+  const existingLoad = live2dStyleLoads.get(href);
+  if (existingLoad) {
+    return existingLoad;
+  }
+
+  const existingLink = document.querySelector(`link[data-live2d-style="${href}"]`) as
+    | HTMLLinkElement
+    | null;
+  if (existingLink?.dataset.loaded === "true") {
     return Promise.resolve();
   }
 
-  return new Promise<void>((resolve, reject) => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = href;
-    link.dataset.live2dStyle = href;
-    link.onload = () => resolve();
-    link.onerror = () => reject(new Error(`Failed to load ${href}`));
-    document.head.appendChild(link);
+  const loadPromise = new Promise<void>((resolve, reject) => {
+    const link = existingLink ?? document.createElement("link");
+
+    const cleanup = () => {
+      link.removeEventListener("load", handleLoad);
+      link.removeEventListener("error", handleError);
+    };
+
+    const handleLoad = () => {
+      link.dataset.loaded = "true";
+      cleanup();
+      resolve();
+    };
+
+    const handleError = () => {
+      cleanup();
+      live2dStyleLoads.delete(href);
+      reject(new Error(`Failed to load ${href}`));
+    };
+
+    link.addEventListener("load", handleLoad);
+    link.addEventListener("error", handleError);
+
+    if (!existingLink) {
+      link.rel = "stylesheet";
+      link.href = href;
+      link.dataset.live2dStyle = href;
+      document.head.appendChild(link);
+    }
   });
+
+  live2dStyleLoads.set(href, loadPromise);
+  return loadPromise;
 }
 
 function ensureModuleScript(src: string) {
-  if (document.querySelector(`script[data-live2d-script=\"${src}\"]`)) {
+  const existingLoad = live2dScriptLoads.get(src);
+  if (existingLoad) {
+    return existingLoad;
+  }
+
+  const existingScript = document.querySelector(`script[data-live2d-script="${src}"]`) as
+    | HTMLScriptElement
+    | null;
+  if (existingScript?.dataset.loaded === "true") {
     return Promise.resolve();
   }
 
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.type = "module";
-    script.src = src;
-    script.dataset.live2dScript = src;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load ${src}`));
-    document.head.appendChild(script);
+  const loadPromise = new Promise<void>((resolve, reject) => {
+    const script = existingScript ?? document.createElement("script");
+
+    const cleanup = () => {
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+    };
+
+    const handleLoad = () => {
+      script.dataset.loaded = "true";
+      cleanup();
+      resolve();
+    };
+
+    const handleError = () => {
+      cleanup();
+      live2dScriptLoads.delete(src);
+      reject(new Error(`Failed to load ${src}`));
+    };
+
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
+
+    if (!existingScript) {
+      script.type = "module";
+      script.src = src;
+      script.dataset.live2dScript = src;
+      document.head.appendChild(script);
+    }
   });
+
+  live2dScriptLoads.set(src, loadPromise);
+  return loadPromise;
 }
 
 export default function SiteLive2D() {
@@ -227,7 +295,7 @@ export default function SiteLive2D() {
 
         await Promise.all([
           ensureStyle(`${LIVE2D_BASE}/waifu.css`),
-          ensureModuleScript(`${LIVE2D_BASE}/waifu-tips.js`),
+          ensureModuleScript(`${LIVE2D_BASE}/waifu-tips.js?v=${LIVE2D_SCRIPT_VERSION}`),
         ]);
 
         if (typeof live2dWindow.initWidget !== "function") {

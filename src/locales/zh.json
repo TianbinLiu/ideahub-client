@@ -131,7 +131,7 @@
     "createModeExternalDesc": "基于外部链接创建内容（贴吧、Facebook、Twitter 等），并填写来源信息。",
     "createModeDailyTitle": "日常想法",
     "createModeDailyDesc": "轻量发布日常思考，不带商业/反馈/外链扩展选项。",
-    "createModeDynamicTitle": "发布动态",
+    "createModeDynamicTitle": "动态",
     "createModeDynamicDesc": "用于发布近况、短内容和即时分享，沿用想法的互动能力。",
     "createModeContinue": "进入该模式",
     "currentMode": "当前模式",

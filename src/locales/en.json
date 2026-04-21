@@ -133,7 +133,7 @@
     "createModeExternalDesc": "Create from a source link (Tieba, Facebook, Twitter, etc.) with platform metadata.",
     "createModeDailyTitle": "Daily Thought",
     "createModeDailyDesc": "Simple free-form idea sharing without business/feedback/external extras.",
-    "createModeDynamicTitle": "Post Update",
+    "createModeDynamicTitle": "Post",
     "createModeDynamicDesc": "Share short updates, status posts, and quick thoughts with the same interaction pipeline.",
     "createModeContinue": "Continue",
     "currentMode": "Current Mode",
