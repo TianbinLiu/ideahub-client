@@ -252,15 +252,16 @@ function ensureModuleScript(src: string) {
 }
 
 export default function SiteLive2D() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const latestConfigKeyRef = useRef("");
   const waifuConfigUrlRef = useRef<string | null>(null);
   const [isVisible, setIsVisible] = useState(getStoredVisibility);
-  const [isEnabled, setIsEnabled] = useState(() => !user?._id);
+  const [isEnabled, setIsEnabled] = useState(false);
   const [reopenSide, setReopenSide] = useState<ReopenSide>(getStoredReopenSide);
 
   useEffect(() => {
     const live2dWindow = window as Live2DWindow;
+    let disposed = false;
 
     async function disposeRuntimeConfig() {
       if (waifuConfigUrlRef.current) {
@@ -271,9 +272,22 @@ export default function SiteLive2D() {
 
     async function syncLive2D() {
       try {
+        if (authLoading) {
+          setIsEnabled(false);
+          teardownLive2D(live2dWindow);
+          return;
+        }
+
+        await new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve());
+        });
+        if (disposed) return;
+
         const live2d = user?._id
           ? (await getMyComponents()).components.live2d
           : DEFAULT_LIVE2D_SETTINGS;
+        if (disposed) return;
+
         setIsEnabled(live2d.enabled);
         const nextConfigKey = getConfigKey(live2d);
         if (
@@ -297,6 +311,7 @@ export default function SiteLive2D() {
           ensureStyle(`${LIVE2D_BASE}/waifu.css`),
           ensureModuleScript(`${LIVE2D_BASE}/waifu-tips.js?v=${LIVE2D_SCRIPT_VERSION}`),
         ]);
+        if (disposed) return;
 
         if (typeof live2dWindow.initWidget !== "function") {
           throw new Error("initWidget is not available after loading Live2D assets.");
@@ -307,6 +322,7 @@ export default function SiteLive2D() {
           : live2d.modelJsonUrl;
         await disposeRuntimeConfig();
         waifuConfigUrlRef.current = await buildWaifuConfigUrl(activeModelUrl);
+        if (disposed) return;
 
         teardownLive2D(live2dWindow);
         localStorage.removeItem("waifu-display");
@@ -321,6 +337,7 @@ export default function SiteLive2D() {
         });
         document.getElementById("waifu-toggle")?.remove();
         window.requestAnimationFrame(() => {
+          if (disposed) return;
           mountCloseToolButton(hideLive2D);
         });
 
@@ -339,11 +356,12 @@ export default function SiteLive2D() {
 
     window.addEventListener("ideahub:components-updated", handleComponentsUpdated);
     return () => {
+      disposed = true;
       window.removeEventListener("ideahub:components-updated", handleComponentsUpdated);
       teardownLive2D(live2dWindow);
       void disposeRuntimeConfig();
     };
-  }, [isVisible, user?._id]);
+  }, [authLoading, isVisible, user?._id]);
 
   function hideLive2D() {
     const nextSide = getReopenSideFromWidget();

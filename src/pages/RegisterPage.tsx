@@ -33,6 +33,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"user" | "company">("user");
+  const [startWithGroups, setStartWithGroups] = useState(true);
 
   const [code, setCode] = useState("");
   const DEFAULT_COOLDOWN = Number((import.meta as any).env?.VITE_OTP_RESEND_COOLDOWN_SECONDS) || 60;
@@ -129,7 +130,7 @@ export default function RegisterPage() {
 
       await loginWithToken(res.token);
       toast.success("Account created!");
-      nav(next, { replace: true });
+      nav(startWithGroups ? "/groups?onboarding=1" : next, { replace: true });
     } catch (e: any) {
       const msg = humanizeError(e);
       toast.error(msg);
@@ -261,6 +262,16 @@ export default function RegisterPage() {
               {t('auth.company')}
             </button>
           </div>
+
+          <label className="flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/40 px-3 py-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={startWithGroups}
+              onChange={(e) => setStartWithGroups(e.target.checked)}
+              disabled={loading}
+            />
+            注册后先去加入圈子
+          </label>
 
           {step === "VERIFY" && (
             <>

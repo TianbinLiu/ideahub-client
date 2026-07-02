@@ -4,9 +4,20 @@
 
 #waifu {
   left: auto;
+  pointer-events: none;
   right: 12px;
   transform-origin: bottom right;
   z-index: 44;
+}
+
+#waifu canvas,
+#waifu-tips {
+  pointer-events: none !important;
+}
+
+#waifu-tool,
+#waifu-tool * {
+  pointer-events: auto;
 }
 
 .site-live2d-reopen {

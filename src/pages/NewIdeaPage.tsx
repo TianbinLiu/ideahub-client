@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { ExternalSource, Group } from "../api";
 import { apiFetch, apiUploadImage, generateIdeaDraft, listGroups } from "../api";
@@ -23,6 +23,7 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 export default function NewIdeaPage() {
   const nav = useNavigate();
   const { mode } = useParams();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
 
   const creationMode = useMemo(() => {
@@ -57,7 +58,7 @@ export default function NewIdeaPage() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
-  const [groupSlug, setGroupSlug] = useState("world");
+  const [groupSlug, setGroupSlug] = useState(() => searchParams.get("group") || "world");
 
   const isBusinessMode = creationMode === "business";
   const isFeedbackMode = creationMode === "feedback";
@@ -463,7 +464,7 @@ export default function NewIdeaPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <div className="rounded-2xl border border-purple-700/60 bg-gradient-to-r from-purple-950/80 to-indigo-950/60 p-3">
+      <div className="rounded-2xl border border-purple-700/60 bg-gradient-to-r from-purple-950/80 to-indigo-950/60 p-3" data-tour="new-idea-mode">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-wide text-purple-300/90">{t('idea.currentMode')}</p>
@@ -481,9 +482,8 @@ export default function NewIdeaPage() {
       </div>
 
       <h1 className="text-2xl font-bold text-white">{t('idea.createTitle')}</h1>
-      <p className="text-gray-400 text-sm mt-1">{t('idea.createSubtitle')}</p>
 
-      <div className="mt-6 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4">
+      <div className="mt-6 grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-4" data-tour="new-idea-form">
         <div>
           <input className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 w-full"
             placeholder={t('idea.title')} 
@@ -521,12 +521,11 @@ export default function NewIdeaPage() {
               >
                 {generatingDraft ? t('idea.aiDraftGenerating') : t('idea.aiDraftGenerate')}
               </button>
-              <span className="text-xs text-gray-400">{t('idea.aiDraftHint')}</span>
             </div>
           )}
         </div>
 
-        <div>
+        <div data-tour="new-idea-media">
           <div className="flex items-center gap-3 mb-3">
             <label className="text-xs rounded-lg border border-purple-700 px-3 py-1.5 cursor-pointer hover:bg-purple-950/40 text-purple-200">
               {t('idea.uploadCover')}
@@ -541,7 +540,6 @@ export default function NewIdeaPage() {
               />
             </label>
             {uploadingCover && <span className="text-xs text-gray-400">{t('idea.uploadingCover')}</span>}
-            <span className="text-xs text-gray-500">{t('idea.coverImageHint')}</span>
           </div>
 
           {coverImageUrl && (
@@ -572,7 +570,6 @@ export default function NewIdeaPage() {
               />
             </label>
             {uploadingImages && <span className="text-xs text-gray-400">Uploading...</span>}
-            <span className="text-xs text-gray-500">Max 5MB per image</span>
           </div>
 
           {imageUrls.length > 0 && (
@@ -610,10 +607,9 @@ export default function NewIdeaPage() {
           </div>
         )}
 
-        <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
+        <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950/40 p-3" data-tour="new-idea-group">
           <div>
             <p className="text-sm font-medium text-white">{t('idea.groupLabel')}</p>
-            <p className="mt-1 text-xs text-gray-400">{t('idea.groupHint')}</p>
           </div>
           <select
             className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
@@ -628,7 +624,7 @@ export default function NewIdeaPage() {
           </select>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-2">
+        <div className="grid md:grid-cols-3 gap-2" data-tour="new-idea-visibility">
           <select className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
             value={visibility} onChange={(e) => setVisibility(e.target.value as any)}>
             <option value="public">{t('idea.public')}</option>
@@ -679,7 +675,6 @@ export default function NewIdeaPage() {
                   {autoFetching ? t('idea.fetching') : t('idea.autoFetch')}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourceUrlHint')}</p>
             </div>
 
             <div>
@@ -702,7 +697,6 @@ export default function NewIdeaPage() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourcePlatformHint')}</p>
             </div>
 
             {externalPlatform === OTHER_PLATFORM_VALUE && (
@@ -727,7 +721,6 @@ export default function NewIdeaPage() {
                 value={externalOriginalAuthor}
                 onChange={(e) => setExternalOriginalAuthor(e.target.value)}
               />
-              <p className="text-xs text-gray-400 mt-1">{t('idea.externalSourceAuthorHint')}</p>
             </div>
           </div>
         )}
@@ -735,6 +728,7 @@ export default function NewIdeaPage() {
         <button
           onClick={submit}
           disabled={loading || !title.trim()}
+          data-tour="new-idea-submit"
           className="rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-50"
         >
           {loading ? t('idea.saving') : t('idea.createButton')}

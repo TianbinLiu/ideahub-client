@@ -49,11 +49,13 @@ import WorkshopTemplateDetailPage from "./pages/WorkshopTemplateDetailPage";
 import WorkshopEditorPage from "./pages/WorkshopEditorPage";
 import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
 import GroupsPage from "./pages/GroupsPage";
+import GroupDetailPage from "./pages/GroupDetailPage";
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
 import SiteLive2D from "./components/SiteLive2D";
 import WorkshopSiteEditorAccessGate from "./components/WorkshopSiteEditorAccessGate";
+import OnboardingTour from "./components/OnboardingTour";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
@@ -135,6 +137,7 @@ export default function App() {
       <Navbar />
       <SiteTemplateEditOverlay />
       <SiteLive2D />
+      <OnboardingTour />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/ideas/:id" element={<IdeaDetailPage />} />
@@ -200,6 +203,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <GroupsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/groups/:slug"
+          element={
+            <ProtectedRoute>
+              <GroupDetailPage />
             </ProtectedRoute>
           }
         />

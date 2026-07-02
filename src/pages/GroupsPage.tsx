@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { createGroup, joinGroup, leaveGroup, listGroups, type Group } from "../api";
-import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 
@@ -14,12 +14,16 @@ function toSlugPreview(value: string) {
 }
 
 export default function GroupsPage() {
-  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private" | "unlisted">("public");
+  const [joinCode, setJoinCode] = useState("");
+  const [search, setSearch] = useState("");
+  const [codeBySlug, setCodeBySlug] = useState<Record<string, string>>({});
   const [actionSlug, setActionSlug] = useState<string | null>(null);
 
   const slugPreview = useMemo(() => toSlugPreview(name), [name]);
@@ -27,7 +31,7 @@ export default function GroupsPage() {
   async function load() {
     try {
       setLoading(true);
-      const res = await listGroups();
+      const res = await listGroups({ q: search.trim() || undefined });
       setGroups(res.groups || []);
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -44,10 +48,12 @@ export default function GroupsPage() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createGroup({ name: name.trim(), description: description.trim() });
-      toast.success(t("groups.created"));
+      await createGroup({ name: name.trim(), description: description.trim(), visibility, joinCode: joinCode.trim() || undefined });
+      toast.success("圈子已创建");
       setName("");
       setDescription("");
+      setJoinCode("");
+      setVisibility("public");
       await load();
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -62,10 +68,10 @@ export default function GroupsPage() {
     try {
       if (group.joined) {
         await leaveGroup(group.slug);
-        toast.success(t("groups.left"));
+        toast.success("已退出圈子");
       } else {
-        await joinGroup(group.slug);
-        toast.success(t("groups.joined"));
+        await joinGroup(group.slug, { code: codeBySlug[group.slug]?.trim() || undefined });
+        toast.success("已加入圈子");
       }
       await load();
     } catch (e: any) {
@@ -78,32 +84,48 @@ export default function GroupsPage() {
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">{t("groups.title")}</h1>
-        <p className="mt-2 text-gray-400">{t("groups.subtitle")}</p>
+        <h1 className="text-3xl font-bold text-white">圈子</h1>
       </div>
 
-      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-4">
+      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-4" data-tour="groups-create">
         <div>
-          <h2 className="text-xl font-semibold text-white">{t("groups.createTitle")}</h2>
-          <p className="mt-1 text-sm text-gray-400">{t("groups.createDescription")}</p>
+          <h2 className="text-xl font-semibold text-white">创建圈子</h2>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={t("groups.namePlaceholder")}
+            placeholder="圈子名称"
             className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
           />
           <div className="rounded-xl border border-dashed border-gray-700 px-3 py-2 text-sm text-gray-400">
-            {t("groups.slugPreview")}: <span className="text-white">{slugPreview || t("groups.slugPreviewEmpty")}</span>
+            slug: <span className="text-white">{slugPreview || "自动生成"}</span>
           </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <select
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as any)}
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+          >
+            <option value="public">公开</option>
+            <option value="private">私有</option>
+            <option value="unlisted">非公开</option>
+          </select>
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            placeholder="圈子口令（可空，私有/非公开会自动生成）"
+            className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+          />
         </div>
 
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={t("groups.descriptionPlaceholder")}
+          placeholder="圈子简介"
           className="min-h-[96px] w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
         />
 
@@ -113,34 +135,63 @@ export default function GroupsPage() {
           onClick={handleCreateGroup}
           className="rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200 disabled:opacity-60"
         >
-          {saving ? t("common.loading") : t("groups.createAction")}
+          {saving ? "保存中..." : "创建圈子"}
         </button>
       </section>
 
-      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-white">{t("groups.allGroupsTitle")}</h2>
-          <p className="mt-1 text-sm text-gray-400">{t("groups.allGroupsDescription")}</p>
+      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-4" data-tour="groups-discover">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-white">发现圈子</h2>
+          <div className="flex gap-2">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void load();
+              }}
+              placeholder="搜索公开或私有圈子"
+              className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+            />
+            <button type="button" onClick={load} className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">
+              搜索
+            </button>
+          </div>
         </div>
 
-        {loading ? <p className="text-gray-400">{t("common.loading")}</p> : null}
+        {loading ? <p className="text-gray-400">加载中...</p> : null}
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2" data-tour="groups-list">
           {groups.map((group) => (
             <div key={group.slug} className="rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-white">{group.name}</h3>
+                    <Link to={`/groups/${group.slug}`} className="text-lg font-semibold text-white hover:underline">{group.name}</Link>
                     <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[11px] text-gray-300">#{group.slug}</span>
+                    <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[11px] text-gray-300">
+                      {group.visibility === "private" ? "私有" : group.visibility === "unlisted" ? "非公开" : "公开"}
+                    </span>
                     {group.isWorld ? (
-                      <span className="rounded-full border border-emerald-600/70 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-200">{t("groups.worldBadge")}</span>
+                      <span className="rounded-full border border-emerald-600/70 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-200">全部</span>
                     ) : null}
                     {group.joined ? (
-                      <span className="rounded-full border border-cyan-600/70 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">{t("groups.joinedBadge")}</span>
+                      <span className="rounded-full border border-cyan-600/70 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">已加入</span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm text-gray-300">{group.description || t("groups.noDescription")}</p>
+                  <p className="mt-2 text-sm text-gray-300">{group.description || "暂无简介"}</p>
+                </div>
+              </div>
+              {!group.joined && !group.isWorld && (group.visibility === "private" || group.visibility === "unlisted") ? (
+                <input
+                  value={codeBySlug[group.slug] || ""}
+                  onChange={(e) => setCodeBySlug((prev) => ({ ...prev, [group.slug]: e.target.value }))}
+                  placeholder="输入圈子口令"
+                  className="mt-3 w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                />
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs text-gray-500">
+                  {group.memberCount == null ? "所有用户默认在全部圈子" : `${group.memberCount} 位成员`}
                 </div>
                 <button
                   type="button"
@@ -149,17 +200,19 @@ export default function GroupsPage() {
                   className={`rounded-xl px-3 py-2 text-sm font-semibold ${group.joined ? "border border-gray-600 text-gray-200 hover:bg-gray-800" : "bg-white text-black hover:bg-gray-200"} disabled:opacity-60`}
                 >
                   {actionSlug === group.slug
-                    ? t("common.loading")
+                    ? "处理中..."
                     : group.isWorld
-                      ? t("groups.worldAlwaysJoined")
+                      ? "默认加入"
                       : group.joined
-                        ? t("groups.leaveAction")
-                        : t("groups.joinAction")}
+                        ? "退出"
+                        : "加入"}
                 </button>
               </div>
-              <div className="mt-3 text-xs text-gray-500">
-                {group.memberCount == null ? t("groups.everyoneCanView") : t("groups.memberCount", { count: group.memberCount })}
-              </div>
+              {group.joined && !group.isWorld ? (
+                <button type="button" onClick={() => navigate(`/groups/${group.slug}`)} className="mt-3 text-xs text-cyan-300 hover:underline">
+                  进入圈子
+                </button>
+              ) : null}
             </div>
           ))}
         </div>

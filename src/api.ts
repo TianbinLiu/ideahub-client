@@ -441,12 +441,12 @@ export function deleteAccount(userId: string) {
   });
 }
 
-// Ideas API - Type definitions
+// Ideas and groups API - Type definitions
 export type ExternalSource = {
-  platform?: string;      // e.g. "贴吧", "Facebook", "Twitter"
-  url?: string;            // link to original post
-  originalAuthor?: string; // author name from original platform
-  sourceCreatedAt?: string; // when original post was created (ISO date string)
+  platform?: string;
+  url?: string;
+  originalAuthor?: string;
+  sourceCreatedAt?: string;
 };
 
 export type IdeaStats = {
@@ -469,11 +469,51 @@ export type Group = {
   name: string;
   slug: string;
   description?: string;
+  visibility?: "public" | "private" | "unlisted";
   memberCount?: number | null;
   joined?: boolean;
   isWorld?: boolean;
+  canManage?: boolean;
+  canCreateInvite?: boolean;
+  joinCode?: string;
   createdAt?: string;
   creator?: string | { _id: string; username?: string } | null;
+};
+
+export type GroupInvite = {
+  _id: string;
+  groupSlug: string;
+  code: string;
+  token: string;
+  sharePath: string;
+};
+
+export type GroupChat = {
+  _id: string;
+  groupSlug: string;
+  name: string;
+  description?: string;
+  memberCount?: number;
+  creator?: { _id: string; username?: string; role?: string };
+  createdAt?: string;
+};
+
+export type GroupMember = {
+  _id: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  role?: string;
+  groupRole: "creator" | "admin" | "member";
+};
+
+export type GroupReferral = {
+  _id: string;
+  groupSlug: string;
+  invitee?: { _id: string; username?: string; displayName?: string; avatarUrl?: string };
+  referrer: string;
+  joinMethod: "invite" | "group_code";
+  createdAt?: string;
 };
 
 export type Idea = {
@@ -488,6 +528,7 @@ export type Idea = {
   tags?: string[];
   groupSlug?: string;
   groupName?: string;
+  groupVisibility?: "public" | "private" | "unlisted";
   visibility?: "public" | "private" | "unlisted";
   isMonetizable?: boolean;
   licenseType?: string;
@@ -503,20 +544,27 @@ export type Idea = {
   recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
 
-export function listGroups() {
-  return apiFetch<{ ok: true; groups: Group[]; joinedGroupSlugs: string[] }>("/api/groups");
+export function listGroups(params?: { q?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set("q", params.q);
+  return apiFetch<{ ok: true; groups: Group[]; joinedGroupSlugs: string[] }>(`/api/groups${qs.toString() ? `?${qs.toString()}` : ""}`);
 }
 
-export function createGroup(payload: { name: string; slug?: string; description?: string }) {
+export function createGroup(payload: { name: string; slug?: string; description?: string; visibility?: "public" | "private" | "unlisted"; joinCode?: string }) {
   return apiFetch<{ ok: true; group: Group }>("/api/groups", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function joinGroup(slug: string) {
+export function getGroup(slug: string) {
+  return apiFetch<{ ok: true; group: Group }>(`/api/groups/${encodeURIComponent(slug)}`);
+}
+
+export function joinGroup(slug: string, payload?: { code?: string; inviteCode?: string; inviteToken?: string }) {
   return apiFetch<{ ok: true; joined: boolean; slug: string }>(`/api/groups/${encodeURIComponent(slug)}/join`, {
     method: "POST",
+    body: JSON.stringify(payload || {}),
   });
 }
 
@@ -524,6 +572,46 @@ export function leaveGroup(slug: string) {
   return apiFetch<{ ok: true; joined: boolean; slug: string }>(`/api/groups/${encodeURIComponent(slug)}/leave`, {
     method: "POST",
   });
+}
+
+export function createGroupInvite(slug: string) {
+  return apiFetch<{ ok: true; invite: GroupInvite }>(`/api/groups/${encodeURIComponent(slug)}/invites`, {
+    method: "POST",
+  });
+}
+
+export function listGroupChats(slug: string, q?: string) {
+  const qs = new URLSearchParams();
+  if (q) qs.set("q", q);
+  return apiFetch<{ ok: true; chats: GroupChat[] }>(`/api/groups/${encodeURIComponent(slug)}/chats${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function createGroupChat(slug: string, payload: { name: string; description?: string }) {
+  return apiFetch<{ ok: true; chat: GroupChat }>(`/api/groups/${encodeURIComponent(slug)}/chats`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listGroupMembers(slug: string) {
+  return apiFetch<{ ok: true; members: GroupMember[]; memberCount: number }>(`/api/groups/${encodeURIComponent(slug)}/members`);
+}
+
+export function updateGroupMemberRole(slug: string, userId: string, role: "member" | "admin") {
+  return apiFetch<{ ok: true }>(`/api/groups/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function removeGroupMember(slug: string, userId: string) {
+  return apiFetch<{ ok: true; removed: boolean }>(`/api/groups/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function listUserGroupReferrals(userId: string) {
+  return apiFetch<{ ok: true; referrals: GroupReferral[] }>(`/api/users/${encodeURIComponent(userId)}/group-referrals`);
 }
 
 export function listUserIdeas(userId: string, params?: { ideaType?: string; limit?: number }) {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
-import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
+import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, listUserGroupReferrals, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type GroupReferral, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -64,9 +64,9 @@ type Interest = {
   companyUser?: { username: string; email: string };
 };
 
-type TabType = "home" | "ideas" | "dynamics" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests";
+type TabType = "home" | "ideas" | "dynamics" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests" | "groupReferrals";
 
-const OWN_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "likes", "leaderboards", "followers", "following", "interests"];
+const OWN_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "likes", "leaderboards", "followers", "following", "interests", "groupReferrals"];
 const PUBLIC_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "leaderboards", "followers", "following"];
 
 function resolveInitialTab(tab: string | null, isOwnProfile: boolean): TabType {
@@ -106,6 +106,7 @@ export default function UserProfilePage() {
   const [localIdeas, setLocalIdeas] = useState<any[]>([]);
   const [likedIdeas, setLikedIdeas] = useState<Idea[]>([]);
   const [receivedInterests, setReceivedInterests] = useState<Interest[]>([]);
+  const [groupReferrals, setGroupReferrals] = useState<GroupReferral[]>([]);
   const [publicUsed, setPublicUsed] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabType>("home");
@@ -150,6 +151,7 @@ export default function UserProfilePage() {
       loadMyIdeas();
       loadLikes();
       loadReceivedInterests();
+      loadGroupReferrals();
       setLocalIdeas(listLocalIdeas());
     }
   }, [id, isOwnProfile, userId, searchParams]);
@@ -312,6 +314,16 @@ export default function UserProfilePage() {
       setReceivedInterests(res.interests || []);
     } catch (e) {
       console.error("Failed to load interests", e);
+    }
+  }
+
+  async function loadGroupReferrals() {
+    if (!id) return;
+    try {
+      const res = await listUserGroupReferrals(id);
+      setGroupReferrals(res.referrals || []);
+    } catch (e) {
+      console.error("Failed to load group referrals", e);
     }
   }
 
@@ -514,6 +526,7 @@ export default function UserProfilePage() {
         { key: "bookmarks", label: t('profile.bookmarks') },
         { key: "likes", label: t('profile.likes') },
         { key: "interests", label: t('profile.receivedInterests') },
+        { key: "groupReferrals", label: "圈子邀请" },
         { key: "followers", label: t('profile.followers') },
         { key: "following", label: t('profile.following') },
       ]
@@ -913,6 +926,8 @@ export default function UserProfilePage() {
         return renderFollowing();
       case "interests":
         return renderReceivedInterests();
+      case "groupReferrals":
+        return renderGroupReferrals();
       default:
         return null;
     }
@@ -993,6 +1008,25 @@ export default function UserProfilePage() {
 
   function renderMyIdeas() {
     return renderIdeaGrid(visibleIdeas, t('profile.noIdeasYet'));
+  }
+
+  function renderGroupReferrals() {
+    return (
+      <div className="grid gap-3">
+        {groupReferrals.length === 0 ? <p className="text-gray-400">还没有用户通过你的圈子邀请链接加入。</p> : null}
+        {groupReferrals.map((referral) => (
+          <div key={referral._id} className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold text-white">{referral.invitee?.displayName || referral.invitee?.username || "用户"}</div>
+                <div className="mt-1 text-sm text-gray-400">加入圈子 #{referral.groupSlug}</div>
+              </div>
+              <div className="text-xs text-gray-500">{referral.createdAt ? new Date(referral.createdAt).toLocaleString() : ""}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   function renderIdeaGrid(items: Idea[], emptyText: string) {

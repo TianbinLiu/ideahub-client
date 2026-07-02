@@ -55,6 +55,10 @@ export default function Navbar() {
   
   const userId = user?._id;
 
+  function replayGuide() {
+    window.dispatchEvent(new CustomEvent("ideahub:onboarding:start"));
+  }
+
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -88,7 +92,7 @@ export default function Navbar() {
   }, [user]);
 
   return (
-    <div className="border-b border-gray-800 bg-gray-950/80 backdrop-blur">
+    <div className="border-b border-gray-800 bg-gray-950/80 backdrop-blur" data-tour="top-nav">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="font-bold text-xl text-white">IdeaHub</Link>
 
@@ -98,6 +102,15 @@ export default function Navbar() {
           {user && <NavLink to="/groups" className={({ isActive }) => cls(isActive)}>{t('nav.groups')}</NavLink>}
 
           {user && <NotificationsDropdown unreadCount={unread} />}
+
+          <button
+            type="button"
+            onClick={replayGuide}
+            data-tour="guide-button"
+            className="rounded-lg border border-cyan-700/70 px-3 py-1.5 text-cyan-200 hover:bg-cyan-950/40"
+          >
+            指引 / Guide
+          </button>
 
           {user?.role === "company" && (
             <NavLink to="/company" className={({ isActive }) => cls(isActive)}>{t('nav.company')}</NavLink>
