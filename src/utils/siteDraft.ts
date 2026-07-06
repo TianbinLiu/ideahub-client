@@ -52,6 +52,25 @@ const SAFE_CSS_PROPERTIES = new Set([
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
+  export function normalizeSafeUrl(input?: unknown) {
+    const raw = String(input || "").trim().slice(0, 1000);
+    if (!raw || /[\u0000-\u001f\u007f]/.test(raw)) return "";
+
+    if (raw.startsWith("/") && !raw.startsWith("//")) {
+      return raw;
+    }
+
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+    } catch {
+      return "";
+    }
+
+    return "";
+  }
 
 function nodeTagIndex(el: Element) {
   const tag = el.tagName;
@@ -146,8 +165,8 @@ export function normalizeSiteDraft(input: unknown): SiteDraft {
         id,
         type,
         text: String(item?.text || "New widget").trim().slice(0, 200),
-        href: String(item?.href || "").trim().slice(0, 600),
-        imageUrl: String(item?.imageUrl || "").trim().slice(0, 1000),
+        href: normalizeSafeUrl(item?.href),
+        imageUrl: normalizeSafeUrl(item?.imageUrl),
         items: Array.isArray(item?.items)
           ? item.items.map((x: any) => String(x || "").trim()).filter(Boolean).slice(0, 20)
           : [],
@@ -164,7 +183,7 @@ export function normalizeSiteDraft(input: unknown): SiteDraft {
 
     pages[pageKey] = {
       backgroundType: bt,
-      backgroundUrl: String(page.backgroundUrl || "").trim().slice(0, 1000),
+      backgroundUrl: normalizeSafeUrl(page.backgroundUrl),
       nodes,
       widgets,
     };

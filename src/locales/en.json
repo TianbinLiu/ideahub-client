@@ -27,7 +27,8 @@
     "scraper": "Crawler",
     "login": "Login",
     "register": "Register",
-    "logout": "Logout"
+    "logout": "Logout",
+    "guide": "Guide"
   },
   "auth": {
     "username": "Username",
@@ -909,6 +910,8 @@
     "blacklistManage": "Blocked Users",
     "blacklistEmpty": "You have not blocked any users.",
     "blockRequiresReplyBack": "If you already replied first, you can only block this user after they reply to you at least once.",
+    "blockRequiresRequestResponse": "Wait for this user to accept or reject your message request before blocking them.",
+    "blockRequiresDmReplyBack": "You can block this user after they have had a chance to reply.",
     "blockedInteraction": "This action is unavailable because one of you has blocked the other.",
     "conversationDeleted": "Conversation deleted",
     "conversationDeletedAndBlocked": "Conversation deleted and user added to blacklist",

@@ -168,6 +168,36 @@ const TOUR_DEFINITIONS: Record<string, TourStep[]> = {
       bodyEn: "Publish after confirming the content and visibility.",
     },
   ],
+  tagMap: [
+    {
+      target: "top-nav",
+      titleZh: "顶部导航",
+      titleEn: "Top Navigation",
+      bodyZh: "这里可以返回首页，也可以随时重新打开当前页面指引。",
+      bodyEn: "Use this area to return home or replay the guide for the current page.",
+    },
+    {
+      target: "tagmap-header",
+      titleZh: "热点图谱",
+      titleEn: "Heat Map",
+      bodyZh: "热点图谱把每个帖子显示为小点，并把相近主题聚合成更大的热点区域。",
+      bodyEn: "The heat map shows each post as a dot and groups related topics into larger hotspot regions.",
+    },
+    {
+      target: "tagmap-controls",
+      titleZh: "筛选范围",
+      titleEn: "Filter Scope",
+      bodyZh: "在这里切换帖子类型和时间范围，图谱会按当前范围重新计算。",
+      bodyEn: "Switch the post category and time window here; the map recalculates for the selected scope.",
+    },
+    {
+      target: "tagmap-map",
+      titleZh: "热点区域",
+      titleEn: "Hotspot Regions",
+      bodyZh: "点击大的热点圈可放大查看内部帖子；点击小点会进入帖子详情；点击空白处返回上一层。",
+      bodyEn: "Click a large hotspot to zoom in, click a dot to open the post, and click empty space to zoom out.",
+    },
+  ],
 };
 
 function safeGetItem(key: string) {
@@ -194,6 +224,7 @@ function getTourId(pathname: string, search: string) {
   if (pathname === "/groups") return "groups";
   if (pathname.startsWith("/groups/")) return "groupDetail";
   if (pathname.startsWith("/ideas/new/")) return "newIdea";
+  if (pathname === "/tag-map") return "tagMap";
   return "";
 }
 

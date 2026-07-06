@@ -32,7 +32,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { listNotifications, listMessageRequests } from "../api";
+import { listConversations, listNotifications, listMessageRequests } from "../api";
 
 type NotificationsDropdownProps = {
   unreadCount: number;
@@ -49,7 +49,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   const { t } = useTranslation();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; reactions: number; likes: number; dislikes: number; replies: number; messages: number }>({ system: 0, mentions: 0, reactions: 0, likes: 0, dislikes: 0, replies: 0, messages: 0 });
+  const [unreadByType, setUnreadByType] = useState<{ system: number; mentions: number; reactions: number; likes: number; dislikes: number; replies: number; messages: number; messageRequests: number }>({ system: 0, mentions: 0, reactions: 0, likes: 0, dislikes: 0, replies: 0, messages: 0, messageRequests: 0 });
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -91,9 +91,13 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
         const reactionsCount = likesCount + dislikesCount;
         
         // Load unread message requests
-        const msgRes = await listMessageRequests("pending");
-        const messageRequests = [...(msgRes.receivedRequests || []), ...(msgRes.sentRequests || [])];
-        const unreadMessageCount = messageRequests.filter((r: any) => !r.viewedAt).length;
+        const [msgRes, conversationRes] = await Promise.all([
+          listMessageRequests("pending"),
+          listConversations().catch(() => ({ conversations: [] as any[] })),
+        ]);
+        const receivedRequests = msgRes.receivedRequests || [];
+        const unreadMessageRequestCount = receivedRequests.filter((r: any) => !r.viewedAt).length;
+        const unreadConversationCount = (conversationRes.conversations || []).reduce((sum: number, conv: any) => sum + Number(conv.unreadCount || 0), 0);
         
         setUnreadByType({
           system: systemCount,
@@ -102,7 +106,8 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
           likes: likesCount,
           dislikes: dislikesCount,
           replies: repliesCount,
-          messages: unreadMessageCount,
+          messages: unreadConversationCount,
+          messageRequests: unreadMessageRequestCount,
         });
       } catch (e) {
         console.error("Failed to load unread by type", e);
@@ -154,8 +159,14 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
     {
       key: "messages",
       label: t("notifications.myMessages"),
-      path: "/message-requests",
+      path: "/messages",
       unread: unreadByType.messages,
+    },
+    {
+      key: "messageRequests",
+      label: t("messages.messageRequests"),
+      path: "/message-requests",
+      unread: unreadByType.messageRequests,
     },
     {
       key: "system",

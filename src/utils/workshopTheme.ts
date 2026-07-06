@@ -1,5 +1,5 @@
 import type { WorkshopTemplate } from "../api";
-import { getPageDraftKey, normalizeSiteDraft } from "./siteDraft";
+import { getPageDraftKey, normalizeSafeUrl, normalizeSiteDraft, sanitizeCssBlock } from "./siteDraft";
 
 export const ACTIVE_WORKSHOP_TEMPLATE_KEY = "activeWorkshopTemplate";
 
@@ -9,12 +9,24 @@ function safeNumber(value: unknown, fallback: number, min: number, max: number) 
   return Math.max(min, Math.min(max, num));
 }
 
-function sanitizeCssBlock(input?: string) {
-  const raw = String(input || "").trim();
-  if (!raw) return "";
-  const lowered = raw.toLowerCase();
-  if (/(^|\s)@import|url\s*\(|expression\s*\(|javascript:|behavior\s*:|<\/?style/i.test(lowered)) return "";
-  return raw.slice(0, 2000);
+function escapeHtml(input: unknown) {
+  return String(input || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeAttr(input: unknown) {
+  return escapeHtml(input)
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeCssAttrValue(input: unknown) {
+  return String(input || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/[\r\n\f]/g, " ");
 }
 
 export function saveActiveWorkshopTemplate(template: WorkshopTemplate | null) {
@@ -88,8 +100,8 @@ export function applyWorkshopTemplateToDocument(template: WorkshopTemplate | nul
         const width = Number(item.width) > 0 ? `width:${Number(item.width)}px!important;` : "";
         const height = Number(item.height) > 0 ? `height:${Number(item.height)}px!important;` : "";
         const transform = `transform:translate(${Number(item.x) || 0}px,${Number(item.y) || 0}px)!important;`;
-        const css = String(item.css || "");
-        return `body.workshop-template-active [data-ws-node-id="${nodeId}"]{${transform}${width}${height}${css}}`;
+        const css = sanitizeCssBlock(item.css || "");
+        return `body.workshop-template-active [data-ws-node-id="${escapeCssAttrValue(nodeId)}"]{${transform}${width}${height}${css}}`;
       })
       .join("\n");
   }
@@ -121,13 +133,14 @@ ${nodeCss}
     document.body.appendChild(bgLayer);
   }
 
-  if (!pageDraft || pageDraft.backgroundType === "none" || !pageDraft.backgroundUrl) {
+  const safeBackgroundUrl = normalizeSafeUrl(pageDraft?.backgroundUrl);
+  if (!pageDraft || pageDraft.backgroundType === "none" || !safeBackgroundUrl) {
     bgLayer.innerHTML = "";
   } else if (pageDraft.backgroundType === "video") {
-    bgLayer.innerHTML = `<video src="${pageDraft.backgroundUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;opacity:.45"></video>`;
+    bgLayer.innerHTML = `<video src="${escapeAttr(safeBackgroundUrl)}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;opacity:.45"></video>`;
   } else {
     bgLayer.innerHTML = "";
-    bgLayer.style.backgroundImage = `url(${pageDraft.backgroundUrl})`;
+    bgLayer.style.backgroundImage = `url("${safeBackgroundUrl.replace(/"/g, '\\"')}")`;
     bgLayer.style.backgroundSize = "cover";
     bgLayer.style.backgroundPosition = "center";
     bgLayer.style.opacity = "0.45";
@@ -155,29 +168,31 @@ ${nodeCss}
     .slice(0, 80)
     .map((widget) => {
       const baseStyle = `position:fixed;left:${Number(widget.x) || 0}px;top:${Number(widget.y) || 0}px;width:${Number(widget.width) || 180}px;height:${Number(widget.height) || 44}px;pointer-events:auto;display:flex;align-items:center;justify-content:center;`;
-      const extra = String(widget.css || "");
-      const text = String(widget.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const extra = sanitizeCssBlock(widget.css || "");
+      const text = escapeHtml(widget.text || "");
       const type = String(widget.type || "text");
-      if (type === "button" && widget.href) {
-        return `<a href="${String(widget.href)}" style="${baseStyle}${extra}">${text}</a>`;
+      const styleAttr = escapeAttr(`${baseStyle}${extra}`);
+      const safeHref = normalizeSafeUrl(widget.href);
+      const safeImageUrl = normalizeSafeUrl(widget.imageUrl);
+      if (type === "button" && safeHref) {
+        return `<a href="${escapeAttr(safeHref)}" rel="noopener noreferrer" style="${styleAttr}">${text}</a>`;
       }
-      if (type === "image") {
-        const imageUrl = String(widget.imageUrl || "");
-        return `<div style="${baseStyle}${extra};overflow:hidden"><img src="${imageUrl}" alt="${text}" style="width:100%;height:100%;object-fit:cover"/></div>`;
+      if (type === "image" && safeImageUrl) {
+        return `<div style="${styleAttr};overflow:hidden"><img src="${escapeAttr(safeImageUrl)}" alt="${escapeAttr(widget.text || "widget image")}" style="width:100%;height:100%;object-fit:cover"/></div>`;
       }
       if (type === "card") {
-        const lines = Array.isArray(widget.items) ? widget.items.slice(0, 3).map((x) => String(x || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")).join(" · ") : "";
-        return `<div style="${baseStyle}${extra};display:block;padding:12px"><div style="font-weight:600">${text}</div><div style="margin-top:6px;font-size:12px;opacity:.9">${lines}</div></div>`;
+        const lines = Array.isArray(widget.items) ? widget.items.slice(0, 3).map((x) => escapeHtml(x || "")).join(" · ") : "";
+        return `<div style="${styleAttr};display:block;padding:12px"><div style="font-weight:600">${text}</div><div style="margin-top:6px;font-size:12px;opacity:.9">${lines}</div></div>`;
       }
       if (type === "link-list") {
-        const links = Array.isArray(widget.items) ? widget.items.slice(0, 5).map((x) => `<div>• ${String(x || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`).join("") : "";
-        return `<div style="${baseStyle}${extra};display:block;padding:8px">${links || text}</div>`;
+        const links = Array.isArray(widget.items) ? widget.items.slice(0, 5).map((x) => `<div>• ${escapeHtml(x || "")}</div>`).join("") : "";
+        return `<div style="${styleAttr};display:block;padding:8px">${links || text}</div>`;
       }
       if (type === "form") {
-        const fields = Array.isArray(widget.fields) ? widget.fields.slice(0, 4).map((x) => `<div style="border:1px solid rgba(255,255,255,.2);padding:4px 6px;margin-top:4px;border-radius:6px">${String(x || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`).join("") : "";
-        return `<div style="${baseStyle}${extra};display:block;padding:8px"><div style="font-size:12px">${text}</div>${fields}</div>`;
+        const fields = Array.isArray(widget.fields) ? widget.fields.slice(0, 4).map((x) => `<div style="border:1px solid rgba(255,255,255,.2);padding:4px 6px;margin-top:4px;border-radius:6px">${escapeHtml(x || "")}</div>`).join("") : "";
+        return `<div style="${styleAttr};display:block;padding:8px"><div style="font-size:12px">${text}</div>${fields}</div>`;
       }
-      return `<div style="${baseStyle}${extra}">${text}</div>`;
+      return `<div style="${styleAttr}">${text}</div>`;
     })
     .join("");
 }

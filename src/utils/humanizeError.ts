@@ -7,6 +7,14 @@ export function humanizeError(err: any) {
     return i18n.t('messages.blockRequiresReplyBack');
   }
 
+  if (err?.message === 'You must wait for this user to respond to your message request before blacklisting them.') {
+    return i18n.t('messages.blockRequiresRequestResponse');
+  }
+
+  if (err?.message === 'You can only blacklist this user after they have had a chance to reply.') {
+    return i18n.t('messages.blockRequiresDmReplyBack');
+  }
+
   if (typeof err?.message === 'string' && err.message.startsWith('Blocked users cannot')) {
     return i18n.t('messages.blockedInteraction');
   }

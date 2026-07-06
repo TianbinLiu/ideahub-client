@@ -109,7 +109,7 @@ export default function Navbar() {
             data-tour="guide-button"
             className="rounded-lg border border-cyan-700/70 px-3 py-1.5 text-cyan-200 hover:bg-cyan-950/40"
           >
-            指引 / Guide
+            {t("nav.guide")}
           </button>
 
           {user?.role === "company" && (

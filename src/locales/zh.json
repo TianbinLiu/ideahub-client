@@ -25,7 +25,8 @@
     "feedback": "反馈",    "docs": "文档",    "login": "登录",
     "scraper": "爬虫",
     "register": "注册",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "guide": "指引"
   },
   "auth": {
     "username": "用户名",
@@ -903,6 +904,8 @@
     "blacklistManage": "拉黑管理",
     "blacklistEmpty": "当前没有被你拉黑的用户。",
     "blockRequiresReplyBack": "如果你已经先回复过对方，必须等对方至少回复你一次后才能拉黑。",
+    "blockRequiresRequestResponse": "请先等待对方接受或拒绝你的私信申请，再拉黑对方。",
+    "blockRequiresDmReplyBack": "你需要先给对方一次回复机会，之后才能拉黑对方。",
     "blockedInteraction": "你与该用户存在拉黑关系，当前操作不可用。",
     "conversationDeleted": "对话已删除",
     "conversationDeletedAndBlocked": "已删除对话并加入黑名单",

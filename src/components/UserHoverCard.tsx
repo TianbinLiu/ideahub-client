@@ -214,8 +214,8 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
 
     setSendingDM(true);
     try {
-      await sendMessageRequest(userId, dmMessage);
-      toast.success(t('messages.requestSent'));
+      const res = await sendMessageRequest(userId, dmMessage);
+      toast.success(res.direct ? t('messages.messageSent') : t('messages.requestSent'));
       setShowDMModal(false);
       setDmMessage("");
     } catch (e: any) {

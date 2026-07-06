@@ -349,7 +349,7 @@ export function getUserReputation(userId: string) {
 // Messages API
 export function sendMessageRequest(toUserId: string, initialMessage: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return apiFetch<{ ok: true; request: any }>(
+  return apiFetch<{ ok: true; request?: any; direct?: boolean; conversationId?: string; message?: any }>(
     `/api/messages/request`,
     {
       method: "POST",

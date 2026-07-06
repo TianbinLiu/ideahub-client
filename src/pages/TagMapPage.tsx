@@ -10,10 +10,10 @@ type IdeaLite = {
   title: string;
   tags?: string[];
   createdAt?: string;
-  ideaType?: "business" | "feedback" | "external" | "daily";
+  ideaType?: "business" | "feedback" | "external" | "daily" | "dynamic";
 };
 
-type IdeaTypeKey = "business" | "feedback" | "external" | "daily";
+type IdeaTypeKey = "business" | "feedback" | "external" | "daily" | "dynamic";
 
 type DotPoint = {
   id: string;
@@ -32,6 +32,7 @@ type DotTooltip = {
 
 type Cluster = {
   key: string;
+  label: string;
   cx: number;
   cy: number;
   r: number;
@@ -40,6 +41,8 @@ type Cluster = {
   ideas: IdeaLite[];
   subClusters?: Cluster[];
 };
+
+type NormalizedIdea = IdeaLite & { tags: string[]; ts: number };
 
 type TimeWindowKey = "7d" | "30d" | "90d" | "180d" | "365d";
 
@@ -56,6 +59,7 @@ const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: s
   { key: "feedback", emoji: "🛠", activeClass: "border-sky-500 text-sky-200 bg-sky-900/30" },
   { key: "external", emoji: "🔗", activeClass: "border-fuchsia-500 text-fuchsia-200 bg-fuchsia-900/30" },
   { key: "daily", emoji: "📝", activeClass: "border-amber-500 text-amber-200 bg-amber-900/30" },
+  { key: "dynamic", emoji: "📣", activeClass: "border-cyan-500 text-cyan-200 bg-cyan-900/30" },
 ];
 
 const IDEA_TYPE_STORAGE_KEY = "preferredHomeIdeaType";
@@ -65,6 +69,86 @@ function isIdeaTypeKey(value: string): value is IdeaTypeKey {
 }
 
 const MAP_CENTER = { x: 50, y: 50 };
+
+const GENERIC_TAGS = new Set([
+  "idea",
+  "ideas",
+  "post",
+  "posts",
+  "daily",
+  "dynamic",
+  "business",
+  "feedback",
+  "external",
+  "untagged",
+  "uncategorized",
+  "other",
+  "想法",
+  "帖子",
+  "动态",
+  "日常",
+  "商业",
+  "反馈",
+  "外链",
+  "其他",
+]);
+
+const TOPIC_CATEGORIES = [
+  {
+    key: "ai-tech",
+    labelEn: "AI / Tech",
+    labelZh: "AI / 科技",
+    aliases: ["ai", "人工智能", "machine learning", "机器学习", "ml", "llm", "gpt", "科技", "技术", "programming", "coding", "code", "software", "app", "saas", "automation", "自动化", "工具", "效率"],
+  },
+  {
+    key: "product-business",
+    labelEn: "Product / Business",
+    labelZh: "产品 / 商业",
+    aliases: ["product", "产品", "business", "商业", "startup", "创业", "market", "marketing", "增长", "运营", "finance", "投资", "monetize", "商业化", "company"],
+  },
+  {
+    key: "games",
+    labelEn: "Games",
+    labelZh: "游戏",
+    aliases: ["game", "games", "gaming", "游戏", "steam", "手游", "roguelike", "rpg", "moba", "fps", "minecraft", "overwatch", "电竞"],
+  },
+  {
+    key: "creative-writing",
+    labelEn: "Writing / Stories",
+    labelZh: "写作 / 故事",
+    aliases: ["novel", "story", "writing", "write", "写作", "小说", "文学", "剧情", "script", "剧本", "文案", "worldbuilding", "短篇"],
+  },
+  {
+    key: "design-art",
+    labelEn: "Design / Art",
+    labelZh: "设计 / 艺术",
+    aliases: ["design", "ui", "ux", "视觉", "设计", "art", "绘画", "插画", "美术", "aesthetic", "template", "frontend", "前端"],
+  },
+  {
+    key: "media-social",
+    labelEn: "Media / Social",
+    labelZh: "媒体 / 社交",
+    aliases: ["video", "media", "bilibili", "youtube", "小红书", "抖音", "tiktok", "twitter", "x", "social", "社区", "内容", "creator", "自媒体", "平台"],
+  },
+  {
+    key: "education-research",
+    labelEn: "Learning / Research",
+    labelZh: "学习 / 研究",
+    aliases: ["learn", "learning", "education", "study", "学习", "教育", "研究", "论文", "课程", "知识", "教程", "读书", "academic"],
+  },
+  {
+    key: "life-community",
+    labelEn: "Life / Community",
+    labelZh: "生活 / 社群",
+    aliases: ["life", "daily", "生活", "日常", "community", "社群", "圈子", "健康", "旅行", "心理", "habit", "习惯"],
+  },
+  {
+    key: "feedback-bugs",
+    labelEn: "Feedback / Bugs",
+    labelZh: "反馈 / Bug",
+    aliases: ["bug", "bugs", "feedback", "反馈", "网站建议", "suggestion", "issue", "问题", "fix", "error", "错误"],
+  },
+];
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -79,24 +163,106 @@ function hashString(input: string) {
   return Math.abs(h >>> 0);
 }
 
-function pickClusterTag(tags: string[], globalTagCount: Map<string, number>) {
-  if (!tags.length) return "untagged";
-  const sorted = [...tags].sort((a, b) => {
-    const ca = globalTagCount.get(a) || 0;
-    const cb = globalTagCount.get(b) || 0;
-    if (cb !== ca) return cb - ca;
-    return a.localeCompare(b);
+function normalizeTags(rawTags?: string[]) {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const raw of rawTags || []) {
+    const tag = String(raw || "").trim().replace(/^#/, "").toLowerCase();
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+function isGenericTag(tag: string) {
+  return GENERIC_TAGS.has(tag);
+}
+
+function tagMatchesAlias(tag: string, alias: string) {
+  const normalizedAlias = alias.toLowerCase();
+  if (tag === normalizedAlias) return true;
+  if (normalizedAlias.length <= 2) return false;
+  return tag.includes(normalizedAlias) || normalizedAlias.includes(tag);
+}
+
+function getCategoryByKey(key: string) {
+  return TOPIC_CATEGORIES.find((category) => category.key === key) || null;
+}
+
+function getCategoryLabel(key: string, isZh: boolean) {
+  const category = getCategoryByKey(key);
+  if (!category) return key;
+  return isZh ? category.labelZh : category.labelEn;
+}
+
+function pickRepresentativeTag(tags: string[], countMap: Map<string, number>, excluded = new Set<string>()) {
+  const useful = tags.filter((tag) => !isGenericTag(tag) && !excluded.has(tag));
+  const candidates = useful.length ? useful : tags.filter((tag) => !excluded.has(tag));
+  if (!candidates.length) return "other";
+
+  const indexed = candidates.map((tag, index) => ({ tag, index, count: countMap.get(tag) || 0 }));
+  indexed.sort((a, b) => {
+    const aReusable = a.count > 1 ? 1 : 0;
+    const bReusable = b.count > 1 ? 1 : 0;
+    if (bReusable !== aReusable) return bReusable - aReusable;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.index - b.index;
   });
-  return sorted[0] || "untagged";
+  return indexed[0]?.tag || "other";
+}
+
+function classifyTopLevel(idea: NormalizedIdea, globalTagCount: Map<string, number>) {
+  if (idea.ideaType === "feedback") return { key: "cat:feedback-bugs", labelKey: "feedback-bugs" };
+  if (idea.ideaType === "business") return { key: "cat:product-business", labelKey: "product-business" };
+  if (idea.ideaType === "external") return { key: "cat:media-social", labelKey: "media-social" };
+
+  const titleText = String(idea.title || "").toLowerCase();
+  const scored = TOPIC_CATEGORIES.map((category) => {
+    let score = 0;
+    for (const tag of idea.tags) {
+      for (const alias of category.aliases) {
+        if (tag === alias.toLowerCase()) score += 8;
+        else if (tagMatchesAlias(tag, alias)) score += 4;
+      }
+    }
+    for (const alias of category.aliases) {
+      const normalizedAlias = alias.toLowerCase();
+      if (normalizedAlias.length > 2 && titleText.includes(normalizedAlias)) score += 1.5;
+    }
+    return { category, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const best = scored[0];
+  if (best && best.score >= 4) {
+    return { key: `cat:${best.category.key}`, labelKey: best.category.key };
+  }
+
+  const tag = pickRepresentativeTag(idea.tags, globalTagCount);
+  return { key: `tag:${tag}`, labelKey: tag };
+}
+
+function buildExcludedAliases(categoryKey: string) {
+  const category = getCategoryByKey(categoryKey.replace(/^cat:/, ""));
+  if (!category) return new Set<string>();
+  return new Set(category.aliases.map((alias) => alias.toLowerCase()));
+}
+
+function getClusterLabel(key: string, isZh: boolean) {
+  if (key === "other") return isZh ? "其他" : "Other";
+  if (key.startsWith("cat:")) return getCategoryLabel(key.slice(4), isZh);
+  if (key.startsWith("tag:")) return `#${key.slice(4)}`;
+  return key;
 }
 
 export default function TagMapPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const rawIdeaType = params.get("ideaType") || "";
   const ideaType: IdeaTypeKey = isIdeaTypeKey(rawIdeaType) ? rawIdeaType : "daily";
   const backHomeHref = `/${ideaType ? `?ideaType=${encodeURIComponent(ideaType)}` : ""}`;
+  const isZh = String(i18n.resolvedLanguage || i18n.language || "").toLowerCase().startsWith("zh");
 
   const [ideas, setIdeas] = useState<IdeaLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,10 +353,8 @@ export default function TagMapPage() {
   const { points, clusters, currentCluster } = useMemo(() => {
     if (!filteredIdeas.length) return { points: [] as DotPoint[], clusters: [] as Cluster[], currentCluster: null };
 
-    const normalized = filteredIdeas.map((it) => {
-      const tags = (it.tags || [])
-        .map((x) => x.trim().toLowerCase())
-        .filter(Boolean);
+    const normalized: NormalizedIdea[] = filteredIdeas.map((it) => {
+      const tags = normalizeTags(it.tags);
       const ts = new Date(it.createdAt || 0).getTime() || 0;
       return { ...it, tags, ts };
     });
@@ -203,26 +367,52 @@ export default function TagMapPage() {
       });
     });
 
-    // 构建层级聚类
-    function buildClusters(items: typeof normalized, depth: number = 0): Cluster[] {
+    function makeClusterKey(idea: NormalizedIdea, items: NormalizedIdea[], depth: number, parentKey?: string) {
+      if (depth === 0) return classifyTopLevel(idea, globalTagCount).key;
+
+      const localTagCount = new Map<string, number>();
+      items.forEach((item) => {
+        item.tags.forEach((tag) => localTagCount.set(tag, (localTagCount.get(tag) || 0) + 1));
+      });
+      const excluded = parentKey ? buildExcludedAliases(parentKey) : new Set<string>();
+      const tag = pickRepresentativeTag(idea.tags, localTagCount, excluded);
+      return `tag:${tag}`;
+    }
+
+    function collapseClusterOverflow(byCluster: Map<string, NormalizedIdea[]>, maxVisible = 14) {
+      const keys = [...byCluster.keys()].sort((a, b) => {
+        const c1 = byCluster.get(a)?.length || 0;
+        const c2 = byCluster.get(b)?.length || 0;
+        if (c2 !== c1) return c2 - c1;
+        return getClusterLabel(a, isZh).localeCompare(getClusterLabel(b, isZh));
+      });
+
+      if (keys.length <= maxVisible) return keys;
+
+      const visible = keys.slice(0, maxVisible - 1);
+      const overflow = keys.slice(maxVisible - 1).flatMap((key) => byCluster.get(key) || []);
+      byCluster.set("other", [...(byCluster.get("other") || []), ...overflow]);
+      return [...visible.filter((key) => key !== "other"), "other"];
+    }
+
+    function findClusterKeyForIdea(clustersToSearch: Cluster[], ideaId: string, fallback: string) {
+      const cluster = clustersToSearch.find((item) => item.ideas.some((idea) => idea._id === ideaId));
+      return cluster?.key || fallback;
+    }
+
+    // 构建层级聚类：顶层用语义大类，子层用局部代表标签。
+    function buildClusters(items: NormalizedIdea[], depth: number = 0, parentKey?: string): Cluster[] {
       if (items.length === 0) return [];
       
-      const byCluster = new Map<string, typeof normalized>();
+      const byCluster = new Map<string, NormalizedIdea[]>();
       items.forEach((it) => {
-        const key = pickClusterTag(it.tags, globalTagCount);
+        const key = makeClusterKey(it, items, depth, parentKey);
         const arr = byCluster.get(key) || [];
         arr.push(it);
         byCluster.set(key, arr);
       });
 
-      const clusterKeys = [...byCluster.keys()].sort((a, b) => {
-        const c1 = byCluster.get(a)?.length || 0;
-        const c2 = byCluster.get(b)?.length || 0;
-        if (c2 !== c1) return c2 - c1;
-        return a.localeCompare(b);
-      });
-
-      const limitedKeys = clusterKeys.slice(0, 14);
+      const limitedKeys = collapseClusterOverflow(byCluster, depth === 0 ? 14 : 10);
       const centers = new Map<string, { x: number; y: number }>();
       limitedKeys.forEach((key, idx) => {
         const angle = (Math.PI * 2 * idx) / Math.max(1, limitedKeys.length);
@@ -248,17 +438,18 @@ export default function TagMapPage() {
         });
 
         const relatedTags = [...localTagCount.entries()]
+          .filter(([tag]) => !isGenericTag(tag))
           .sort((a, b) => b[1] - a[1])
           .slice(0, 3)
           .map(([tag]) => tag);
 
-        // 递归构建子集群（如果该集群有足够多的 ideas）
-        const subClusters = depth < 2 && members.length > 8 
-          ? buildClusters(members, depth + 1) 
+        const subClusters = depth < 1 && members.length > 6
+          ? buildClusters(members, depth + 1, key)
           : [];
 
         return {
           key,
+          label: getClusterLabel(key, isZh),
           cx: center.x,
           cy: center.y,
           r: clamp(4 + Math.sqrt(members.length) * 1.8, 5, 13),
@@ -303,7 +494,7 @@ export default function TagMapPage() {
       sortedByTime.forEach((it) => {
         const seed = hashString(it._id);
         const angle = ((seed % 360) * Math.PI) / 180;
-        const radius = 8 + (Math.random() * 35);
+        const radius = 8 + ((hashString(`${it._id}:radius`) % 1000) / 1000) * 35;
         const x = clamp(MAP_CENTER.x + Math.cos(angle) * radius, 5, 95);
         const y = clamp(MAP_CENTER.y + Math.sin(angle) * radius, 5, 95);
 
@@ -322,7 +513,8 @@ export default function TagMapPage() {
 
       sortedByTime.forEach((it, index) => {
         const recency = index / total;
-        const key = pickClusterTag(it.tags, globalTagCount);
+        const rawKey = classifyTopLevel(it, globalTagCount).key;
+        const key = findClusterKeyForIdea(allClusters, it._id, rawKey);
         const clusterCenter = allClusters.find(c => c.key === key);
         const center = clusterCenter ? { x: clusterCenter.cx, y: clusterCenter.cy } : MAP_CENTER;
 
@@ -347,7 +539,7 @@ export default function TagMapPage() {
     }
 
     return { points, clusters: displayClusters, currentCluster };
-  }, [filteredIdeas, zoomPath]);
+  }, [filteredIdeas, zoomPath, isZh]);
 
   function handleClusterClick(clusterKey: string, e: React.MouseEvent) {
     e.stopPropagation();
@@ -445,10 +637,9 @@ export default function TagMapPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3" data-tour="tagmap-header">
         <div>
           <h1 className="text-2xl font-bold text-white">{t("tagMap.title")}</h1>
-          <p className="text-sm text-gray-300 mt-1">{t("tagMap.subtitle")}</p>
         </div>
         <Link
           to={backHomeHref}
@@ -458,9 +649,7 @@ export default function TagMapPage() {
         </Link>
       </div>
 
-      <p className="mt-3 text-xs text-cyan-300">{t("tagMap.hint")}</p>
-
-      <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/60 p-3">
+      <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/60 p-3" data-tour="tagmap-controls">
         <div className="mb-4">
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-gray-300">{t("tagMap.ideaTypeLabel")}</span>
@@ -516,7 +705,7 @@ export default function TagMapPage() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-3xl border border-cyan-900/60 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.16)_0%,rgba(15,23,42,0.96)_55%,rgba(2,6,23,1)_100%)] p-3 md:p-5">
+      <div className="mt-4 rounded-3xl border border-cyan-900/60 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.16)_0%,rgba(15,23,42,0.96)_55%,rgba(2,6,23,1)_100%)] p-3 md:p-5" data-tour="tagmap-map">
         {loading && <div className="text-gray-300 text-sm">{t("common.loading")}</div>}
         {err && <div className="text-red-400 text-sm">{t("common.error")}: {err}</div>}
         {!loading && !err && points.length === 0 && (
@@ -641,7 +830,7 @@ export default function TagMapPage() {
                       fontSize="1.4"
                       className="pointer-events-none select-none"
                     >
-                      #{c.key}
+                      {c.label}
                     </text>
                     <text
                       x={c.cx}
@@ -653,10 +842,22 @@ export default function TagMapPage() {
                     >
                       {c.count}
                     </text>
+                    {c.relatedTags.length > 0 && (
+                      <text
+                        x={c.cx}
+                        y={c.cy + 3.3}
+                        textAnchor="middle"
+                        fill="#67e8f9"
+                        fontSize="0.75"
+                        className="pointer-events-none select-none"
+                      >
+                        {c.relatedTags.slice(0, 2).map((tag) => `#${tag}`).join(" ")}
+                      </text>
+                    )}
                     {hasSubClusters && (
                       <text
                         x={c.cx}
-                        y={c.cy + 3.2}
+                        y={c.cy + 4.5}
                         textAnchor="middle"
                         fill="#86efac"
                         fontSize="0.9"

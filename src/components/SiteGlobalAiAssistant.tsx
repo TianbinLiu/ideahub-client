@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { previewWorkshopAiSiteEdit, type SiteEditAiOperations } from "../api";
-import { normalizeSiteDraft, sanitizeCssBlock, type SiteDraft, type SiteDraftWidget } from "../utils/siteDraft";
+import { normalizeSafeUrl, normalizeSiteDraft, sanitizeCssBlock, type SiteDraft, type SiteDraftWidget } from "../utils/siteDraft";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 
@@ -54,8 +54,8 @@ function applyOpsToDraft(base: SiteDraft, pageKey: string, operations: SiteEditA
                   ? "form"
                   : "text",
       text: String(item?.text || "New widget"),
-      href: String(item?.href || ""),
-      imageUrl: String(item?.imageUrl || ""),
+      href: normalizeSafeUrl(item?.href),
+      imageUrl: normalizeSafeUrl(item?.imageUrl),
       items: Array.isArray(item?.items) ? item.items.map((x) => String(x || "")).filter(Boolean).slice(0, 20) : [],
       fields: Array.isArray(item?.fields) ? item.fields.map((x) => String(x || "")).filter(Boolean).slice(0, 12) : [],
       x: Number(item?.x) || 0,
@@ -73,7 +73,7 @@ function applyOpsToDraft(base: SiteDraft, pageKey: string, operations: SiteEditA
 
   if (operations.pageBackground) {
     if (operations.pageBackground.backgroundType) page.backgroundType = operations.pageBackground.backgroundType;
-    if (operations.pageBackground.backgroundUrl !== undefined) page.backgroundUrl = String(operations.pageBackground.backgroundUrl || "");
+    if (operations.pageBackground.backgroundUrl !== undefined) page.backgroundUrl = normalizeSafeUrl(operations.pageBackground.backgroundUrl);
   }
 
   next.pages[pageKey] = page;

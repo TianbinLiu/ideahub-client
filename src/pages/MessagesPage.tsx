@@ -13,8 +13,8 @@ import { UserHoverCard } from "../components/UserHoverCard";
 type DirectMessage = {
   _id: string;
   conversationId: string;
-  fromUserId: string;
-  toUserId: string;
+  fromUserId: string | { _id: string; username?: string; displayName?: string; avatarUrl?: string };
+  toUserId: string | { _id: string; username?: string; displayName?: string; avatarUrl?: string };
   content: string;
   createdAt: string;
   readAt?: string;
@@ -22,6 +22,7 @@ type DirectMessage = {
 
 type Conversation = {
   conversationId: string;
+  otherUser?: UserProfile;
   participants: Array<{
     _id: string;
     username: string;
@@ -30,7 +31,8 @@ type Conversation = {
   }>;
   lastMessage: {
     content: string;
-    fromUserId: string;
+    fromUserId?: string;
+    fromUser?: "me" | "them";
     createdAt: string;
   };
   unreadCount?: number;
@@ -57,6 +59,18 @@ export default function MessagesPage() {
   const [conversationLoading, setConversationLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  function toId(value: DirectMessage["fromUserId"] | DirectMessage["toUserId"] | undefined) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    return value._id || "";
+  }
+
+  function getOtherUserFromConversation(conversation: Conversation | undefined) {
+    if (!conversation || !currentUser) return null;
+    if (conversation.otherUser) return conversation.otherUser;
+    return conversation.participants?.find((p) => p._id !== currentUser._id && p._id !== (currentUser as any).id) || null;
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -79,11 +93,12 @@ export default function MessagesPage() {
     setLoading(true);
     try {
       const res = await listConversations();
-      setConversations(res.conversations || []);
+      const nextConversations = res.conversations || [];
+      setConversations(nextConversations);
 
       // Auto-select first conversation if none selected
-      if (!selectedConversationId && (res.conversations || []).length > 0) {
-        setSelectedConversationId(res.conversations[0].conversationId);
+      if (!selectedConversationId && nextConversations.length > 0) {
+        setSelectedConversationId(nextConversations[0].conversationId);
       }
     } catch (e: any) {
       console.error("[MessagesPage] Error loading conversations:", e);
@@ -106,7 +121,7 @@ export default function MessagesPage() {
       // Find the other user
       const conversation = conversations.find((c) => c.conversationId === conversationId);
       if (conversation) {
-        const other = conversation.participants.find((p) => p._id !== currentUser._id && p._id !== (currentUser as any).id);
+        const other = getOtherUserFromConversation(conversation);
         if (other) {
           setOtherUser(other);
         }
@@ -165,12 +180,10 @@ export default function MessagesPage() {
           ) : (
             <div className="space-y-1 p-2">
               {conversations.map((conv) => {
-                const other = conv.participants.find(
-                  (p) => p._id !== currentUser?._id && p._id !== (currentUser as any)?.id
-                );
+                const other = getOtherUserFromConversation(conv);
                 const isSelected = conv.conversationId === selectedConversationId;
                 const lastMsg = conv.lastMessage?.content || t("messages.noMessages");
-                const sender = conv.lastMessage?.fromUserId === currentUser?._id ? t("messages.you") : other?.displayName;
+                const sender = conv.lastMessage?.fromUser === "me" || conv.lastMessage?.fromUserId === currentUser?._id ? t("messages.you") : (other?.displayName || other?.username);
 
                 return (
                   <button
@@ -237,7 +250,8 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 messages.map((msg) => {
-                  const isOwn = msg.fromUserId === currentUser?._id || msg.fromUserId === (currentUser as any)?.id;
+                  const senderId = toId(msg.fromUserId);
+                  const isOwn = senderId === currentUser?._id || senderId === (currentUser as any)?.id;
                   return (
                     <div key={msg._id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                       <div

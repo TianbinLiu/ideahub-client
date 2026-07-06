@@ -397,8 +397,8 @@ export default function UserProfilePage() {
 
     setSendingDM(true);
     try {
-      await sendMessageRequest(id!, dmMessage);
-      toast.success(t('messages.requestSent'));
+      const res = await sendMessageRequest(id!, dmMessage);
+      toast.success(res.direct ? t('messages.messageSent') : t('messages.requestSent'));
       setShowDMModal(false);
       setDmMessage("");
     } catch (e: any) {

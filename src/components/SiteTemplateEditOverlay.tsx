@@ -5,6 +5,7 @@ import {
   domPathSelector,
   extractStyleSnippet,
   getPageDraftKey,
+  normalizeSafeUrl,
   normalizeSiteDraft,
   sanitizeCssBlock,
   type SiteDraft,
@@ -400,7 +401,8 @@ export default function SiteTemplateEditOverlay() {
       .map(([nodeId, item]) => {
         const width = Number(item.width) > 0 ? `width:${Number(item.width)}px!important;` : "";
         const height = Number(item.height) > 0 ? `height:${Number(item.height)}px!important;` : "";
-        return `body [data-ws-node-id="${nodeId}"]{transform:translate(${item.x}px,${item.y}px)!important;${width}${height}${item.css || ""}}`;
+        const safeNodeId = String(nodeId || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n\f]/g, " ");
+        return `body [data-ws-node-id="${safeNodeId}"]{transform:translate(${item.x}px,${item.y}px)!important;${width}${height}${sanitizeCssBlock(item.css || "")}}`;
       })
       .join("\n");
 
@@ -420,8 +422,9 @@ export default function SiteTemplateEditOverlay() {
     const shell = document.querySelector<HTMLElement>("#root > .min-h-screen");
     if (!shell) return;
 
-    if (enabled && pageDraft.backgroundType === "image" && pageDraft.backgroundUrl) {
-      shell.style.backgroundImage = `url(${pageDraft.backgroundUrl})`;
+    const safeBackgroundUrl = normalizeSafeUrl(pageDraft.backgroundUrl);
+    if (enabled && pageDraft.backgroundType === "image" && safeBackgroundUrl) {
+      shell.style.backgroundImage = `url("${safeBackgroundUrl.replace(/"/g, '\\"')}")`;
       shell.style.backgroundSize = "cover";
       shell.style.backgroundPosition = "center";
       shell.style.backgroundAttachment = "fixed";
@@ -719,11 +722,11 @@ export default function SiteTemplateEditOverlay() {
       />
 
       {/* Page background preview: image is applied on shell element via effect; video uses overlay layer. */}
-      {pageDraft.backgroundType === "video" && pageDraft.backgroundUrl ? (
+      {pageDraft.backgroundType === "video" && normalizeSafeUrl(pageDraft.backgroundUrl) ? (
         <video
           data-ws-editor-ui="1"
           className="pointer-events-none fixed inset-0 z-[1] h-full w-full object-cover opacity-45"
-          src={pageDraft.backgroundUrl}
+          src={normalizeSafeUrl(pageDraft.backgroundUrl)}
           autoPlay
           loop
           muted
