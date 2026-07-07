@@ -333,7 +333,7 @@ export default function SiteLive2D() {
           tools: [],
           modelId: 0,
           drag: true,
-          logLevel: "warn",
+          logLevel: "error",
         });
         document.getElementById("waifu-toggle")?.remove();
         window.requestAnimationFrame(() => {

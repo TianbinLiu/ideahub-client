@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiFetch } from "../api";
 import { useAuth } from "../authContext";
@@ -207,9 +207,13 @@ export default function ResetPasswordPage() {
         )}
 
         <div className="text-xs text-gray-500 mt-2">
-          <Link to={`/login?next=${encodeURIComponent(next)}`} className="underline">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("ideahub:auth:open", { detail: { mode: "login", next } }))}
+            className="underline"
+          >
             {t('auth.backToLogin')}
-          </Link>
+          </button>
         </div>
       </div>
     </div>

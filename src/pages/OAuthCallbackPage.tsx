@@ -1,7 +1,7 @@
 // src/pages/OAuthCallbackPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useAuth } from "../authContext";
@@ -18,6 +18,10 @@ export default function OAuthCallbackPage() {
   const [status, setStatus] = useState<"loading" | "error">("loading");
 
   const next = useMemo(() => safeNext(sp.get("next")), [sp]);
+
+  function openAuth(mode: "login" | "register") {
+    window.dispatchEvent(new CustomEvent("ideahub:auth:open", { detail: { mode, next } }));
+  }
 
   useEffect(() => {
     (async () => {
@@ -86,18 +90,20 @@ export default function OAuthCallbackPage() {
         <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900 p-4">
           <p className="text-red-400 text-sm">{t('common.error')}: {err}</p>
           <div className="mt-3 flex gap-2">
-            <Link
-              to={`/login?next=${encodeURIComponent(next)}`}
+            <button
+              type="button"
+              onClick={() => openAuth("login")}
               className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-950"
             >
               {t('auth.backToLogin')}
-            </Link>
-            <Link
-              to="/register"
+            </button>
+            <button
+              type="button"
+              onClick={() => openAuth("register")}
               className="rounded-xl border border-gray-700 px-4 py-2 text-gray-200 hover:bg-gray-950"
             >
               {t('auth.registerTitle')}
-            </Link>
+            </button>
           </div>
         </div>
       )}

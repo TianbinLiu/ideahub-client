@@ -46,7 +46,7 @@ export default function SettingsPage() {
       toast.success(t("profile.accountDeleted"));
       clearToken();
       setTimeout(() => {
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
       }, 1000);
     } catch (e: any) {
       toast.error(humanizeError(e));

@@ -10,7 +10,7 @@
  * - 管理员页面用 AdminRoute 包裹
  */
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -18,6 +18,7 @@ import AdminRoute from "./components/AdminRoute";
 import { useAuth } from "./authContext";
 
 import HomePage from "./pages/HomePage";
+import SearchPage from "./pages/SearchPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import NewIdeaPage from "./pages/NewIdeaPage";
@@ -56,14 +57,16 @@ import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
 import SiteLive2D from "./components/SiteLive2D";
 import WorkshopSiteEditorAccessGate from "./components/WorkshopSiteEditorAccessGate";
 import OnboardingTour from "./components/OnboardingTour";
+import AuthDialog from "./components/AuthDialog";
 
 // Redirect /me to the current user's profile
 function MeRedirect() {
   const { user } = useAuth();
+  const nav = useNavigate();
   const userId = user?._id;
 
   if (!userId) {
-    return <Navigate to="/login" replace />;
+    return <AuthDialog initialMode="login" next="/me" onClose={() => nav("/", { replace: true })} />;
   }
 
   return <Navigate to={`/users/${userId}`} replace />;
@@ -140,6 +143,7 @@ export default function App() {
       <OnboardingTour />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/ideas/:id" element={<IdeaDetailPage />} />
         <Route
           path="/ideas/:id/edit"

@@ -33,19 +33,22 @@ function OAuthBtn({
   label,
   subLabel,
   path,
+  nextOverride,
 }: {
   provider: "google" | "github";
   label: string;
   subLabel?: string;
   path: string; // e.g. /api/auth/oauth/google
+  nextOverride?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const loc = useLocation();
 
   const next = useMemo(() => {
+    if (nextOverride) return nextOverride;
     const q = new URLSearchParams(loc.search);
     return q.get("next") || "/";
-  }, [loc.search]);
+  }, [loc.search, nextOverride]);
 
   async function go() {
     try {
@@ -90,7 +93,7 @@ export default function OAuthButtons() {
   );
 }
 
-export function OAuthButtonsWithProviders({ providers }: { providers: Array<"google" | "github"> }) {
+export function OAuthButtonsWithProviders({ providers, nextOverride }: { providers: Array<"google" | "github">; nextOverride?: string }) {
   const showGoogle = providers.includes("google");
   const showGithub = providers.includes("github");
 
@@ -102,6 +105,7 @@ export function OAuthButtonsWithProviders({ providers }: { providers: Array<"goo
           label="Continue with Google"
           subLabel="Fast login • Email auto-verified"
           path="/api/auth/oauth/google"
+          nextOverride={nextOverride}
         />
       )}
       {showGithub && (
@@ -110,6 +114,7 @@ export function OAuthButtonsWithProviders({ providers }: { providers: Array<"goo
           label="Continue with GitHub"
           subLabel="Developer-friendly • Uses your GitHub identity"
           path="/api/auth/oauth/github"
+          nextOverride={nextOverride}
         />
       )}
     </div>

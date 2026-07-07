@@ -196,7 +196,7 @@ export default function MePage() {
       await logoutAllSessions();
       logout();
       toast.success(t('me.logoutAllSessionsSuccess'));
-      nav('/login', { replace: true });
+      nav('/', { replace: true });
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {

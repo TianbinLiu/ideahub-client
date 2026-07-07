@@ -4,49 +4,17 @@
  * @requires_auth no
  * @i18n_module idea
  * @route /
- * 
- * 📖 [AI] 修改前必读: /.ai-instructions.md #新建页面必备功能清单
- * 🔄 [AI] 修改后必须: 同步更新 PROJECT_STRUCTURE.md 创意管理页面组章节
- * 
- * 职责:
- * - 显示所有公开创意列表（分页）
- * - 支持搜索功能（@用户名、#标签、关键词）
- * - 支持排序（最新、最热、点赞最多）
- * - 显示创意卡片（标题、摘要、作者、统计）
- * - 显示AI评审状态和摘要
- * 
- * 依赖文件:
- * @uses ../api.ts - 获取创意列表 (GET /api/ideas)
- * @uses ../authContext.tsx - 获取当前用户状态
- * @uses ../utils/humanizeError.ts - 错误信息国际化
- * 
- * 被使用于:
- * @used_in App.tsx - 根路由 "/"
- * 
- * 必备功能检查:
- * ✅ 国际化 (useTranslation)
- * ✅ 错误处理 (try-catch + humanizeError)
- * ✅ 加载状态 (loading state)
- * ✅ 空状态处理 (无创意提示)
- * ✅ 统一UI样式 (Tailwind)
- * ✅ 响应式设计 (grid responsive)
  */
 
-import { useEffect, useMemo, useState, useRef } from "react";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  apiFetch,
-  clearIdeaRecommendationFeedback,
-  getMyComponents,
-  listGroups,
-  submitIdeaRecommendationFeedback,
-  type Group,
-} from "../api";
+import { apiFetch, listGroups, type Group } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { getPlatformIcon } from "../utils/platformConfig";
 import { useAuth } from "../authContext";
+import { Flame, Radio } from "lucide-react";
 
 type Idea = {
   _id: string;
@@ -59,7 +27,7 @@ type Idea = {
   groupSlug?: string;
   groupName?: string;
   createdAt: string;
-  author?: { username: string; role: string };
+  author?: { _id?: string; username: string; role: string };
   stats?: { likeCount?: number; viewCount?: number };
   externalSource?: {
     platform?: string;
@@ -70,31 +38,62 @@ type Idea = {
 };
 
 type IdeaTypeKey = "business" | "feedback" | "external" | "daily" | "dynamic";
+type HomeFeedMode = "dynamic" | "hot";
 
-const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: string }> = [
-  { key: "business", emoji: "💼", activeClass: "border-emerald-400/70 bg-emerald-500/20 text-emerald-100" },
-  { key: "feedback", emoji: "🛠", activeClass: "border-sky-400/70 bg-sky-500/20 text-sky-100" },
-  { key: "external", emoji: "🔗", activeClass: "border-fuchsia-400/70 bg-fuchsia-500/20 text-fuchsia-100" },
-  { key: "daily", emoji: "📝", activeClass: "border-amber-400/70 bg-amber-500/20 text-amber-100" },
-  { key: "dynamic", emoji: "📣", activeClass: "border-cyan-400/70 bg-cyan-500/20 text-cyan-100" },
+type TagRankBoard = {
+  _id: string;
+  tags?: string[];
+  postsCount?: number;
+  computedAt?: string;
+  entries?: Array<{ idea?: { title?: string } }>;
+};
+
+type FollowingUser = {
+  _id: string;
+  username?: string;
+};
+
+const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: string; inactiveClass: string }> = [
+  { key: "business", emoji: "💼", activeClass: "border-emerald-400/70 bg-emerald-500/20 text-emerald-100", inactiveClass: "border-emerald-800/50 text-emerald-200/80 hover:bg-emerald-950/30" },
+  { key: "feedback", emoji: "🛠", activeClass: "border-sky-400/70 bg-sky-500/20 text-sky-100", inactiveClass: "border-sky-800/50 text-sky-200/80 hover:bg-sky-950/30" },
+  { key: "external", emoji: "🔗", activeClass: "border-fuchsia-400/70 bg-fuchsia-500/20 text-fuchsia-100", inactiveClass: "border-fuchsia-800/50 text-fuchsia-200/80 hover:bg-fuchsia-950/30" },
+  { key: "daily", emoji: "📝", activeClass: "border-amber-400/70 bg-amber-500/20 text-amber-100", inactiveClass: "border-amber-800/50 text-amber-200/80 hover:bg-amber-950/30" },
+  { key: "dynamic", emoji: "📣", activeClass: "border-cyan-400/70 bg-cyan-500/20 text-cyan-100", inactiveClass: "border-cyan-800/50 text-cyan-200/80 hover:bg-cyan-950/30" },
 ];
 
 const IDEA_TYPE_STORAGE_KEY = "preferredHomeIdeaType";
 const IDEA_GROUP_STORAGE_KEY = "preferredHomeIdeaGroup";
+const RECOMMENDATION_PAGE_SIZE = 6;
+const COMPACT_RECOMMENDATION_PAGE_SIZE = 4;
 
 function isIdeaTypeKey(value: string): value is IdeaTypeKey {
   return IDEA_TYPE_OPTIONS.some((item) => item.key === value);
+}
+
+function toHttpsUrl(raw?: string) {
+  const val = String(raw || "").trim();
+  if (!val) return "";
+  if (/^http:\/\//i.test(val)) return val.replace(/^http:\/\//i, "https://");
+  if (val.startsWith("//")) return `https:${val}`;
+  return val;
+}
+
+function formatDate(raw?: string) {
+  if (!raw) return "";
+  return new Date(raw).toLocaleDateString();
 }
 
 export default function HomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const sort = params.get("sort") || "recommended";
-  const q = params.get("q") || "";
-  const page = Math.max(parseInt(params.get("page") || "1", 10), 1);
+  const feedMode: HomeFeedMode = params.get("feed") === "hot" ? "hot" : "dynamic";
+  const sort = feedMode === "hot" ? "hot" : "new";
   const rawIdeaType = params.get("ideaType") || "";
-  const ideaType = isIdeaTypeKey(rawIdeaType) ? rawIdeaType : "";
+  const selectedIdeaTypes = useMemo(() => {
+    const raw = params.get("ideaTypes") || rawIdeaType || "";
+    return Array.from(new Set(raw.split(",").map((item) => item.trim()).filter(isIdeaTypeKey)));
+  }, [params, rawIdeaType]);
   const groupSlug = (params.get("group") || "world").trim().toLowerCase() || "world";
   const preferredGroupSlugs = useMemo(
     () => Array.from(new Set((params.get("preferredGroups") || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean))),
@@ -104,30 +103,16 @@ export default function HomePage() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
-  const [totalPages, setTotalPages] = useState(1);
-  const [searchInput, setSearchInput] = useState(q);
-  const [suggestions, setSuggestions] = useState<Array<{ type: string; text: string; id?: string }>>([]);
-  const [highlight, setHighlight] = useState(-1);
-  const [recentTags, setRecentTags] = useState<string[]>([]);
-  const [hoveredIdeaId, setHoveredIdeaId] = useState<string | null>(null);
   const [dismissedIdeaIds, setDismissedIdeaIds] = useState<string[]>([]);
-  const [feedbackLoadingId, setFeedbackLoadingId] = useState<string | null>(null);
-  const [showIdeaTypePicker, setShowIdeaTypePicker] = useState(false);
   const [groups, setGroups] = useState<Group[]>([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
-  const [tagRankComponentEnabled, setTagRankComponentEnabled] = useState(() => !user?._id);
-  const [isTagRankSearchMode, setIsTagRankSearchMode] = useState(false);
-  const nav = useNavigate();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const suggRef = useRef<HTMLDivElement | null>(null);
-  const visibleHotTags = recentTags.slice(0, 3);
-  const activeSearchTokens = useMemo(() => {
-    return Array.from(new Set(
-      q
-        .split(/[#,，,\s]+/)
-        .map((item) => item.trim().toLowerCase())
-        .filter(Boolean)
-    ));
-  }, [q]);
+  const [recommendationPage, setRecommendationPage] = useState(0);
+  const [recommendationPageSize, setRecommendationPageSize] = useState(RECOMMENDATION_PAGE_SIZE);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [followingIdeas, setFollowingIdeas] = useState<Idea[]>([]);
+  const [followingLoading, setFollowingLoading] = useState(false);
+  const [tagRankBoards, setTagRankBoards] = useState<TagRankBoard[]>([]);
+  const [tagRankLoading, setTagRankLoading] = useState(false);
+
   const visibleIdeas = useMemo(
     () => ideas.filter((idea) => !dismissedIdeaIds.includes(idea._id)),
     [ideas, dismissedIdeaIds]
@@ -136,101 +121,103 @@ export default function HomePage() {
     () => groups.filter((group) => group.isWorld || group.joined),
     [groups]
   );
-
-  // debounce timer
-  const suggTimer = useRef<any>(null);
+  const joinedGroups = useMemo(
+    () => accessibleGroups.filter((group) => !group.isWorld),
+    [accessibleGroups]
+  );
+  const featuredIdeas = useMemo(() => {
+    const withImages = visibleIdeas.filter((idea) => getIdeaImageUrl(idea));
+    return (withImages.length > 0 ? withImages : visibleIdeas).slice(0, 5);
+  }, [visibleIdeas]);
+  const recommendationPageCount = Math.max(1, Math.ceil(visibleIdeas.length / recommendationPageSize));
+  const recommendationIdeas = visibleIdeas.slice(
+    recommendationPage * recommendationPageSize,
+    recommendationPage * recommendationPageSize + recommendationPageSize
+  );
+  const featuredIdea = featuredIdeas.length > 0 ? featuredIdeas[featuredIndex % featuredIdeas.length] : null;
 
   async function load() {
     try {
-      if (!ideaType) {
-        setIdeas([]);
-        setTotalPages(1);
-        setLoading(false);
-        return;
-      }
-
       setErr("");
       setLoading(true);
 
       const qs = new URLSearchParams({
         sort,
-        q,
-        page: String(page),
-        limit: "10",
+        page: "1",
+        limit: "24",
+        group: groupSlug,
       });
 
-      if (recentTags.length > 0) {
-        qs.set("recentTags", recentTags.join(","));
-      }
-      qs.set("ideaType", ideaType);
-      qs.set("group", groupSlug);
-      if (groupSlug === "world" && preferredGroupSlugs.length > 0) {
-        qs.set("preferredGroups", preferredGroupSlugs.join(","));
-      }
+      if (selectedIdeaTypes.length > 0) qs.set("ideaTypes", selectedIdeaTypes.join(","));
+      if (groupSlug === "world" && preferredGroupSlugs.length > 0) qs.set("preferredGroups", preferredGroupSlugs.join(","));
 
-      const res = await apiFetch<{
-        ideas: Idea[];
-        totalPages: number;
-        total: number;
-      }>(`/api/ideas?${qs.toString()}`);
-
+      const res = await apiFetch<{ ideas: Idea[]; totalPages: number; total: number }>(`/api/ideas?${qs.toString()}`);
       setIdeas(res.ideas || []);
-      setTotalPages(res.totalPages || 1);
-    } catch (e: any) {
-      const msg = humanizeError(e);
+    } catch (error: any) {
+      const msg = humanizeError(error);
       toast.error(msg);
-      setErr(msg); // 可选
-
+      setErr(msg);
     } finally {
       setLoading(false);
     }
   }
 
-
   useEffect(() => {
-    load();
-  }, [sort, q, page, recentTags.join(","), ideaType, groupSlug, preferredGroupSlugs.join(",")]);
-
-  useEffect(() => {
-    setSearchInput(q);
-  }, [q]);
+    void load();
+  }, [sort, selectedIdeaTypes.join(","), groupSlug, preferredGroupSlugs.join(",")]);
 
   useEffect(() => {
     setDismissedIdeaIds([]);
-  }, [sort, q, page, ideaType, groupSlug, preferredGroupSlugs.join(",")]);
+    setRecommendationPage(0);
+    setFeaturedIndex(0);
+  }, [sort, selectedIdeaTypes.join(","), groupSlug, preferredGroupSlugs.join(",")]);
 
   useEffect(() => {
-    if (ideaType) {
-      setShowIdeaTypePicker(false);
-      try {
-        localStorage.setItem(IDEA_TYPE_STORAGE_KEY, ideaType);
-      } catch (e) {
-        // ignore persistence failure
-      }
+    setRecommendationPage((currentPage) => Math.min(currentPage, recommendationPageCount - 1));
+  }, [recommendationPageCount]);
+
+  useEffect(() => {
+    function updateRecommendationPageSize() {
+      setRecommendationPageSize(window.innerWidth >= 1024 ? RECOMMENDATION_PAGE_SIZE : COMPACT_RECOMMENDATION_PAGE_SIZE);
+    }
+
+    updateRecommendationPageSize();
+    window.addEventListener("resize", updateRecommendationPageSize);
+    return () => window.removeEventListener("resize", updateRecommendationPageSize);
+  }, []);
+
+  useEffect(() => {
+    if (featuredIdeas.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setFeaturedIndex((currentIndex) => (currentIndex + 1) % featuredIdeas.length);
+    }, 5200);
+    return () => window.clearInterval(timer);
+  }, [featuredIdeas.length]);
+
+  useEffect(() => {
+    if (rawIdeaType && isIdeaTypeKey(rawIdeaType)) {
+      const next = new URLSearchParams(params);
+      next.delete("ideaType");
+      next.set("ideaTypes", rawIdeaType);
+      next.set("page", "1");
+      setParams(next, { replace: true });
       return;
     }
 
-    try {
-      const stored = String(localStorage.getItem(IDEA_TYPE_STORAGE_KEY) || "").trim();
-      if (isIdeaTypeKey(stored)) {
-        const next = new URLSearchParams(params);
-        next.set("ideaType", stored);
-        next.set("page", "1");
-        setParams(next, { replace: true });
-        return;
+    if (selectedIdeaTypes.length > 0) {
+      try {
+        localStorage.setItem(IDEA_TYPE_STORAGE_KEY, selectedIdeaTypes.join(","));
+      } catch {
+        // ignore persistence failure
       }
-    } catch (e) {
-      // ignore persistence failure
     }
-
-    setShowIdeaTypePicker(true);
-  }, [ideaType, params, setParams]);
+  }, [rawIdeaType, selectedIdeaTypes.join(","), params, setParams]);
 
   useEffect(() => {
     if (params.get("group")) {
       try {
         localStorage.setItem(IDEA_GROUP_STORAGE_KEY, groupSlug);
-      } catch (e) {
+      } catch {
         // ignore persistence failure
       }
       return;
@@ -242,17 +229,13 @@ export default function HomePage() {
       next.set("group", stored);
       next.set("page", "1");
       setParams(next, { replace: true });
-    } catch (e) {
+    } catch {
       const next = new URLSearchParams(params);
       next.set("group", "world");
       next.set("page", "1");
       setParams(next, { replace: true });
     }
   }, [groupSlug, params, setParams]);
-
-  useEffect(() => {
-    loadRecentTags();
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -288,169 +271,125 @@ export default function HomePage() {
   useEffect(() => {
     let mounted = true;
 
-    async function syncComponents() {
+    async function loadFollowingIdeas() {
       if (!user?._id) {
-        if (!mounted) return;
-        setTagRankComponentEnabled(true);
+        setFollowingIdeas([]);
         return;
       }
 
       try {
-        const res = await getMyComponents();
-        if (!mounted) return;
-        const enabled = Boolean(res.components.tagRank.enabled);
-        setTagRankComponentEnabled(enabled);
-        if (!enabled) {
-          setIsTagRankSearchMode(false);
+        setFollowingLoading(true);
+        const followingRes = await apiFetch<{ ok: true; following: FollowingUser[] }>(`/api/users/${user._id}/following?limit=12`);
+        const followedUsers = (followingRes.following || []).slice(0, 8);
+        if (followedUsers.length === 0) {
+          if (mounted) setFollowingIdeas([]);
+          return;
         }
+
+        const ideaResults = await Promise.all(
+          followedUsers.map((followedUser) =>
+            apiFetch<{ ok: true; ideas: Idea[] }>(`/api/users/${followedUser._id}/ideas?limit=3`).catch(() => ({ ok: true, ideas: [] }))
+          )
+        );
+        const mergedIdeas = ideaResults
+          .flatMap((result) => result.ideas || [])
+          .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
+          .slice(0, 12);
+
+        if (mounted) setFollowingIdeas(mergedIdeas);
       } catch {
-        if (!mounted) return;
-        setTagRankComponentEnabled(false);
-        setIsTagRankSearchMode(false);
+        if (mounted) setFollowingIdeas([]);
+      } finally {
+        if (mounted) setFollowingLoading(false);
       }
     }
 
-    void syncComponents();
+    void loadFollowingIdeas();
 
-    function handleComponentsUpdated() {
-      void syncComponents();
-    }
-
-    window.addEventListener("ideahub:components-updated", handleComponentsUpdated);
     return () => {
       mounted = false;
-      window.removeEventListener("ideahub:components-updated", handleComponentsUpdated);
     };
   }, [user?._id]);
 
-  // fetch suggestions for tags and idea titles
-  function fetchSuggestionsDebounced(v: string) {
-    if (suggTimer.current) clearTimeout(suggTimer.current);
-    suggTimer.current = setTimeout(async () => {
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadTagRankBoards() {
       try {
-        const token = v.trim();
-        if (!token) return setSuggestions([]);
-        if (isTagRankSearchMode) {
-          const tagsRes = await apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ tags: [] }));
-          const tagSug = (tagsRes.tags || []).slice(0, 8).map((tag: string) => ({ type: "tag", text: tag }));
-          setSuggestions(tagSug);
-        } else {
-          const [tagsRes, ideasRes] = await Promise.all([
-            apiFetch(`/api/tag-rank/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ tags: [] })),
-            apiFetch(`/api/ideas/suggest?q=${encodeURIComponent(token)}`).catch(() => ({ ideas: [] })),
-          ]);
-          const tagSug = (tagsRes.tags || []).slice(0, 6).map((tag: string) => ({ type: "tag", text: tag }));
-          const ideaSug = (ideasRes.ideas || []).slice(0, 6).map((it: any) => ({ type: "idea", text: it.title, id: it.id }));
-          setSuggestions([...tagSug, ...ideaSug]);
-        }
-        setHighlight(-1);
-      } catch (e) {
-        // ignore
-      }
-    }, 180);
-  }
-
-  function submitIdeaSearch() {
-    const next = new URLSearchParams(params);
-    next.set("page", "1");
-
-    if (searchInput.trim()) {
-      next.set("q", searchInput.trim());
-      updateRecentTagsFromInput(searchInput);
-    } else {
-      next.delete("q");
-    }
-
-    setParams(next);
-  }
-
-  function submitTagRankSearch() {
-    const keyword = searchInput.trim();
-    if (!keyword) {
-      return;
-    }
-
-    updateRecentTagsFromInput(keyword);
-    nav(`/tag-rank?q=${encodeURIComponent(keyword)}`);
-  }
-
-  function replaceLastTokenWith(input: string, replacement: string) {
-    // replace last comma/space separated token
-    const parts = input.split(/([,，\s]+)/);
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (!parts[i].match(/^[,，\s]+$/)) {
-        parts[i] = replacement;
-        return parts.join("");
+        setTagRankLoading(true);
+        const res = await apiFetch<{ boards: TagRankBoard[] }>(`/api/tag-rank/leaderboards?sort=hottest&limit=8`);
+        if (mounted) setTagRankBoards(res.boards || []);
+      } catch {
+        if (mounted) setTagRankBoards([]);
+      } finally {
+        if (mounted) setTagRankLoading(false);
       }
     }
-    return replacement;
-  }
 
-  function loadRecentTags() {
-    try {
-      const raw = localStorage.getItem("recentSearchTags");
-      if (!raw) return setRecentTags([]);
-      const parsed = JSON.parse(raw || "[]");
-      if (Array.isArray(parsed)) setRecentTags(parsed.slice(0, 12));
-    } catch (e) {
-      setRecentTags([]);
-    }
-  }
+    void loadTagRankBoards();
 
-  function persistRecentTags(tags: string[]) {
-    try {
-      localStorage.setItem("recentSearchTags", JSON.stringify(tags.slice(0, 12)));
-    } catch (e) {}
-  }
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  function updateRecentTagsFromInput(input: string) {
-    const parts = input.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
-    if (parts.length === 0) return;
-    const normalized = parts.map(s => s.toLowerCase());
-    const merged = [...normalized, ...recentTags.filter(t => !normalized.includes(t))].slice(0, 12);
-    setRecentTags(merged);
-    persistRecentTags(merged);
-  }
-
-  function toHttpsUrl(raw?: string) {
-    const val = String(raw || "").trim();
-    if (!val) return "";
-    if (/^http:\/\//i.test(val)) return val.replace(/^http:\/\//i, "https://");
-    if (val.startsWith("//")) return `https:${val}`;
-    return val;
-  }
-
-  function updateSort(nextSort: string) {
+  function updateFeedMode(nextMode: HomeFeedMode) {
     const next = new URLSearchParams(params);
-    next.set("sort", nextSort);
+    if (nextMode === "dynamic") next.delete("feed");
+    else next.set("feed", "hot");
     next.set("page", "1");
     setParams(next);
   }
 
-  function updateIdeaType(nextType: IdeaTypeKey) {
+  function toggleIdeaType(nextType: IdeaTypeKey) {
     const next = new URLSearchParams(params);
-    next.set("ideaType", nextType);
+    next.delete("ideaType");
+    const current = new Set(selectedIdeaTypes);
+    if (current.has(nextType)) current.delete(nextType);
+    else current.add(nextType);
+    const values = Array.from(current);
+    if (values.length > 0) next.set("ideaTypes", values.join(","));
+    else next.delete("ideaTypes");
     next.set("page", "1");
     setParams(next);
-    setShowIdeaTypePicker(false);
     try {
-      localStorage.setItem(IDEA_TYPE_STORAGE_KEY, nextType);
-    } catch (e) {
+      localStorage.setItem(IDEA_TYPE_STORAGE_KEY, values.join(","));
+    } catch {
       // ignore persistence failure
     }
+  }
+
+  function clearIdeaTypes() {
+    const next = new URLSearchParams(params);
+    next.delete("ideaType");
+    next.delete("ideaTypes");
+    next.set("page", "1");
+    setParams(next);
+    try {
+      localStorage.removeItem(IDEA_TYPE_STORAGE_KEY);
+    } catch {
+      // ignore persistence failure
+    }
+  }
+
+  function getIdeaTypeOption(type?: string) {
+    return IDEA_TYPE_OPTIONS.find((item) => item.key === type);
+  }
+
+  function getIdeaTypeTitle(type?: string) {
+    if (!type || !isIdeaTypeKey(type)) return "";
+    return t(`idea.createMode${type.charAt(0).toUpperCase()}${type.slice(1)}Title`);
   }
 
   function updateGroup(nextGroup: string) {
     const next = new URLSearchParams(params);
     next.set("group", nextGroup);
     next.set("page", "1");
-    if (nextGroup !== "world") {
-      next.delete("preferredGroups");
-    }
+    if (nextGroup !== "world") next.delete("preferredGroups");
     setParams(next);
     try {
       localStorage.setItem(IDEA_GROUP_STORAGE_KEY, nextGroup);
-    } catch (e) {
+    } catch {
       // ignore persistence failure
     }
   }
@@ -468,442 +407,260 @@ export default function HomePage() {
     setParams(next);
   }
 
-  function isMatchingSearchTag(tag: string) {
-    const normalizedTag = String(tag || "").trim().toLowerCase();
-    return activeSearchTokens.some((token) => normalizedTag === token || normalizedTag.includes(token) || token.includes(normalizedTag));
+  function getIdeaImageUrl(idea?: Idea | null) {
+    return toHttpsUrl(idea?.coverImageUrl || idea?.imageUrls?.[0]);
   }
 
-  async function handleRecommendationFeedback(
-    ideaId: string,
-    reason: "not_interested" | "already_recommended"
-  ) {
-    try {
-      setFeedbackLoadingId(ideaId);
-      await submitIdeaRecommendationFeedback(ideaId, reason);
-      setDismissedIdeaIds((prev) => (prev.includes(ideaId) ? prev : [...prev, ideaId]));
-      toast((toastInstance) => (
-        <div className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 shadow-lg">
-          <span>
-            {reason === "not_interested"
-              ? t("home.feedbackSavedNotInterested")
-              : t("home.feedbackSavedAlreadyRecommended")}
+  function renderIdeaTypeBadge(idea: Idea, compact = false) {
+    if (!idea.ideaType) return null;
+    const option = getIdeaTypeOption(idea.ideaType);
+    return (
+      <span className={`inline-flex w-fit rounded-full border px-2.5 py-1 ${compact ? "text-[10px]" : "text-[11px]"} font-semibold ${option?.activeClass || "border-gray-700 text-gray-200"}`}>
+        {option?.emoji} {getIdeaTypeTitle(idea.ideaType)}
+      </span>
+    );
+  }
+
+  function renderIdeaMeta(idea: Idea) {
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
+        {idea.externalSource ? (
+          <span className="rounded-full border border-purple-700 bg-purple-900/20 px-2 py-1 text-purple-300">
+            {getPlatformIcon(idea.externalSource.platform)} {idea.externalSource.platform}
           </span>
-          <button
-            type="button"
-            className="rounded-md border border-cyan-600 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-950/40"
-            onClick={async () => {
-              try {
-                await clearIdeaRecommendationFeedback(ideaId);
-                setDismissedIdeaIds((prev) => prev.filter((id) => id !== ideaId));
-                toast.dismiss(toastInstance.id);
-                toast.success(t("home.feedbackUndoSuccess"));
-              } catch (e: any) {
-                toast.error(humanizeError(e));
-              }
-            }}
-          >
-            {t("home.undoFeedback")}
-          </button>
-        </div>
-      ), { duration: 5000 });
-    } catch (e: any) {
-      toast.error(humanizeError(e));
-    } finally {
-      setFeedbackLoadingId(null);
-    }
+        ) : (
+          <span className="rounded-full border border-gray-700 px-2 py-1">
+            {idea.author?.username || t("home.unknownAuthor")}
+          </span>
+        )}
+        <span className="rounded-full border border-cyan-700/60 bg-cyan-950/20 px-2 py-1 text-cyan-200">
+          #{idea.groupName || idea.groupSlug || "world"}
+        </span>
+        <span className="ml-auto text-gray-400">
+          ❤️ {idea.stats?.likeCount ?? 0} · 👀 {idea.stats?.viewCount ?? 0}
+        </span>
+      </div>
+    );
   }
 
+  function renderCompactIdeaCard(idea: Idea, variant: "right" | "row") {
+    const imageUrl = getIdeaImageUrl(idea);
+    if (variant === "right") {
+      return (
+        <Link
+          key={idea._id}
+          to={`/ideas/${idea._id}`}
+          className="group flex min-h-0 flex-col justify-between rounded-xl border border-gray-800 bg-gray-900/80 p-3 transition hover:border-cyan-700/70 hover:bg-gray-900"
+        >
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
+              <span className="shrink-0 text-[10px] text-gray-500">{formatDate(idea.createdAt)}</span>
+            </div>
+            {idea.summary ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            {renderIdeaTypeBadge(idea, true)}
+            <span className="text-xs text-gray-400">❤️ {idea.stats?.likeCount ?? 0}</span>
+          </div>
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        key={idea._id}
+        to={`/ideas/${idea._id}`}
+        className={`group overflow-hidden rounded-xl border border-gray-800 bg-gray-900/80 transition hover:border-cyan-700/70 hover:bg-gray-900 ${variant === "row" ? "w-72 shrink-0" : ""}`}
+      >
+        {imageUrl ? (
+          <img src={imageUrl} alt="" loading="lazy" decoding="async" className="h-28 w-full object-cover transition duration-300 group-hover:scale-105" />
+        ) : (
+          <div className="h-28 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,.22),transparent_28%),linear-gradient(135deg,#111827,#020617)]" />
+        )}
+        <div className="p-3">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
+            <span className="shrink-0 text-[10px] text-gray-500">{formatDate(idea.createdAt)}</span>
+          </div>
+          {idea.summary ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
+          <div className="mt-2 flex items-center justify-between gap-2">
+            {renderIdeaTypeBadge(idea, true)}
+            <span className="text-xs text-gray-400">❤️ {idea.stats?.likeCount ?? 0}</span>
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto p-4">
-      <div className="flex items-end justify-between" data-tour="home-header">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t('home.title')}</h1>
-        </div>
-
-        <div className="flex gap-2">
+    <div className="mx-auto max-w-7xl p-4">
+      <div className="grid gap-3 lg:grid-cols-[auto,1fr]" data-tour="home-header">
+        <div className="flex items-start gap-4">
           <button
-            onClick={() => updateSort("recommended")}
-            className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "recommended" ? "border-white text-white" : "border-gray-700 text-gray-300"
-              }`}
+            type="button"
+            onClick={() => updateFeedMode("dynamic")}
+            className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold"
           >
-            {t('home.recommended')}
+            <span className={`flex h-14 w-14 items-center justify-center rounded-full border transition ${feedMode === "dynamic" ? "border-cyan-400 bg-cyan-500/20 text-cyan-100" : "border-gray-700 bg-gray-900 text-gray-300 group-hover:bg-gray-800"}`}>
+              <Radio className="h-6 w-6" />
+            </span>
+            <span className={feedMode === "dynamic" ? "text-cyan-100" : "text-gray-300 group-hover:text-white"}>{t("home.dynamic")}</span>
           </button>
           <button
-            onClick={() => updateSort("new")}
-            className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "new" ? "border-white text-white" : "border-gray-700 text-gray-300"
-              }`}
+            type="button"
+            onClick={() => updateFeedMode("hot")}
+            className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold"
           >
-            {t('home.new')}
-          </button>
-          <button
-            onClick={() => updateSort("hot")}
-            className={`rounded-xl border px-3 py-1.5 text-sm ${sort === "hot" ? "border-white text-white" : "border-gray-700 text-gray-300"
-              }`}
-          >
-            {t('home.hot')}
+            <span className={`flex h-14 w-14 items-center justify-center rounded-full border transition ${feedMode === "hot" ? "border-rose-400 bg-rose-500/20 text-rose-100" : "border-gray-700 bg-gray-900 text-gray-300 group-hover:bg-gray-800"}`}>
+              <Flame className="h-6 w-6" />
+            </span>
+            <span className={feedMode === "hot" ? "text-rose-100" : "text-gray-300 group-hover:text-white"}>{t("home.hot")}</span>
           </button>
         </div>
-      </div>
 
-      <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/70 p-4" data-tour="home-filters">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">{t("home.currentIdeaType")}</p>
-              {ideaType ? (
-                <span className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.activeClass || "border-gray-700 text-gray-200"}`}>
-                  {IDEA_TYPE_OPTIONS.find((item) => item.key === ideaType)?.emoji} {" "}
-                  {t(`idea.createMode${ideaType.charAt(0).toUpperCase()}${ideaType.slice(1)}Title`)}
-                </span>
-              ) : (
-                <span className="mt-1 inline-flex items-center rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300">
-                  {t("home.ideaTypeNotSelected")}
-                </span>
-              )}
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">{t("home.currentGroup")}</p>
-              <span className="mt-1 inline-flex items-center rounded-full border border-cyan-500/60 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
-                #{accessibleGroups.find((group) => group.slug === groupSlug)?.name || groupSlug}
-              </span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3" data-tour="home-filters">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link to="/tag-rank" className="rounded-full border border-indigo-700/70 bg-indigo-950/30 px-3 py-1 text-xs font-semibold text-indigo-200 hover:bg-indigo-900/40">
+              {t("nav.tagRank")}
+            </Link>
             {IDEA_TYPE_OPTIONS.map((item) => (
               <button
                 key={item.key}
                 type="button"
-                onClick={() => updateIdeaType(item.key)}
-                className={`rounded-full border px-3 py-1 text-xs transition ${ideaType === item.key ? item.activeClass : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+                onClick={() => toggleIdeaType(item.key)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${selectedIdeaTypes.includes(item.key) ? item.activeClass : item.inactiveClass}`}
               >
-                {item.emoji} {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Title`)}
+                {item.emoji} {getIdeaTypeTitle(item.key)}
               </button>
             ))}
-            <select
-              value={groupSlug}
-              onChange={(e) => updateGroup(e.target.value)}
-              className="rounded-full border border-gray-700 bg-gray-950 px-3 py-1 text-xs text-gray-200"
-            >
+            {selectedIdeaTypes.length > 0 ? (
+              <button type="button" onClick={clearIdeaTypes} className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300 hover:bg-gray-800">
+                {t("common.clearFilters")}
+              </button>
+            ) : null}
+            <select value={groupSlug} onChange={(event) => updateGroup(event.target.value)} className="rounded-full border border-gray-700 bg-gray-950 px-3 py-1 text-xs text-gray-200">
               {accessibleGroups.map((group) => (
-                <option key={group.slug} value={group.slug}>
-                  {group.name}
-                </option>
+                <option key={group.slug} value={group.slug}>{group.name}</option>
               ))}
             </select>
           </div>
-        </div>
-        {groupSlug === "world" ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" data-tour="home-preferred">
-            <span className="text-gray-400">优先圈子</span>
-            {accessibleGroups.filter((group) => !group.isWorld).map((group) => (
-              <button
-                key={group.slug}
-                type="button"
-                onClick={() => togglePreferredGroup(group.slug)}
-                className={`rounded-full border px-3 py-1 ${preferredGroupSlugs.includes(group.slug) ? "border-cyan-500 bg-cyan-500/15 text-cyan-100" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
-              >
-                {group.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
 
-      {showIdeaTypePicker && !ideaType && (
-        <div className="mt-4 rounded-2xl border border-purple-700/60 bg-gradient-to-br from-purple-950/70 via-gray-950 to-gray-950 p-5" data-tour="home-type-picker">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {IDEA_TYPE_OPTIONS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => updateIdeaType(item.key)}
-                className="rounded-xl border border-gray-700 bg-gray-900/70 p-4 text-left transition hover:border-purple-500/60 hover:bg-gray-900"
-              >
-                <div className="text-2xl">{item.emoji}</div>
-                <div className="mt-2 text-sm font-semibold text-white">
-                  {t(`idea.createMode${item.key.charAt(0).toUpperCase()}${item.key.slice(1)}Title`)}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {ideaType && (
-        <>
-
-      <div className="mt-4 grid gap-2 md:grid-cols-3" data-tour="home-search">
-        <div className="relative">
-          <input
-            className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 text-sm w-full"
-            placeholder={isTagRankSearchMode ? t('components.tagRankSearchPlaceholder') : t('home.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => { setSearchInput(e.target.value); fetchSuggestionsDebounced(e.target.value); }}
-            ref={inputRef}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setHighlight((h) => Math.min((suggestions.length || 0) - 1, h + 1));
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setHighlight((h) => Math.max(-1, h - 1));
-              } else if (e.key === "Enter") {
-                if (highlight >= 0 && suggestions[highlight]) {
-                  const s = suggestions[highlight];
-                  if (!isTagRankSearchMode && s.type === "idea" && s.id) {
-                    nav(`/ideas/${s.id}`);
-                  } else if (s.type === "tag") {
-                    setSearchInput(prev => replaceLastTokenWith(prev, s.text));
-                  }
-                  setSuggestions([]);
-                  e.preventDefault();
-                } else {
-                  if (isTagRankSearchMode) submitTagRankSearch();
-                  else submitIdeaSearch();
-                }
-              } else if (e.key === "Tab") {
-                if (highlight >= 0 && suggestions[highlight]) {
-                  e.preventDefault();
-                  const s = suggestions[highlight];
-                  if (!isTagRankSearchMode && s.type === "idea" && s.id) {
-                    nav(`/ideas/${s.id}`);
-                  } else if (s.type === "tag") {
-                    setSearchInput(prev => replaceLastTokenWith(prev, s.text));
-                  }
-                  setSuggestions([]);
-                }
-              }
-            }}
-          />
-
-          {suggestions.length > 0 && (
-            <div ref={suggRef} className="absolute mt-2 left-0 w-full bg-gray-900 border border-gray-800 rounded-xl z-50">
-              {suggestions.map((s, idx) => (
-                <div key={`${s.type}-${s.text}-${s.id || ""}`}
-                  className={`px-3 py-2 cursor-pointer ${idx === highlight ? "bg-gray-800" : ""}`}
-                  onMouseEnter={() => setHighlight(idx)}
-                  onMouseLeave={() => setHighlight(-1)}
-                  onClick={() => {
-                    if (!isTagRankSearchMode && s.type === "idea" && s.id) nav(`/ideas/${s.id}`);
-                    else setSearchInput(prev => replaceLastTokenWith(prev, s.text));
-                    setSuggestions([]);
-                  }}
-                >
-                  <div className="text-sm text-gray-200">{s.text}</div>
-                  <div className="text-xs text-gray-500">{s.type === "tag" ? t(isTagRankSearchMode ? 'components.tagRankTagSuggestion' : 'home.tagSuggestion') : t('home.ideaTitle')}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          {recentTags.length === 0 ? (
-            <div className="text-gray-500 text-sm">{t('home.recentTagsHint')}</div>
-          ) : (
-            <>
-              {visibleHotTags.map((t) => (
+          {groupSlug === "world" ? (
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-xs" data-tour="home-preferred">
+              <span className="text-gray-400">{t("home.preferredGroups")}</span>
+              {joinedGroups.length === 0 ? (
+                <span className="rounded-full border border-gray-800 px-3 py-1 text-gray-500">{t("home.noPreferredGroups")}</span>
+              ) : joinedGroups.map((group) => (
                 <button
-                  key={t}
-                  className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
-                  onClick={() => {
-                    setSearchInput(prev => {
-                      const tokens = prev.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
-                      if (tokens.length === 0) return t;
-                      const last = tokens[tokens.length - 1].toLowerCase();
-                      if (last === t.toLowerCase()) return prev;
-                      return prev.trim() ? prev.trim() + ", " + t : t;
-                    });
-                    inputRef.current?.focus();
-                  }}
+                  key={group.slug}
+                  type="button"
+                  onClick={() => togglePreferredGroup(group.slug)}
+                  className={`rounded-full border px-3 py-1 ${preferredGroupSlugs.includes(group.slug) ? "border-cyan-500 bg-cyan-500/15 text-cyan-100" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
                 >
-                  #{t}
+                  {group.name}
                 </button>
               ))}
-              <button
-                className="px-3 py-1 rounded-full border border-gray-700 text-sm text-gray-300 hover:bg-gray-800"
-                onClick={() => {
-                  const next = new URLSearchParams();
-                  if (ideaType) next.set("ideaType", ideaType);
-                  nav(`/tag-map${next.toString() ? `?${next.toString()}` : ""}`);
-                }}
-                aria-label={t("home.openTagMap")}
-                title={t("home.openTagMap")}
-              >
-                ...
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2 md:justify-end">
-          {tagRankComponentEnabled ? (
-            <button
-              type="button"
-              className={`rounded-xl px-4 py-2 text-sm font-semibold border ${
-                isTagRankSearchMode
-                  ? "border-cyan-500 bg-cyan-500/15 text-cyan-200"
-                  : "border-gray-700 text-gray-200 hover:bg-gray-900"
-              }`}
-              onClick={() => {
-                setIsTagRankSearchMode((prev) => !prev);
-                setSuggestions([]);
-                setHighlight(-1);
-              }}
-            >
-              {isTagRankSearchMode ? t("components.ideaSearchMode") : t("components.tagRankSearchMode")}
-            </button>
-          ) : null}
-          <button
-            className="rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold"
-            onClick={() => {
-              if (isTagRankSearchMode) submitTagRankSearch();
-              else submitIdeaSearch();
-            }}
-          >
-            {isTagRankSearchMode ? t('components.tagRankSearchButton') : t('home.searchButton')}
-          </button>
-        </div>
-      </div>
-
-
-      {loading && <p className="text-gray-300 mt-6">{t('common.loading')}</p>}
-      {err && <p className="text-red-400 mt-6">{t('common.error')}: {err}</p>}
-
-      <div className="mt-6 grid gap-3" data-tour="home-feed">
-        {!loading && visibleIdeas.length === 0 && (
-          <p className="text-gray-400">
-            {q.trim() ? t('home.noSearchTagIdeas') : t('home.noPublicIdeas')}
-          </p>
-        )}
-
-        {visibleIdeas.map((it) => (
-          <Link
-            to={`/ideas/${it._id}`}
-            key={it._id}
-            className="relative rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
-            onMouseEnter={() => setHoveredIdeaId(it._id)}
-            onMouseLeave={() => setHoveredIdeaId((prev) => (prev === it._id ? null : prev))}
-          >
-            {hoveredIdeaId === it._id && (it.coverImageUrl || it.imageUrls?.[0]) && (
-              <div className="pointer-events-none absolute -right-2 top-4 z-50 w-56 overflow-hidden rounded-xl border-2 border-purple-600/50 bg-gray-950/95 shadow-2xl backdrop-blur-sm">
-                <img
-                  src={toHttpsUrl(it.coverImageUrl || it.imageUrls?.[0])}
-                  alt="idea cover preview"
-                  loading="lazy"
-                  decoding="async"
-                  className="h-36 w-full object-cover"
-                />
-              </div>
-            )}
-
-            <div className="relative z-10">
-
-              <div className="flex items-center justify-between">
-                <h2 className="text-white font-semibold">{it.title}</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">{t('home.server')}</span>
-                </div>
-              </div>
-              {it.summary && <p className="text-gray-200 mt-1">{it.summary}</p>}
-
-              {sort === "recommended" && user && !q && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={feedbackLoadingId === it._id}
-                    className="rounded-full border border-rose-700/70 bg-rose-950/30 px-3 py-1 text-xs text-rose-200 hover:bg-rose-900/40 disabled:opacity-50"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleRecommendationFeedback(it._id, "not_interested");
-                    }}
-                  >
-                    {t('home.notInterested')}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={feedbackLoadingId === it._id}
-                    className="rounded-full border border-amber-700/70 bg-amber-950/30 px-3 py-1 text-xs text-amber-200 hover:bg-amber-900/40 disabled:opacity-50"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleRecommendationFeedback(it._id, "already_recommended");
-                    }}
-                  >
-                    {t('home.alreadyRecommended')}
-                  </button>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 mt-3 text-xs text-gray-300">
-                {it.externalSource ? (
-                  <span className="px-2 py-1 rounded-full border border-purple-700 bg-purple-900/20 text-purple-300">
-                    {getPlatformIcon(it.externalSource.platform)} {it.externalSource.platform}
-                  </span>
-                ) : (
-                  <span className="px-2 py-1 rounded-full border border-gray-700">
-                    {it.author?.username || t('home.unknownAuthor')}
-                  </span>
-                )}
-                <span className="px-2 py-1 rounded-full border border-cyan-700/60 bg-cyan-950/20 text-cyan-200">
-                  #{it.groupName || it.groupSlug || "world"}
-                </span>
-                {(it.tags || []).map((t) => (
-                  <span
-                    key={t}
-                    className={`px-2 py-1 rounded-full border ${isMatchingSearchTag(t)
-                      ? "border-cyan-500 bg-cyan-900/30 text-cyan-200"
-                      : "border-gray-700"
-                      }`}
-                  >
-                    #{t}
-                  </span>
-                ))}
-                <span className="ml-auto text-gray-400">
-                  ❤️ {it.stats?.likeCount ?? 0} · 👀 {it.stats?.viewCount ?? 0}
-                </span>
-              </div>
             </div>
-          </Link>
-        ))}
+          ) : null}
+        </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          className="rounded-xl border border-gray-700 px-3 py-2 text-sm disabled:opacity-50"
-          disabled={page <= 1}
-          onClick={() => {
-            const next = new URLSearchParams(params);
-            next.set("page", String(page - 1));
-            setParams(next);
-          }}
-        >
-          {t('home.prev')}
-        </button>
+      {loading && <p className="mt-6 text-gray-300">{t("common.loading")}</p>}
+      {err && <p className="mt-6 text-red-400">{t("common.error")}: {err}</p>}
 
-        <div className="text-sm text-gray-400">
-          {t('home.page')} <span className="text-white">{page}</span> / {totalPages}
+      <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(260px,.7fr)_minmax(0,1.3fr)]" data-tour="home-hero">
+        <div className="relative h-[260px] self-start overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 lg:h-[318px]">
+          {featuredIdea ? (
+            <Link to={`/ideas/${featuredIdea._id}`} className="block h-full">
+              {getIdeaImageUrl(featuredIdea) ? (
+                <img src={getIdeaImageUrl(featuredIdea)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(34,211,238,.24),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(244,114,182,.22),transparent_26%),linear-gradient(135deg,#111827,#020617)]" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5">
+                {renderIdeaTypeBadge(featuredIdea)}
+                <h2 className="mt-3 max-w-2xl text-2xl font-bold leading-8 text-white">{featuredIdea.title}</h2>
+                {featuredIdea.summary ? <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-gray-200">{featuredIdea.summary}</p> : null}
+                {renderIdeaMeta(featuredIdea)}
+              </div>
+            </Link>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">{t("home.noPublicIdeas")}</div>
+          )}
+
+          {featuredIdeas.length > 1 ? (
+            <div className="absolute bottom-5 right-5 flex gap-1.5">
+              {featuredIdeas.map((idea, index) => (
+                <button
+                  key={idea._id}
+                  type="button"
+                  onClick={() => setFeaturedIndex(index)}
+                  className={`h-2 rounded-full transition ${index === featuredIndex % featuredIdeas.length ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/70"}`}
+                  aria-label={`${t("home.featured")}${index + 1}`}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        <button
-          className="rounded-xl border border-gray-700 px-3 py-2 text-sm disabled:opacity-50"
-          disabled={page >= totalPages}
-          onClick={() => {
-            const next = new URLSearchParams(params);
-            next.set("page", String(page + 1));
-            setParams(next);
-          }}
-        >
-          {t('home.next')}
-        </button>
-      </div>
+        <div className="relative h-[260px] overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/70 p-3 pb-8 lg:h-[318px]">
+          <div className="grid h-full grid-cols-2 grid-rows-2 gap-3 lg:grid-cols-3">
+            {recommendationIdeas.length === 0 && !loading ? <p className="text-sm text-gray-400">{t("home.noPublicIdeas")}</p> : recommendationIdeas.map((idea) => renderCompactIdeaCard(idea, "right"))}
+          </div>
+          {recommendationPageCount > 1 ? (
+            <div className="absolute bottom-5 right-5 flex gap-1.5">
+              {Array.from({ length: recommendationPageCount }).map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setRecommendationPage(index)}
+                  className={`h-2 rounded-full transition ${index === recommendationPage ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/70"}`}
+                  aria-label={`${t("home.featured")}${index + 1}`}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
 
-        </>
-      )}
+      <section className="mt-6" data-tour="home-following">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">{t("home.followingPosts")}</h2>
+          {user?._id ? <Link to={`/users/${user._id}?tab=following`} className="text-sm text-cyan-300 hover:text-cyan-100">{t("home.more")}</Link> : null}
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {followingLoading ? <p className="text-sm text-gray-400">{t("common.loading")}</p> : null}
+          {!followingLoading && followingIdeas.length === 0 ? (
+            <div className="w-full rounded-2xl border border-gray-800 bg-gray-900/70 p-5 text-sm text-gray-400">
+              {user?._id ? t("home.noFollowingPosts") : t("home.loginForFollowingPosts")}
+            </div>
+          ) : followingIdeas.map((idea) => renderCompactIdeaCard(idea, "row"))}
+        </div>
+      </section>
 
+      <section className="mt-6 rounded-2xl border border-gray-800 bg-gray-900/70 p-4" data-tour="home-tag-rank">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-white">{t("nav.tagRank")}</h2>
+          <Link to="/tag-rank" className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-200 hover:bg-gray-800">
+            {t("home.more")}
+          </Link>
+        </div>
+        {tagRankLoading ? <p className="text-sm text-gray-400">{t("tagRank.loadingLeaderboards")}</p> : null}
+        {!tagRankLoading && tagRankBoards.length === 0 ? <p className="text-sm text-gray-400">{t("tagRank.noLeaderboards")}</p> : null}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {tagRankBoards.map((board) => (
+            <Link key={board._id} to={`/leaderboard/${board._id}`} className="rounded-xl border border-gray-800 bg-gray-950/50 p-3 transition hover:border-indigo-600/70 hover:bg-gray-950">
+              <div className="line-clamp-2 font-semibold text-white">{board.tags?.join(", ") || t("nav.tagRank")}</div>
+              <div className="mt-1 text-xs text-gray-400">{board.postsCount || 0} {t("leaderboard.nominations")}</div>
+              <div className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500">
+                {board.entries?.slice(0, 3).map((entry) => entry.idea?.title || "").filter(Boolean).join(" · ") || formatDate(board.computedAt)}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

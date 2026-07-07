@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const next = `${pathname}${search}${hash}`;
-      window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+      window.dispatchEvent(new CustomEvent("ideahub:auth:open", { detail: { mode: "login", next } }));
     }
 
     window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired as EventListener);

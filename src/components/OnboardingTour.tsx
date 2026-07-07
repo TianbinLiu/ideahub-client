@@ -18,36 +18,6 @@ type RectState = {
 };
 
 const TOUR_DEFINITIONS: Record<string, TourStep[]> = {
-  homeStart: [
-    {
-      target: "top-nav",
-      titleZh: "顶部导航",
-      titleEn: "Top Navigation",
-      bodyZh: "在这里切换首页、圈子和通知，也可以随时重播指引。",
-      bodyEn: "Switch between Home, Groups, and Notifications here. You can replay this guide anytime.",
-    },
-    {
-      target: "home-filters",
-      titleZh: "筛选信息流",
-      titleEn: "Filter The Feed",
-      bodyZh: "选择内容类型、圈子和排序方式，首页会按你的选择刷新。",
-      bodyEn: "Choose a content type, circle, and sort mode. The feed refreshes around your choices.",
-    },
-    {
-      target: "home-preferred",
-      titleZh: "优先圈子",
-      titleEn: "Preferred Circles",
-      bodyZh: "选择全部圈子时，可以点亮已加入圈子，让推荐优先展示它们。",
-      bodyEn: "When viewing All, select joined circles to prioritize their posts in recommendations.",
-    },
-    {
-      target: "home-type-picker",
-      titleZh: "选择类别",
-      titleEn: "Pick A Category",
-      bodyZh: "第一次进入首页时，先选择你想看的内容类别。",
-      bodyEn: "On your first visit, pick the kind of content you want to browse.",
-    },
-  ],
   homeFeed: [
     {
       target: "top-nav",
@@ -60,8 +30,8 @@ const TOUR_DEFINITIONS: Record<string, TourStep[]> = {
       target: "home-filters",
       titleZh: "筛选信息流",
       titleEn: "Filter The Feed",
-      bodyZh: "选择内容类型、圈子和排序方式，首页会按你的选择刷新。",
-      bodyEn: "Choose a content type, circle, and sort mode. The feed refreshes around your choices.",
+      bodyZh: "这里包含类别标签、标签排行入口和圈子选择；左侧可切换动态与热门。",
+      bodyEn: "This area contains category tags, Tag Rank, and circle selection. Use the left buttons for Dynamic or Hot.",
     },
     {
       target: "home-preferred",
@@ -71,18 +41,25 @@ const TOUR_DEFINITIONS: Record<string, TourStep[]> = {
       bodyEn: "When viewing All, select joined circles to prioritize their posts in recommendations.",
     },
     {
-      target: "home-search",
-      titleZh: "搜索与标签",
-      titleEn: "Search And Tags",
-      bodyZh: "用关键词或标签搜索，也可以切换到标签排行搜索模式。",
-      bodyEn: "Search by keywords or tags, or switch into Tag Rank search mode.",
+      target: "home-hero",
+      titleZh: "推荐区域",
+      titleEn: "Recommendation Area",
+      bodyZh: "左侧是滚动推荐图，右侧每次展示六条推荐帖子，可翻页查看下一组。",
+      bodyEn: "The left side is a rotating featured area. The right side shows six recommended posts with paging.",
     },
     {
-      target: "home-feed",
-      titleZh: "内容列表",
-      titleEn: "Feed Results",
-      bodyZh: "这里展示当前筛选下的帖子，推荐排序会参考热度、时间和你的偏好。",
-      bodyEn: "Posts matching the current filters appear here, ranked by activity, recency, and preferences.",
+      target: "home-following",
+      titleZh: "关注动态",
+      titleEn: "Following Posts",
+      bodyZh: "这里展示你关注的人发布的相关帖子。",
+      bodyEn: "Posts from people you follow appear here.",
+    },
+    {
+      target: "home-tag-rank",
+      titleZh: "标签排行",
+      titleEn: "Tag Rank",
+      bodyZh: "这里展示两排标签排行推荐，点击更多进入完整标签排行页。",
+      bodyEn: "This section shows two rows of Tag Rank recommendations. Click More to open the full Tag Rank page.",
     },
   ],
   groups: [
@@ -198,6 +175,36 @@ const TOUR_DEFINITIONS: Record<string, TourStep[]> = {
       bodyEn: "Click a large hotspot to zoom in, click a dot to open the post, and click empty space to zoom out.",
     },
   ],
+  search: [
+    {
+      target: "top-nav",
+      titleZh: "顶部导航",
+      titleEn: "Top Navigation",
+      bodyZh: "顶部搜索会进入帖子搜索页，右侧图标入口用于导航和账号操作。",
+      bodyEn: "The top search opens post search results. Right-side icons handle navigation and account actions.",
+    },
+    {
+      target: "search-filters",
+      titleZh: "搜索与排序",
+      titleEn: "Search And Sort",
+      bodyZh: "默认按 For You 排列；这里可以切换最新、热门和类别标签。圈子选择在顶部搜索栏里。",
+      bodyEn: "For You is the default ranking. Use this row for New, Hot, and category tags; circle selection lives in the top search bar.",
+    },
+    {
+      target: "search-category-tags",
+      titleZh: "类别标签",
+      titleEn: "Category Tags",
+      bodyZh: "类别是特殊标签，可多选或不选；帖子卡片会显示自己的类别徽章。",
+      bodyEn: "Categories are special tags. Select multiple or none; each post card shows its category badge.",
+    },
+    {
+      target: "search-results",
+      titleZh: "搜索结果",
+      titleEn: "Search Results",
+      bodyZh: "结果区显示符合当前筛选的帖子。点击卡片进入详情。",
+      bodyEn: "Results matching the active filters appear here. Click a card to open details.",
+    },
+  ],
 };
 
 function safeGetItem(key: string) {
@@ -216,12 +223,12 @@ function safeSetItem(key: string, value: string) {
   }
 }
 
-function getTourId(pathname: string, search: string) {
+function getTourId(pathname: string) {
   if (pathname === "/") {
-    const params = new URLSearchParams(search);
-    return params.get("ideaType") ? "homeFeed" : "homeStart";
+    return "homeFeed";
   }
   if (pathname === "/groups") return "groups";
+  if (pathname === "/search") return "search";
   if (pathname.startsWith("/groups/")) return "groupDetail";
   if (pathname.startsWith("/ideas/new/")) return "newIdea";
   if (pathname === "/tag-map") return "tagMap";
@@ -256,7 +263,7 @@ function findAvailableStep(steps: TourStep[], startIndex = 0) {
 export default function OnboardingTour() {
   const { i18n } = useTranslation();
   const location = useLocation();
-  const tourId = useMemo(() => getTourId(location.pathname, location.search), [location.pathname, location.search]);
+  const tourId = useMemo(() => getTourId(location.pathname), [location.pathname]);
   const steps = useMemo(() => (tourId ? TOUR_DEFINITIONS[tourId] || [] : []), [tourId]);
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);

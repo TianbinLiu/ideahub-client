@@ -33,6 +33,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listConversations, listNotifications, listMessageRequests } from "../api";
+import { Bell } from "lucide-react";
 
 type NotificationsDropdownProps = {
   unreadCount: number;
@@ -241,13 +242,15 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
     >
       <Link
         to="/notifications"
-        className={`relative inline-flex items-center ${
+        title={t("nav.notifications")}
+        aria-label={t("nav.notifications")}
+        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900 ${
           isActive ? "text-white" : "text-gray-300 hover:text-white"
         }`}
       >
-        {t("nav.notifications")}
+        <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="ml-2 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] min-w-5 h-5 px-1">
+          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
