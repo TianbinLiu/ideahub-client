@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import NotificationsDropdown from "./NotificationsDropdown";
 import AuthDialog from "./AuthDialog";
 import {
+  Bomb,
   Bot,
   Building2,
   CircleHelp,
@@ -211,6 +212,9 @@ export default function Navbar() {
           <Link to="/" className="font-bold text-xl text-white">IdeaHub</Link>
           <NavLink to="/" title={t("nav.home")} aria-label={t("nav.home")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
             <Home className="h-5 w-5" />
+          </NavLink>
+          <NavLink to="/arena" title={t("nav.arena")} aria-label={t("nav.arena")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
+            <Bomb className="h-5 w-5" />
           </NavLink>
           {user && (
             <NavLink to="/groups" title={t("nav.groups")} aria-label={t("nav.groups")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
