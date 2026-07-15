@@ -51,6 +51,20 @@ import WorkshopEditorPage from "./pages/WorkshopEditorPage";
 import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
+import ArenaPage from "./pages/ArenaPage";
+import ScenarioGalleryPage from "./pages/ScenarioGalleryPage";
+import ScenarioDetailPage from "./pages/ScenarioDetailPage";
+import ScenarioEditorPage from "./pages/ScenarioEditorPage";
+import ScenarioPlayPage from "./pages/ScenarioPlayPage";
+import StandpointPage from "./pages/StandpointPage";
+import BountyBoardPage from "./pages/BountyBoardPage";
+import BountyDetailPage from "./pages/BountyDetailPage";
+import BountyEditorPage from "./pages/BountyEditorPage";
+import StyleProfilePage from "./pages/StyleProfilePage";
+import PersonaGalleryPage from "./pages/PersonaGalleryPage";
+import PersonaDetailPage from "./pages/PersonaDetailPage";
+import PersonaEditorPage from "./pages/PersonaEditorPage";
+import MemeLibraryPage from "./pages/MemeLibraryPage";
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -143,6 +157,86 @@ export default function App() {
       <OnboardingTour />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/arena" element={<ArenaPage />} />
+        <Route path="/arena/simulate" element={<ScenarioGalleryPage />} />
+        <Route
+          path="/arena/simulate/new"
+          element={
+            <ProtectedRoute>
+              <ScenarioEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/arena/simulate/:id" element={<ScenarioDetailPage />} />
+        <Route
+          path="/arena/simulate/:id/edit"
+          element={
+            <ProtectedRoute>
+              <ScenarioEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/arena/simulate/:id/play"
+          element={
+            <ProtectedRoute>
+              <ScenarioPlayPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/arena/standpoint"
+          element={
+            <ProtectedRoute>
+              <StandpointPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/arena/bounty" element={<BountyBoardPage />} />
+        <Route
+          path="/arena/bounty/new"
+          element={
+            <ProtectedRoute>
+              <BountyEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/arena/bounty/:id" element={<BountyDetailPage />} />
+        <Route
+          path="/arena/bounty/:id/edit"
+          element={
+            <ProtectedRoute>
+              <BountyEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/arena/style"
+          element={
+            <ProtectedRoute>
+              <StyleProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/arena/persona" element={<PersonaGalleryPage />} />
+        <Route
+          path="/arena/persona/new"
+          element={
+            <ProtectedRoute>
+              <PersonaEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/arena/persona/:id" element={<PersonaDetailPage />} />
+        <Route
+          path="/arena/persona/:id/edit"
+          element={
+            <ProtectedRoute>
+              <PersonaEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/arena/memes" element={<MemeLibraryPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/ideas/:id" element={<IdeaDetailPage />} />
         <Route

@@ -315,6 +315,41 @@ export function generateIdeaDraft(payload: { content: string; ideaType?: "busine
   );
 }
 
+// ===== 卢本伟广场 · 浏览器插件：三条发言方案 =====
+export type ArenaStyleKey = "rational" | "troll" | "deflect" | "mock" | "deescalate" | "support";
+
+export type ArenaScheme = {
+  id: string;
+  styleKey: ArenaStyleKey | string;
+  styleLabel: string;
+  text: string;
+  note?: string;
+  ratings: {
+    /** 破防等级 0-100 */
+    breakdown: number;
+    /** 叠甲等级 0-100 */
+    armor: number;
+    /** 被举报吞评风险 0-100 */
+    banRisk: number;
+  };
+};
+
+export function suggestArenaReplies(payload: {
+  draft?: string;
+  platform?: string;
+  context?: string;
+  persona?: string;
+  styleHints?: string[];
+}) {
+  return apiFetch<{ ok: true; schemes: ArenaScheme[]; model?: string; fallback?: boolean }>(
+    "/api/arena/suggest",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
 export function searchUsers(query: string, limit: number = 8) {
   const q = new URLSearchParams();
   if (query) q.set("q", query);
@@ -879,6 +914,756 @@ export function createWorkshopTemplateComment(id: string, content: string) {
 
 export function getWorkshopTagInsights(limit = 240) {
   return apiFetch<{ ok: true; templates: WorkshopTemplate[]; hotTags: WorkshopHotTag[] }>(`/api/workshop/tag-insights?limit=${limit}`);
+}
+
+// ===== 情景模拟（Scenario Simulation）=====
+// 平台标识：'bilibili' | 'weibo' | 'tieba' | 'zhihu' | 'instagram' | 'generic'（未知一律 generic）
+
+/** Scenario.comments 的子文档 / 前端共享评论类型 */
+export type ScenarioComment = {
+  /** scenario 内稳定 id */
+  id: string;
+  /** 账号名 */
+  authorName: string;
+  /** 头像 url，可空 */
+  authorAvatar?: string;
+  text: string;
+  /** 该评论的赞数（展示用） */
+  likeCount?: number;
+  /** null/缺省=顶楼；否则=对某条评论的回复 */
+  parentId?: string | null;
+  /** 是否楼主 */
+  isOP?: boolean;
+  /** 该账号的观点/立场提示（供 AI 扮演），可空 */
+  stance?: string;
+};
+
+/** 详情返回的完整情景 */
+export type Scenario = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  title: string;
+  summary: string;
+  coverImageUrl: string;
+  platform: string;
+  tags: string[];
+  shared: boolean;
+  sourceUrl?: string;
+  /** 争论主题/背景 */
+  topic?: string;
+  comments: ScenarioComment[];
+  stats: { viewCount: number; likeCount: number; bookmarkCount: number; playCount: number };
+  /** 当前用户是否已赞 */
+  liked?: boolean;
+  /** 当前用户是否已收藏 */
+  bookmarked?: boolean;
+  isOwner?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** 列表用：去掉 comments 的 Scenario */
+export type ScenarioCard = Omit<Scenario, "comments">;
+
+/** play 端点返回的 AI 回复 */
+export type ScenarioPlayReply = {
+  id: string;
+  authorName: string;
+  authorAvatar?: string;
+  text: string;
+  parentId?: string | null;
+  isAi: true;
+};
+
+/** create/update 请求体 */
+export type ScenarioInput = {
+  title: string;
+  summary?: string;
+  coverImageUrl?: string;
+  platform?: string;
+  tags?: string[] | string;
+  shared?: boolean;
+  sourceUrl?: string;
+  topic?: string;
+  comments?: ScenarioComment[];
+};
+
+type ScenarioListResponse = {
+  ok: true;
+  scenarios: ScenarioCard[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export function listScenarios(params?: { sort?: string; q?: string; tag?: string; page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.tag) qs.set("tag", params.tag);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<ScenarioListResponse>(`/api/scenarios${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function listMyScenarios(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<ScenarioListResponse>(`/api/scenarios/mine${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function getScenario(id: string) {
+  return apiFetch<{ ok: true; scenario: Scenario }>(`/api/scenarios/${id}`);
+}
+
+export function createScenario(body: ScenarioInput) {
+  return apiFetch<{ ok: true; scenario: Scenario }>("/api/scenarios", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateScenario(id: string, body: Partial<ScenarioInput>) {
+  return apiFetch<{ ok: true; scenario: Scenario }>(`/api/scenarios/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteScenario(id: string) {
+  return apiFetch<{ ok: true }>(`/api/scenarios/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function toggleScenarioLike(id: string) {
+  return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(`/api/scenarios/${id}/like`, {
+    method: "POST",
+  });
+}
+
+export function toggleScenarioBookmark(id: string) {
+  return apiFetch<{ ok: true; bookmarked: boolean; bookmarkCount: number }>(`/api/scenarios/${id}/bookmark`, {
+    method: "POST",
+  });
+}
+
+export type ScenarioPlayHistoryItem = {
+  authorName: string;
+  text: string;
+  role: "seed" | "user" | "ai";
+  parentId?: string | null;
+};
+
+export function playScenario(
+  id: string,
+  body: { history: ScenarioPlayHistoryItem[]; userMessage: { text: string; parentId?: string | null; id?: string } }
+) {
+  return apiFetch<{ ok: true; replies: ScenarioPlayReply[]; model?: string }>(`/api/scenarios/${id}/play`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function captureScenario(url: string) {
+  return apiFetch<{
+    ok: true;
+    draft: { platform: string; title: string; coverImageUrl: string; comments: ScenarioComment[] };
+  }>("/api/scenarios/capture", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
+export function generateScenarioComments(body: { topic: string; platform?: string; intensity?: string; count?: number }) {
+  return apiFetch<{ ok: true; comments: ScenarioComment[]; model?: string }>("/api/scenarios/generate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// ===== 立场展开（Standpoint / Stance-Unfold）=====
+// 受控/演示环境：账号“绑定”只登记 平台+handle，不存储真实凭证、不真正登录、不真正发帖；
+// “发送”只在本系统内标记为已回复（模拟）。自动发送默认关闭。
+
+/** 绑定账号（演示用，仅登记 平台+handle） */
+export type StandpointAccount = {
+  id: string;
+  platform: string;
+  handle: string;
+  connected: boolean;
+};
+
+/** 代理配置：立场 + 人格 + 知识库 + 开关 */
+export type StandpointConfig = {
+  stance: "aggressive" | "peaceful" | "rational" | "sarcastic";
+  personaText: string;
+  personalInfo: string;
+  autoSendEnabled: boolean;
+  replyToMalicious: boolean;
+  replyToQuestions: boolean;
+};
+
+/** 后台监控代理（每用户一个） */
+export type StandpointAgent = {
+  _id: string;
+  status: "stopped" | "running" | "paused";
+  accounts: StandpointAccount[];
+  config: StandpointConfig;
+  stats: { detected: number; drafted: number; sent: number };
+  lastActiveAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** 一条来消息事件（私信/回复），含分类与生成的回复 */
+export type StandpointEvent = {
+  _id: string;
+  kind: "dm" | "reply";
+  platform: string;
+  fromHandle: string;
+  incomingText: string;
+  classification: "malicious" | "question" | "request" | "other";
+  reply: { text: string; style: string; model?: string; heuristic?: boolean } | null;
+  status: "pending" | "drafted" | "sent" | "dismissed";
+  autoSent: boolean;
+  createdAt: string;
+};
+
+export function getStandpoint() {
+  return apiFetch<{ ok: true; agent: StandpointAgent }>("/api/standpoint");
+}
+
+export function updateStandpointConfig(body: Partial<StandpointConfig>) {
+  return apiFetch<{ ok: true; agent: StandpointAgent }>("/api/standpoint/config", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function setStandpointStatus(status: "running" | "paused" | "stopped") {
+  return apiFetch<{ ok: true; agent: StandpointAgent }>("/api/standpoint/status", {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function addStandpointAccount(body: { platform: string; handle: string }) {
+  return apiFetch<{ ok: true; agent: StandpointAgent }>("/api/standpoint/accounts", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function removeStandpointAccount(accountId: string) {
+  return apiFetch<{ ok: true; agent: StandpointAgent }>(`/api/standpoint/accounts/${encodeURIComponent(accountId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function listStandpointEvents(params?: { status?: string; page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<{
+    ok: true;
+    events: StandpointEvent[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/api/standpoint/events${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function simulateStandpointEvent(body: { kind: string; platform: string; fromHandle: string; incomingText: string }) {
+  return apiFetch<{ ok: true; event: StandpointEvent }>("/api/standpoint/events/simulate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function regenerateStandpointReply(eventId: string) {
+  return apiFetch<{ ok: true; event: StandpointEvent }>(`/api/standpoint/events/${encodeURIComponent(eventId)}/regenerate`, {
+    method: "POST",
+  });
+}
+
+export function sendStandpointReply(eventId: string) {
+  return apiFetch<{ ok: true; event: StandpointEvent }>(`/api/standpoint/events/${encodeURIComponent(eventId)}/send`, {
+    method: "POST",
+  });
+}
+
+export function dismissStandpointEvent(eventId: string) {
+  return apiFetch<{ ok: true; event: StandpointEvent }>(`/api/standpoint/events/${encodeURIComponent(eventId)}/dismiss`, {
+    method: "POST",
+  });
+}
+
+// ===== 赏金猎人（Bounty Hunter）=====
+// 赏金 = 平台虚拟点数（reward:number），不是真钱，不做任何真实支付/转账。
+// 平台标识：'weibo' | 'bilibili' | 'tieba' | 'zhihu' | 'douyin' | 'xiaohongshu' | 'instagram' | 'other'。
+
+/** 任务介绍页讨论评论区的一条评论（可带图） */
+export type BountyComment = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  text: string;
+  imageUrl?: string;
+  createdAt: string;
+};
+
+/** 猎人对某个悬赏的一次提交（发言文本 + 截图存证 + 审批状态） */
+export type BountySubmission = {
+  _id: string;
+  bounty: string;
+  hunter: { _id: string; username: string } | string;
+  speechText: string;
+  screenshotUrl?: string;
+  note?: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+};
+
+/** 详情返回的完整悬赏 */
+export type Bounty = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  title: string;
+  description: string;
+  reward: number;
+  platform: string;
+  targetUrl: string;
+  tags: string[];
+  slots: number;
+  status: "open" | "closed" | "completed";
+  deadline?: string | null;
+  stats: { viewCount: number; submissionCount: number; commentCount: number };
+  approvedCount: number;
+  isOwner?: boolean;
+  mySubmission?: BountySubmission | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** 列表用：去掉 description 的 Bounty */
+export type BountyCard = Omit<Bounty, "description">;
+
+/** create/update 请求体 */
+export type BountyInput = {
+  title: string;
+  description: string;
+  reward: number;
+  platform: string;
+  targetUrl: string;
+  tags: string[] | string;
+  slots: number;
+  deadline?: string | null;
+};
+
+type BountyListResponse = {
+  ok: true;
+  bounties: BountyCard[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export function listBounties(params?: {
+  sort?: "new" | "hot";
+  q?: string;
+  tag?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.tag) qs.set("tag", params.tag);
+  if (params?.status) qs.set("status", params.status);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<BountyListResponse>(`/api/bounties${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function listMyBounties(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<BountyListResponse>(`/api/bounties/mine${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function getBounty(id: string) {
+  return apiFetch<{ ok: true; bounty: Bounty }>(`/api/bounties/${id}`);
+}
+
+export function createBounty(body: BountyInput) {
+  return apiFetch<{ ok: true; bounty: Bounty }>("/api/bounties", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateBounty(id: string, body: Partial<BountyInput>) {
+  return apiFetch<{ ok: true; bounty: Bounty }>(`/api/bounties/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteBounty(id: string) {
+  return apiFetch<{ ok: true }>(`/api/bounties/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function setBountyStatus(id: string, status: "open" | "closed" | "completed") {
+  return apiFetch<{ ok: true; bounty: Bounty }>(`/api/bounties/${id}/status`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  });
+}
+
+type BountySubmissionListResponse = {
+  ok: true;
+  submissions: BountySubmission[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export function listBountySubmissions(id: string, params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<BountySubmissionListResponse>(
+    `/api/bounties/${id}/submissions${qs.toString() ? `?${qs.toString()}` : ""}`
+  );
+}
+
+export function submitBounty(id: string, body: { speechText: string; screenshotUrl?: string; note?: string }) {
+  return apiFetch<{ ok: true; submission: BountySubmission }>(`/api/bounties/${id}/submissions`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function reviewBountySubmission(id: string, sid: string, status: "approved" | "rejected") {
+  return apiFetch<{ ok: true; submission: BountySubmission }>(`/api/bounties/${id}/submissions/${sid}/review`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  });
+}
+
+type BountyCommentListResponse = {
+  ok: true;
+  comments: BountyComment[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export function listBountyComments(id: string, params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<BountyCommentListResponse>(
+    `/api/bounties/${id}/comments${qs.toString() ? `?${qs.toString()}` : ""}`
+  );
+}
+
+export function addBountyComment(id: string, body: { text: string; imageUrl?: string }) {
+  return apiFetch<{ ok: true; comment: BountyComment }>(`/api/bounties/${id}/comments`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// ===== 发言风格面板（Speaking Style Panel）=====
+// 平台聚合当前用户自己的发言文本（情景模拟发言 + 赏金提交发言 + 评论区评论），
+// 由 AI（或无 key 时的启发式）总结出一张“像 JOJO 替身那样”的能力面板：
+// 固定 6 项能力（attack/venom/logic/armor/resilience/humor）+ 中二替身名 + 点评 + 口头禅。
+// 数据仅用于生成个人风格分析；纯展示，不做任何真实发帖。
+
+/** 单项能力：中文标签 + 0-100 数值 + 由数值派生的字母评级（S/A/B/C/D/E） */
+export type StyleStat = {
+  key: string;
+  label: string;
+  value: number;
+  grade: string;
+};
+
+/** 一份发言风格档案（替身面板） */
+export type SpeakingProfile = {
+  standName: string;
+  summary: string;
+  catchphrases: string[];
+  stats: StyleStat[];
+  sampleCount: number;
+  /** 插件记录的发言风格选择次数（styleKey -> 次数），4c 纳入画像 */
+  styleTally?: Record<string, number>;
+  model?: string;
+  heuristic?: boolean;
+  generatedAt: string;
+  user?: string;
+};
+
+/** 当前用户的发言风格档案（未生成过则 profile 为 null） */
+export function getMyStyleProfile() {
+  return apiFetch<{ ok: true; profile: SpeakingProfile | null }>("/api/speaking-style");
+}
+
+/** 聚合当前用户发言 → 生成/更新风格档案（可叠加插件记录的风格选择次数 styleTally） */
+export function generateStyleProfile(styleTally?: Record<string, number>) {
+  return apiFetch<{ ok: true; profile: SpeakingProfile; sampleCount: number }>(
+    "/api/speaking-style/generate",
+    {
+      method: "POST",
+      body: JSON.stringify(styleTally ? { styleTally } : {}),
+    }
+  );
+}
+
+/** 公开查看某用户的风格档案（供后续人格分享），未生成过则 profile 为 null */
+export function getUserStyleProfile(userId: string) {
+  return apiFetch<{ ok: true; profile: SpeakingProfile | null }>(
+    `/api/speaking-style/user/${encodeURIComponent(userId)}`
+  );
+}
+
+// ===== 人格下载（Persona）=====
+// 用户把自己的发言风格（来自阶段5 SpeakingProfile）发布为可分享的「人格」，
+// 其他用户可浏览/下载收藏/点赞/装备。装备后（本人风格 或 某下载的人格）驱动浏览器插件
+// 在其它平台生成三条方案。人格的 style.stats 复用阶段5 的 StyleStat（{key,label,value,grade}）。
+
+/** 人格的发言风格（复用阶段5 StyleStat；stanceHint 为立场/倾向提示） */
+export type PersonaStyle = {
+  summary: string;
+  catchphrases: string[];
+  stats: StyleStat[];
+  stanceHint?: string;
+};
+
+/** 一个可分享/下载/装备的发言人格 */
+export type Persona = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  name: string;
+  description: string;
+  standName: string;
+  coverEmoji: string;
+  tags: string[];
+  style: PersonaStyle;
+  /** 后端从 name+style 计算的一段文本，供插件当作 personaText 用（截断到 ~600 字） */
+  styleDescriptor: string;
+  shared: boolean;
+  stats: { viewCount: number; downloadCount: number; likeCount: number };
+  installed?: boolean;
+  liked?: boolean;
+  equipped?: boolean;
+  isOwner?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** create/update 请求体 */
+export type PersonaInput = {
+  name: string;
+  description: string;
+  standName: string;
+  coverEmoji: string;
+  tags: string[] | string;
+  style: PersonaStyle;
+  shared: boolean;
+};
+
+type PersonaListResponse = {
+  ok: true;
+  personas: Persona[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export function listPersonas(params?: {
+  sort?: "new" | "hot";
+  q?: string;
+  tag?: string;
+  scope?: "all" | "installed" | "mine";
+  page?: number;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.tag) qs.set("tag", params.tag);
+  if (params?.scope) qs.set("scope", params.scope);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<PersonaListResponse>(`/api/personas${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function getPersona(id: string) {
+  return apiFetch<{ ok: true; persona: Persona }>(`/api/personas/${id}`);
+}
+
+export function createPersona(body: PersonaInput) {
+  return apiFetch<{ ok: true; persona: Persona }>("/api/personas", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePersona(id: string, body: Partial<PersonaInput>) {
+  return apiFetch<{ ok: true; persona: Persona }>(`/api/personas/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deletePersona(id: string) {
+  return apiFetch<{ ok: true }>(`/api/personas/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function installPersona(id: string) {
+  return apiFetch<{ ok: true; installed: true; downloadCount: number }>(`/api/personas/${id}/install`, {
+    method: "POST",
+  });
+}
+
+export function uninstallPersona(id: string) {
+  return apiFetch<{ ok: true; installed: false; downloadCount: number }>(`/api/personas/${id}/install`, {
+    method: "DELETE",
+  });
+}
+
+export function togglePersonaLike(id: string) {
+  return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(`/api/personas/${id}/like`, {
+    method: "POST",
+  });
+}
+
+export function getEquippedPersona() {
+  return apiFetch<{ ok: true; equipped: Persona | null }>("/api/personas/equipped");
+}
+
+export function equipPersona(personaId: string | null) {
+  return apiFetch<{ ok: true; equipped: Persona | null }>("/api/personas/equip", {
+    method: "POST",
+    body: JSON.stringify({ personaId }),
+  });
+}
+
+// ===== 表情 / 梗图库（Meme Library）=====
+// 用户在不同平台收藏表情/梗图，评论输入框旁的表情按钮打开面板搜索并插入；
+// 配套「公开素材库」(shared) 与「创意工坊」(用户上传贡献)。
+// type='image' 用 imageUrl；type='text' 用 text（梗/短语）。title 必填，tags 可空。
+
+/** 一条表情/梗图素材 */
+export type Meme = {
+  _id: string;
+  author: { _id: string; username: string } | string | null;
+  type: "image" | "text";
+  imageUrl: string;
+  text: string;
+  title: string;
+  tags: string[];
+  shared: boolean;
+  stats: { collectCount: number; useCount: number };
+  /** 当前用户是否已收藏 */
+  collected?: boolean;
+  isOwner?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** create/update 请求体 */
+export type MemeInput = {
+  type: "image" | "text";
+  imageUrl?: string;
+  text?: string;
+  title: string;
+  tags: string[] | string;
+  shared: boolean;
+};
+
+type MemeListResponse = {
+  ok: true;
+  memes: Meme[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export function listMemes(params?: {
+  scope?: "library" | "mine";
+  q?: string;
+  tag?: string;
+  sort?: "new" | "hot";
+  page?: number;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.scope) qs.set("scope", params.scope);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.tag) qs.set("tag", params.tag);
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<MemeListResponse>(`/api/memes${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function getMeme(id: string) {
+  return apiFetch<{ ok: true; meme: Meme }>(`/api/memes/${id}`);
+}
+
+export function createMeme(body: MemeInput) {
+  return apiFetch<{ ok: true; meme: Meme }>("/api/memes", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateMeme(id: string, body: Partial<MemeInput>) {
+  return apiFetch<{ ok: true; meme: Meme }>(`/api/memes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteMeme(id: string) {
+  return apiFetch<{ ok: true }>(`/api/memes/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function collectMeme(id: string) {
+  return apiFetch<{ ok: true; collected: true; collectCount: number }>(`/api/memes/${id}/collect`, {
+    method: "POST",
+  });
+}
+
+export function uncollectMeme(id: string) {
+  return apiFetch<{ ok: true; collected: false; collectCount: number }>(`/api/memes/${id}/collect`, {
+    method: "DELETE",
+  });
+}
+
+export function useMeme(id: string) {
+  return apiFetch<{ ok: true; useCount: number }>(`/api/memes/${id}/use`, {
+    method: "POST",
+  });
 }
 
 
