@@ -8,7 +8,7 @@
  * 🔄 [AI] 修改后必须: 同步更新 PROJECT_STRUCTURE.md 路由表与页面列表
  *
  * 职责:
- * - 公开介绍页：coverEmoji/name/standName/description/作者/tags/stats
+ * - 公开介绍页：coverEmoji/name/description/作者/tags/stats
  * - 用 <StyleStandCard> 展示由 persona.style 组装成的 SpeakingProfile 风格雷达
  * - 操作（需登录）：下载收藏/取消收藏（乐观更新 downloadCount）、点赞（toggle）、装备（equip）
  * - 装备成功后写 localStorage 'lbw_active_persona' = {name, descriptor} 供插件读取
@@ -48,7 +48,6 @@ function authorId(author: Persona["author"]) {
 /** 由 persona.style 组装成 StyleStandCard 需要的 SpeakingProfile 形状 */
 function toProfile(persona: Persona): SpeakingProfile {
   return {
-    standName: persona.standName,
     summary: persona.style?.summary || "",
     catchphrases: persona.style?.catchphrases || [],
     stats: persona.style?.stats || [],
@@ -227,7 +226,6 @@ export default function PersonaDetailPage() {
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-lg font-semibold text-cyan-200">「{persona.standName}」</p>
               <p className="mt-1 text-sm text-gray-400">作者：{authorName(persona.author)}</p>
             </div>
           </div>

@@ -324,14 +324,6 @@ export type ArenaScheme = {
   styleLabel: string;
   text: string;
   note?: string;
-  ratings: {
-    /** 破防等级 0-100 */
-    breakdown: number;
-    /** 叠甲等级 0-100 */
-    armor: number;
-    /** 被举报吞评风险 0-100 */
-    banRisk: number;
-  };
 };
 
 export function suggestArenaReplies(payload: {
@@ -1407,8 +1399,8 @@ export function addBountyComment(id: string, body: { text: string; imageUrl?: st
 
 // ===== 发言风格面板（Speaking Style Panel）=====
 // 平台聚合当前用户自己的发言文本（情景模拟发言 + 赏金提交发言 + 评论区评论），
-// 由 AI（或无 key 时的启发式）总结出一张“像 JOJO 替身那样”的能力面板：
-// 固定 6 项能力（attack/venom/logic/armor/resilience/humor）+ 中二替身名 + 点评 + 口头禅。
+// 由 AI（或无 key 时的启发式）总结出一张能力面板：
+// 固定 6 项能力（attack/venom/logic/armor/resilience/humor）+ 点评 + 口头禅。
 // 数据仅用于生成个人风格分析；纯展示，不做任何真实发帖。
 
 /** 单项能力：中文标签 + 0-100 数值 + 由数值派生的字母评级（S/A/B/C/D/E） */
@@ -1419,9 +1411,8 @@ export type StyleStat = {
   grade: string;
 };
 
-/** 一份发言风格档案（替身面板） */
+/** 一份发言风格档案（能力面板） */
 export type SpeakingProfile = {
-  standName: string;
   summary: string;
   catchphrases: string[];
   stats: StyleStat[];
@@ -1524,7 +1515,6 @@ export type Persona = {
   author: { _id: string; username: string } | string;
   name: string;
   description: string;
-  standName: string;
   coverEmoji: string;
   tags: string[];
   style: PersonaStyle;
@@ -1544,7 +1534,6 @@ export type Persona = {
 export type PersonaInput = {
   name: string;
   description: string;
-  standName: string;
   coverEmoji: string;
   tags: string[] | string;
   style: PersonaStyle;

@@ -8,9 +8,9 @@
  * 🔄 [AI] 修改后必须: 同步更新 PROJECT_STRUCTURE.md 路由表与页面列表
  *
  * 职责:
- * - 表单：name / description / standName / coverEmoji(输入或预设按钮) / tags(逗号) / shared
+ * - 表单：name / description / coverEmoji(输入或预设按钮) / tags(逗号) / shared
  *   / style(summary、catchphrases 逗号分隔、stanceHint)
- * - “从我的发言风格面板导入”：getMyStyleProfile 预填 standName/summary/catchphrases/stats（stats 直接带上）
+ * - “从我的发言风格面板导入”：getMyStyleProfile 预填 summary/catchphrases/stats（stats 直接带上）
  * - 编辑态 getPersona 预填 + updatePersona；否则 createPersona；成功跳详情
  * - 底部用 <StyleStandCard> 预览由当前表单组装的风格面板
  */
@@ -44,7 +44,6 @@ export default function PersonaEditorPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [standName, setStandName] = useState("");
   const [coverEmoji, setCoverEmoji] = useState("🎭");
   const [tagsText, setTagsText] = useState("");
   const [shared, setShared] = useState(true);
@@ -74,7 +73,6 @@ export default function PersonaEditorPage() {
         const p = res.persona;
         setName(p.name || "");
         setDescription(p.description || "");
-        setStandName(p.standName || "");
         setCoverEmoji(p.coverEmoji || "🎭");
         setTagsText((p.tags || []).join(", "));
         setShared(!!p.shared);
@@ -102,12 +100,9 @@ export default function PersonaEditorPage() {
         toast.error("你还没有发言风格面板，请先到「我的发言风格面板」生成");
         return;
       }
-      setStandName(p.standName || "");
       setSummary(p.summary || "");
       setCatchphrasesText((p.catchphrases || []).join("，"));
       setStats(p.stats || []);
-      // name 默认用 standName 去掉书名号（仅在未填写时预填）
-      setName((prev) => (prev.trim() ? prev : (p.standName || "").replace(/[「」《》【】]/g, "").trim()));
       toast.success("已从发言风格面板导入");
     } catch (e) {
       toast.error(humanizeError(e));
@@ -121,10 +116,6 @@ export default function PersonaEditorPage() {
       toast.error("请填写人格名称");
       return;
     }
-    if (!standName.trim()) {
-      toast.error("请填写替身名");
-      return;
-    }
 
     const style: PersonaStyle = {
       summary: summary.trim(),
@@ -136,7 +127,6 @@ export default function PersonaEditorPage() {
     const body = {
       name: name.trim(),
       description: description.trim(),
-      standName: standName.trim(),
       coverEmoji: coverEmoji.trim() || "🎭",
       tags: parsedTags,
       style,
@@ -156,7 +146,6 @@ export default function PersonaEditorPage() {
   }
 
   const previewProfile: SpeakingProfile = {
-    standName: standName.trim() || "未命名替身",
     summary: summary.trim(),
     catchphrases: parsedCatchphrases,
     stats,
@@ -203,7 +192,7 @@ export default function PersonaEditorPage() {
         >
           <Download className="h-4 w-4" /> {importing ? "导入中…" : "从我的发言风格面板导入"}
         </button>
-        <span className="text-xs text-gray-500">一键带入你的替身名 / 点评 / 口头禅 / 能力数值。</span>
+        <span className="text-xs text-gray-500">一键带入你的点评 / 口头禅 / 能力数值。</span>
       </div>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">
@@ -213,12 +202,6 @@ export default function PersonaEditorPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="人格名称"
-          className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
-        />
-        <input
-          value={standName}
-          onChange={(e) => setStandName(e.target.value)}
-          placeholder="替身名（standName），如：毒舌解构者"
           className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
         />
         <textarea

@@ -10,7 +10,7 @@
  * 职责:
  * - 公开画廊：scope tab（人格广场 all / 我的收藏 installed / 我发布的 mine）
  * - all 支持 最新(new)/最热(hot) 排序 + 关键词/标签搜索 + 分页
- * - 卡片展示 coverEmoji 大字 + name + 「standName」+ 作者 + 🎭下载数 ❤️点赞数 + tags + 已装备/已收藏 徽标
+ * - 卡片展示 coverEmoji 大字 + name + 作者 + 🎭下载数 ❤️点赞数 + tags + 已装备/已收藏 徽标
  * - “发布人格” -> /arena/persona/new
  */
 
@@ -67,7 +67,6 @@ function PersonaGrid({ items }: { items: Persona[] }) {
                   ) : null}
                 </div>
               </div>
-              <p className="line-clamp-1 text-sm text-cyan-200">「{p.standName}」</p>
               <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">作者：{authorName(p.author)}</p>
             </div>
           </div>
@@ -219,7 +218,7 @@ export default function PersonaGalleryPage() {
                 if (e.key === "Enter") submitSearch();
               }}
               className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="搜索人格名 / 替身名 / 标签"
+              placeholder="搜索人格名 / 标签"
             />
             <button
               type="button"

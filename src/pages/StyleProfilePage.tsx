@@ -249,7 +249,7 @@ export default function StyleProfilePage() {
         <div>
           <h1 className="text-2xl font-bold text-white md:text-3xl">我的发言风格面板</h1>
           <p className="mt-1 text-sm text-gray-400">
-            面板优先参考你加入风格记忆的发言样本，并结合情景模拟 / 赏金 / 评论区的发言数据，由 AI 总结成一张“替身能力面板”。
+            面板优先参考你加入风格记忆的发言样本，并结合情景模拟 / 赏金 / 评论区的发言数据，由 AI 总结成一张“发言风格面板”。
           </p>
         </div>
         <Link to="/arena" className="ml-auto text-sm text-cyan-300 hover:underline">
@@ -288,7 +288,7 @@ export default function StyleProfilePage() {
           </span>
           <p className="mt-3 text-sm text-gray-300">你还没有生成过发言风格面板。</p>
           <p className="mt-1 text-xs text-gray-500">
-            点击上方“分析我的发言风格”，让 AI 依据你的发言数据生成一张专属替身能力面板。
+            点击上方“分析我的发言风格”，让 AI 依据你的发言数据生成一张专属发言风格面板。
           </p>
         </div>
       )}

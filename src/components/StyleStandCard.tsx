@@ -1,6 +1,6 @@
 /**
- * @file StyleStandCard.tsx - 发言风格面板 · JOJO 替身能力卡（纯展示，不发请求）。
- * 顶部大字替身名（owner 时标“本体：你”）；SVG 六边形雷达图（6 项 value 按 6 边均分，
+ * @file StyleStandCard.tsx - 发言风格面板 · 能力卡（纯展示，不发请求）。
+ * 顶部标题栏（owner 时标“我的面板”）；SVG 六边形雷达图（6 项 value 按 6 边均分，
  * 半径映射 value/100，带网格环与描边填充，深色 cyan/紫）；6 项能力列表（中文 label + 评级徽章 +
  * 进度条）；summary 点评段落；catchphrases 以 pill 标签展示；底部元信息（生成于 · 样本 N 条 ·
  * heuristic 时标“启发式(未配置AI)”）。type 从 '../api' import。
@@ -68,14 +68,14 @@ export default function StyleStandCard({ profile, owner = false }: StyleStandCar
 
   return (
     <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 md:p-5">
-      {/* ===== 顶部：替身名 ===== */}
+      {/* ===== 顶部：标题栏 ===== */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-medium uppercase tracking-wider text-fuchsia-300/80">
-          STAND · 发言风格面板
+          发言风格面板
         </span>
         {owner ? (
           <span className="rounded-full border border-cyan-500/50 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
-            本体：你
+            我的面板
           </span>
         ) : null}
         {profile.heuristic ? (
@@ -84,9 +84,6 @@ export default function StyleStandCard({ profile, owner = false }: StyleStandCar
           </span>
         ) : null}
       </div>
-      <h2 className="mt-2 bg-gradient-to-r from-cyan-300 via-white to-fuchsia-300 bg-clip-text text-2xl font-extrabold text-transparent md:text-3xl">
-        「{profile.standName}」
-      </h2>
 
       {/* ===== 主体：雷达图 + 能力列表 ===== */}
       <div className="mt-4 grid gap-5 md:grid-cols-2">
@@ -96,7 +93,7 @@ export default function StyleStandCard({ profile, owner = false }: StyleStandCar
             viewBox={`0 0 ${VIEW} ${VIEW}`}
             className="h-auto w-full max-w-[280px]"
             role="img"
-            aria-label={`${profile.standName} 能力雷达图`}
+            aria-label="发言风格能力雷达图"
           >
             <defs>
               <linearGradient id="stand-radar-fill" x1="0" y1="0" x2="1" y2="1">

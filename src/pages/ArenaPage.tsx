@@ -316,11 +316,7 @@ export default function ArenaPage() {
             icon={WandSparkles}
             title="三条发言方案推荐"
             desc="在评论输入框旁实时给出三种不同风格的发言方案，随你输入的内容自动调整意图，一键填入。"
-            points={[
-              "风格如：理性反驳 / 胡搅蛮缠 / 转移话题",
-              "每条标注破防等级、叠甲等级、被举报吞评风险",
-              "最贴合你个人风格的方案自动置顶",
-            ]}
+            points={["风格如：理性反驳 / 胡搅蛮缠 / 转移话题", "最贴合你个人风格的方案自动置顶"]}
           />
           <FeatureTile
             icon={Smile}
@@ -371,7 +367,7 @@ export default function ArenaPage() {
             </div>
             <h3 className="mt-4 text-xl font-semibold text-white">发言风格面板</h3>
             <p className="mt-2 text-sm leading-relaxed text-gray-300">
-              基于收集到的发言数据，AI 总结你的对话风格，生成一张类似 “JOJO 替身面板” 的能力图：攻击力、
+              基于收集到的发言数据，AI 总结你的对话风格，生成一张六边形能力图：攻击力、
               嘴臭指数、逻辑性、叠甲熟练度、抗压能力……让你一眼看懂自己的风格。
             </p>
             <div className="mt-4">
