@@ -1129,6 +1129,8 @@ export type StandpointEvent = {
   reply: { text: string; style: string; model?: string; heuristic?: boolean } | null;
   status: "pending" | "drafted" | "sent" | "dismissed";
   autoSent: boolean;
+  /** 原帖 / 私信链接（可空），供“去原帖”外链使用 */
+  threadUrl?: string;
   createdAt: string;
 };
 
@@ -1180,6 +1182,23 @@ export function listStandpointEvents(params?: { status?: string; page?: number; 
 
 export function simulateStandpointEvent(body: { kind: string; platform: string; fromHandle: string; incomingText: string }) {
   return apiFetch<{ ok: true; event: StandpointEvent }>("/api/standpoint/events/simulate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * 真实到消息 → AI 即时草稿（人在环内）：
+ * 无论 autoSendEnabled 与否，后端一律只出草稿（status='drafted'、autoSent=false），绝不自动发送。
+ */
+export function ingestStandpointEvent(body: {
+  kind: string;
+  platform: string;
+  fromHandle: string;
+  incomingText: string;
+  threadUrl?: string;
+}) {
+  return apiFetch<{ ok: true; event: StandpointEvent }>("/api/standpoint/ingest", {
     method: "POST",
     body: JSON.stringify(body),
   });

@@ -385,6 +385,7 @@ export default function StandpointPage() {
               <li>· 账号“绑定”仅登记 平台 + handle 的表示，<b>不存储真实凭证、不真正登录</b>。</li>
               <li>· <b>不会真正向第三方平台发帖</b>（真实自动发帖违反多数平台使用条款）。</li>
               <li>· “发送”只是在本系统内标记为已回复（模拟 / 记录）。</li>
+              <li>· <b>所有回复都需你自己在平台上点发送</b>，本平台不会替你自动发帖。</li>
               <li>· <b>自动发送默认关闭</b>，开启前请确认你了解其含义。</li>
             </ul>
           </div>
@@ -749,6 +750,16 @@ export default function StandpointPage() {
                         已自动回复
                       </span>
                     ) : null}
+                    {ev.threadUrl ? (
+                      <a
+                        href={ev.threadUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full border border-gray-700 px-2 py-0.5 text-[11px] font-medium text-cyan-300 hover:bg-gray-800"
+                      >
+                        去原帖 ↗
+                      </a>
+                    ) : null}
                     <span className="ml-auto text-[11px] text-gray-500">{formatTime(ev.createdAt)}</span>
                   </div>
 
@@ -782,7 +793,7 @@ export default function StandpointPage() {
                           onClick={() => handleSendEvent(ev._id)}
                           className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-gray-200 disabled:opacity-60"
                         >
-                          <Send className="h-3.5 w-3.5" /> 批准发送
+                          <Send className="h-3.5 w-3.5" /> 标记为已回复
                         </button>
                       ) : null}
                       {canRegenerate ? (
