@@ -26,7 +26,8 @@
     "scraper": "爬虫",
     "register": "注册",
     "logout": "退出登录",
-    "guide": "指引"
+    "guide": "指引",
+    "arena": "卢本伟广场"
   },
   "auth": {
     "username": "用户名",

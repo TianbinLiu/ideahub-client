@@ -1,0 +1,275 @@
+/**
+ * @file ScenarioDetailPage.tsx - 情景模拟详情/介绍页
+ * @category Page
+ * @route /arena/simulate/:id
+ * @i18n none（页面内容以中文为主）
+ *
+ * 📖 [AI] 修改前必读: /.ai-instructions.md
+ * 🔄 [AI] 修改后必须: 同步更新 PROJECT_STRUCTURE.md 路由表与页面列表
+ *
+ * 职责:
+ * - 公开介绍页：封面/标题/简介/作者/平台/tags，浏览/点赞/收藏统计与按钮（乐观更新）
+ * - “进入模拟” -> /arena/simulate/:id/play；作者可见“编辑”
+ * - 用 PlatformCommentView 只读预览前几条 seed 评论
+ */
+
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Bookmark, Eye, Heart, Pencil, Play } from "lucide-react";
+import {
+  getScenario,
+  toggleScenarioBookmark,
+  toggleScenarioLike,
+  type Scenario,
+} from "../api";
+import { humanizeError } from "../utils/humanizeError";
+import { useAuth } from "../authContext";
+import PlatformCommentView from "../components/PlatformCommentView";
+
+const PLATFORM_META: Record<string, { label: string; className: string }> = {
+  bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
+  weibo: { label: "微博", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
+  tieba: { label: "贴吧", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
+  zhihu: { label: "知乎", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
+  instagram: { label: "Instagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
+  generic: { label: "通用", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+};
+
+function platformMeta(platform: string) {
+  return PLATFORM_META[platform] || PLATFORM_META.generic;
+}
+
+function authorName(author: Scenario["author"]) {
+  if (!author) return "-";
+  return typeof author === "string" ? author : author.username || "-";
+}
+
+function authorId(author: Scenario["author"]) {
+  if (!author) return "";
+  return typeof author === "string" ? author : author._id;
+}
+
+export default function ScenarioDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [loading, setLoading] = useState(true);
+  const [scenario, setScenario] = useState<Scenario | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getScenario(id);
+        if (mounted) setScenario(res.scenario);
+      } catch (e: any) {
+        if (mounted) toast.error(humanizeError(e));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  function requireLogin() {
+    toast.error("请先登录");
+    navigate(`/login?next=/arena/simulate/${id}`);
+  }
+
+  async function handleLike() {
+    if (!id || !scenario) return;
+    if (!user) return requireLogin();
+    const prev = scenario;
+    const nextLiked = !scenario.liked;
+    setScenario({
+      ...scenario,
+      liked: nextLiked,
+      stats: { ...scenario.stats, likeCount: Math.max(0, scenario.stats.likeCount + (nextLiked ? 1 : -1)) },
+    });
+    try {
+      const res = await toggleScenarioLike(id);
+      setScenario((s) => (s ? { ...s, liked: res.liked, stats: { ...s.stats, likeCount: res.likeCount } } : s));
+    } catch (e: any) {
+      // 仅回滚点赞相关字段，避免覆盖并发成功的收藏操作
+      setScenario((s) => (s ? { ...s, liked: prev.liked, stats: { ...s.stats, likeCount: prev.stats.likeCount } } : s));
+      toast.error(humanizeError(e));
+    }
+  }
+
+  async function handleBookmark() {
+    if (!id || !scenario) return;
+    if (!user) return requireLogin();
+    const prev = scenario;
+    const nextBookmarked = !scenario.bookmarked;
+    setScenario({
+      ...scenario,
+      bookmarked: nextBookmarked,
+      stats: {
+        ...scenario.stats,
+        bookmarkCount: Math.max(0, scenario.stats.bookmarkCount + (nextBookmarked ? 1 : -1)),
+      },
+    });
+    try {
+      const res = await toggleScenarioBookmark(id);
+      setScenario((s) =>
+        s ? { ...s, bookmarked: res.bookmarked, stats: { ...s.stats, bookmarkCount: res.bookmarkCount } } : s
+      );
+    } catch (e: any) {
+      // 仅回滚收藏相关字段，避免覆盖并发成功的点赞操作
+      setScenario((s) =>
+        s ? { ...s, bookmarked: prev.bookmarked, stats: { ...s.stats, bookmarkCount: prev.stats.bookmarkCount } } : s
+      );
+      toast.error(humanizeError(e));
+    }
+  }
+
+  if (loading) return <div className="mx-auto max-w-6xl p-4 text-gray-300">加载中…</div>;
+  if (!scenario)
+    return (
+      <div className="mx-auto max-w-6xl p-4">
+        <p className="text-gray-400">情景不存在或已被删除。</p>
+        <Link to="/arena/simulate" className="mt-3 inline-block text-sm text-cyan-300 hover:underline">
+          ← 返回情景画廊
+        </Link>
+      </div>
+    );
+
+  const meta = platformMeta(scenario.platform);
+  const isOwner = Boolean(scenario.isOwner || (user && authorId(scenario.author) === user._id));
+  const previewComments = (scenario.comments || []).slice(0, 6);
+
+  return (
+    <div className="mx-auto max-w-6xl p-4 pb-20">
+      <Link to="/arena/simulate" className="text-sm text-gray-400 hover:text-white">
+        ← 返回情景画廊
+      </Link>
+
+      <div className="mt-3 grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
+            <div className="h-64 bg-gray-800">
+              {scenario.coverImageUrl ? (
+                <img src={scenario.coverImageUrl} alt={scenario.title} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-gray-500">暂无封面</div>
+              )}
+            </div>
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-2xl font-bold text-white">{scenario.title}</h1>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${meta.className}`}>
+                  {meta.label}
+                </span>
+              </div>
+              <p className="mt-2 text-gray-300">{scenario.summary || "暂无简介"}</p>
+              {scenario.topic && (
+                <p className="mt-2 rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm text-gray-300">
+                  <span className="text-gray-500">争论主题：</span>
+                  {scenario.topic}
+                </p>
+              )}
+              <p className="mt-3 text-sm text-gray-400">作者：{authorName(scenario.author)}</p>
+
+              {(scenario.tags || []).length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-cyan-200">
+                  {(scenario.tags || []).map((tag) => (
+                    <span key={tag} className="rounded-full border border-cyan-700/60 px-2 py-1">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-400">
+                <span className="inline-flex items-center gap-1">
+                  <Eye className="h-4 w-4" /> {scenario.stats.viewCount}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Heart className="h-4 w-4" /> {scenario.stats.likeCount}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Bookmark className="h-4 w-4" /> {scenario.stats.bookmarkCount}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Play className="h-4 w-4" /> {scenario.stats.playCount}
+                </span>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/arena/simulate/${scenario._id}/play`)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
+                >
+                  <Play className="h-4 w-4" /> 进入模拟
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLike}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                    scenario.liked ? "border-rose-500 text-rose-300" : "border-gray-700 text-gray-200 hover:bg-gray-800"
+                  }`}
+                >
+                  <Heart className={`h-4 w-4 ${scenario.liked ? "fill-rose-400" : ""}`} />
+                  {scenario.liked ? "已点赞" : "点赞"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBookmark}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                    scenario.bookmarked
+                      ? "border-cyan-500 text-cyan-300"
+                      : "border-gray-700 text-gray-200 hover:bg-gray-800"
+                  }`}
+                >
+                  <Bookmark className={`h-4 w-4 ${scenario.bookmarked ? "fill-cyan-400" : ""}`} />
+                  {scenario.bookmarked ? "已收藏" : "收藏"}
+                </button>
+                {isOwner && (
+                  <Link
+                    to={`/arena/simulate/${scenario._id}/edit`}
+                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-700 px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-950/30"
+                  >
+                    <Pencil className="h-4 w-4" /> 编辑
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-white">评论区预览</h2>
+              <span className="text-xs text-gray-500">仿 {meta.label} 皮肤</span>
+            </div>
+            {previewComments.length === 0 ? (
+              <p className="text-sm text-gray-400">该情景暂未录入评论。</p>
+            ) : (
+              <PlatformCommentView
+                platform={scenario.platform}
+                comments={previewComments}
+                topic={scenario.topic}
+                composer={false}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => navigate(`/arena/simulate/${scenario._id}/play`)}
+              className="mt-4 w-full rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800"
+            >
+              进入完整模拟，与 AI 对线 →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

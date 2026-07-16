@@ -28,7 +28,8 @@
     "login": "Login",
     "register": "Register",
     "logout": "Logout",
-    "guide": "Guide"
+    "guide": "Guide",
+    "arena": "Arena"
   },
   "auth": {
     "username": "Username",
