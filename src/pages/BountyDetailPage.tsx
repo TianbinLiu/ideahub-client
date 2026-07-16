@@ -13,7 +13,8 @@
  * - 提交区（登录且非作者）：发言文本 + 截图（apiUploadImage 或来自插件的 dataURL）+ note，调 submitBounty
  * - 插件交接：mount 时读 localStorage.lbw_pending_submission 预填发言与截图（dataURL -> File -> apiUploadImage）
  * - 作者视角：listBountySubmissions 展示全部提交 + 通过/拒绝（reviewBountySubmission）
- * - 讨论评论区：listBountyComments + addBountyComment（可发图）
+ * - 讨论评论区：<CommentThread targetType="bounty">（与情景/人格详情页共用，自取数据；
+ *   文字 + 配图 + 一层楼中楼 + 删除；本页只通过 onCountChange 同步头部 💬 计数）
  *
  * 说明：赏金为平台虚拟点数，审批通过即视为该猎人获得对应点数，不涉及真实支付/转账。
  */
@@ -23,19 +24,17 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Check, ExternalLink, ImagePlus, Pencil, Send, Trash2, X } from "lucide-react";
 import {
-  addBountyComment,
   apiUploadImage,
   deleteBounty,
   getBounty,
-  listBountyComments,
   listBountySubmissions,
   reviewBountySubmission,
   setBountyStatus,
   submitBounty,
   type Bounty,
-  type BountyComment,
   type BountySubmission,
 } from "../api";
+import CommentThread from "../components/CommentThread";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 
@@ -113,13 +112,7 @@ export default function BountyDetailPage() {
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
-  // 讨论评论区
-  const [comments, setComments] = useState<BountyComment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [commentImageUrl, setCommentImageUrl] = useState("");
-  const [uploadingCommentImg, setUploadingCommentImg] = useState(false);
-  const [postingComment, setPostingComment] = useState(false);
+  // 讨论评论区已抽到 <CommentThread targetType="bounty">，自取数据，这里不再持有其状态
 
   const isOwner = Boolean(bounty && (bounty.isOwner || (user && personId(bounty.author) === user._id)));
 
@@ -162,26 +155,6 @@ export default function BountyDetailPage() {
       mounted = false;
     };
   }, [id, isOwner]);
-
-  // 讨论评论区
-  useEffect(() => {
-    if (!id) return;
-    let mounted = true;
-    (async () => {
-      try {
-        setLoadingComments(true);
-        const res = await listBountyComments(id, { page: 1, limit: 50 });
-        if (mounted) setComments(res.comments || []);
-      } catch (e) {
-        if (mounted) toast.error(humanizeError(e));
-      } finally {
-        if (mounted) setLoadingComments(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [id]);
 
   // 插件交接：读取并消费 lbw_pending_submission，预填发言，暂存截图 dataURL 待上传
   // 仅在登录态消费——未登录时不读取/不清除，保证 /login 往返后数据仍在（避免发言/截图丢失）
@@ -338,51 +311,6 @@ export default function BountyDetailPage() {
       toast.success("状态已更新");
     } catch (e) {
       toast.error(humanizeError(e));
-    }
-  }
-
-  async function handleCommentImageUpload(file: File | null) {
-    if (!file) return;
-    try {
-      setUploadingCommentImg(true);
-      const res = await apiUploadImage(file, "comment");
-      setCommentImageUrl(res.imageUrl);
-      toast.success("图片已上传");
-    } catch (e) {
-      toast.error(humanizeError(e));
-    } finally {
-      setUploadingCommentImg(false);
-    }
-  }
-
-  async function handlePostComment() {
-    if (!id) return;
-    if (!user) return requireLogin();
-    if (!commentText.trim() && !commentImageUrl) {
-      toast.error("请输入评论内容或添加图片");
-      return;
-    }
-    if (uploadingCommentImg) {
-      toast.error("图片正在上传，请稍候再发布");
-      return;
-    }
-    try {
-      setPostingComment(true);
-      const res = await addBountyComment(id, {
-        text: commentText.trim(),
-        imageUrl: commentImageUrl || undefined,
-      });
-      setComments((prev) => [...prev, res.comment]);
-      setCommentText("");
-      setCommentImageUrl("");
-      setBounty((b) =>
-        b ? { ...b, stats: { ...b.stats, commentCount: b.stats.commentCount + 1 } } : b
-      );
-      toast.success("已发布评论");
-    } catch (e) {
-      toast.error(humanizeError(e));
-    } finally {
-      setPostingComment(false);
     }
   }
 
@@ -695,85 +623,20 @@ export default function BountyDetailPage() {
           )}
         </div>
 
-        {/* 右列：讨论评论区 */}
+        {/* 右列：讨论评论区（与情景/人格详情页共用 CommentThread：文字+配图+楼中楼+删除） */}
         <div className="space-y-4">
-          <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-            <h2 className="text-base font-semibold text-white">讨论区</h2>
-            <p className="mt-1 text-xs text-gray-500">在这里交流任务、发布截图。</p>
-
-            <div className="mt-3 space-y-2">
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder={user ? "写下你的评论…" : "登录后参与讨论"}
-                rows={3}
-                className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">
-                  <ImagePlus className="h-4 w-4" />
-                  {uploadingCommentImg ? "上传中…" : "添加图片"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploadingCommentImg}
-                    onChange={(e) => handleCommentImageUpload(e.target.files?.[0] || null)}
-                  />
-                </label>
-                {commentImageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setCommentImageUrl("")}
-                    className="text-xs text-rose-300 hover:text-rose-200"
-                  >
-                    移除图片
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={postingComment || uploadingCommentImg}
-                  onClick={handlePostComment}
-                  className="ml-auto inline-flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
-                >
-                  <Send className="h-3.5 w-3.5" /> {postingComment ? "发布中…" : "发布"}
-                </button>
-              </div>
-              {commentImageUrl && (
-                <img
-                  src={commentImageUrl}
-                  alt="评论图片"
-                  className="max-h-40 rounded-lg border border-gray-800 object-contain"
-                />
-              )}
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {loadingComments && <p className="text-sm text-gray-400">加载中…</p>}
-              {!loadingComments && comments.length === 0 && (
-                <p className="text-sm text-gray-400">还没有评论，来说两句吧。</p>
-              )}
-              {!loadingComments &&
-                comments.map((c) => (
-                  <div key={c._id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-200">{personName(c.author)}</span>
-                      <span className="text-[11px] text-gray-600">{formatDate(c.createdAt)}</span>
-                    </div>
-                    {c.text && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-300">{c.text}</p>}
-                    {c.imageUrl && (
-                      <a href={c.imageUrl} target="_blank" rel="noreferrer">
-                        <img
-                          src={c.imageUrl}
-                          alt="评论图片"
-                          className="mt-2 max-h-56 rounded-lg border border-gray-800 object-contain"
-                        />
-                      </a>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </section>
+          <CommentThread
+            targetType="bounty"
+            targetId={bounty._id}
+            canModerate={isOwner}
+            onCountChange={(delta) =>
+              setBounty((b) =>
+                b
+                  ? { ...b, stats: { ...b.stats, commentCount: Math.max(0, b.stats.commentCount + delta) } }
+                  : b
+              )
+            }
+          />
         </div>
       </div>
     </div>

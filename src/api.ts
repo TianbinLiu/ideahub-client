@@ -1231,12 +1231,13 @@ export function dismissStandpointEvent(eventId: string) {
 // 赏金 = 平台虚拟点数（reward:number），不是真钱，不做任何真实支付/转账。
 // 平台标识：'weibo' | 'bilibili' | 'tieba' | 'zhihu' | 'douyin' | 'xiaohongshu' | 'instagram' | 'other'。
 
-/** 任务介绍页讨论评论区的一条评论（可带图） */
+/** 任务介绍页讨论评论区的一条评论（可带图、支持一层楼中楼；parentId=null 表示顶楼） */
 export type BountyComment = {
   _id: string;
   author: { _id: string; username: string } | string;
   text: string;
   imageUrl?: string;
+  parentId?: string | null;
   createdAt: string;
 };
 
@@ -1394,20 +1395,113 @@ type BountyCommentListResponse = {
   totalPages: number;
 };
 
-export function listBountyComments(id: string, params?: { page?: number; limit?: number }) {
+// 注：赏金讨论区的 list/add 不再单独导出 —— 三处讨论区统一走下面的
+// listArenaComments / createArenaComment（内部按 targetType 适配 text<->content）。
+// 留着一份平行的 addBountyComment 只会让人绕过适配层、漏掉 parentId 归一化。
+
+// ===== 三处讨论区（Arena Comments：情景 / 人格 / 赏金）=====
+// 三处详情页共用 components/CommentThread.tsx，但后端是【两套形状】：
+//   - 情景 / 人格：通用模型 ArenaComment，字段名 content
+//   - 赏金：既有的 BountyComment，字段名 text（已上线、刻意不迁移，
+//           理由见 server/src/models/ArenaComment.js 文件头）
+// 差异在这一层抹平，组件只认统一的 ArenaComment 形状，不写 if (targetType === 'bounty')。
+
+export type ArenaCommentTarget = "scenario" | "persona" | "bounty";
+
+/** 讨论区的一条评论（可带图、支持一层楼中楼；parentId=null 表示顶楼） */
+export type ArenaComment = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  content: string;
+  imageUrl?: string;
+  parentId?: string | null;
+  createdAt: string;
+};
+
+type ArenaCommentListResponse = {
+  ok: true;
+  comments: ArenaComment[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+const ARENA_COMMENT_BASE: Record<ArenaCommentTarget, string> = {
+  scenario: "/api/scenarios",
+  persona: "/api/personas",
+  bounty: "/api/bounties",
+};
+
+function arenaCommentsPath(targetType: ArenaCommentTarget, targetId: string) {
+  return `${ARENA_COMMENT_BASE[targetType]}/${encodeURIComponent(targetId)}/comments`;
+}
+
+/** 赏金评论（text）-> 统一形状（content） */
+function fromBountyComment(c: BountyComment): ArenaComment {
+  return {
+    _id: c._id,
+    author: c.author,
+    content: c.text || "",
+    imageUrl: c.imageUrl,
+    parentId: c.parentId ?? null,
+    createdAt: c.createdAt,
+  };
+}
+
+export async function listArenaComments(
+  targetType: ArenaCommentTarget,
+  targetId: string,
+  params?: { page?: number; limit?: number }
+): Promise<ArenaCommentListResponse> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set("page", String(params.page));
   if (params?.limit) qs.set("limit", String(params.limit));
-  return apiFetch<BountyCommentListResponse>(
-    `/api/bounties/${id}/comments${qs.toString() ? `?${qs.toString()}` : ""}`
-  );
+  const path = `${arenaCommentsPath(targetType, targetId)}${qs.toString() ? `?${qs.toString()}` : ""}`;
+
+  if (targetType === "bounty") {
+    const res = await apiFetch<BountyCommentListResponse>(path);
+    return { ...res, comments: (res.comments || []).map(fromBountyComment) };
+  }
+  return apiFetch<ArenaCommentListResponse>(path);
 }
 
-export function addBountyComment(id: string, body: { text: string; imageUrl?: string }) {
-  return apiFetch<{ ok: true; comment: BountyComment }>(`/api/bounties/${id}/comments`, {
+export async function createArenaComment(
+  targetType: ArenaCommentTarget,
+  targetId: string,
+  body: { content: string; imageUrl?: string; parentId?: string | null }
+): Promise<{ ok: true; comment: ArenaComment }> {
+  const path = arenaCommentsPath(targetType, targetId);
+
+  if (targetType === "bounty") {
+    const res = await apiFetch<{ ok: true; comment: BountyComment }>(path, {
+      method: "POST",
+      body: JSON.stringify({
+        text: body.content,
+        imageUrl: body.imageUrl,
+        parentId: body.parentId ?? null,
+      }),
+    });
+    return { ok: true, comment: fromBountyComment(res.comment) };
+  }
+
+  return apiFetch<{ ok: true; comment: ArenaComment }>(path, {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+/**
+ * 删除评论。
+ * deleted = 后端实际删除的总条数（含删顶楼时级联删掉的楼中楼）。
+ * 前端【不能】自己按「已加载的回复数」推算：分页下未加载的楼中楼会被漏掉，
+ * total 少减 → 计数偏高 + 冒出「幽灵加载更多」。
+ */
+export function deleteArenaComment(targetType: ArenaCommentTarget, targetId: string, commentId: string) {
+  return apiFetch<{ ok: true; deleted: number }>(
+    `${arenaCommentsPath(targetType, targetId)}/${encodeURIComponent(commentId)}`,
+    { method: "DELETE" }
+  );
 }
 
 // ===== 发言风格面板（Speaking Style Panel）=====

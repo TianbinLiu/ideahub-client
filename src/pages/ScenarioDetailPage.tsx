@@ -11,6 +11,11 @@
  * - 公开介绍页：封面/标题/简介/作者/平台/tags，浏览/点赞/收藏统计与按钮（乐观更新）
  * - “进入模拟” -> /arena/simulate/:id/play；作者可见“编辑”
  * - 用 PlatformCommentView 只读预览前几条 seed 评论
+ * - 页面下方 <CommentThread targetType="scenario">：给大家讨论这个情景用的评论区
+ *
+ * ⚠️ 两个「评论」别混：
+ *   - 上面的“评论区预览” = 情景自带的 seed 仿真评论（scenario.comments，只读预览）
+ *   - 下面的 CommentThread = 用户之间真实的讨论区（ArenaComment）
  */
 
 import { useEffect, useState } from "react";
@@ -26,6 +31,7 @@ import {
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 import PlatformCommentView from "../components/PlatformCommentView";
+import CommentThread from "../components/CommentThread";
 
 const PLATFORM_META: Record<string, { label: string; className: string }> = {
   bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
@@ -66,7 +72,7 @@ export default function ScenarioDetailPage() {
         setLoading(true);
         const res = await getScenario(id);
         if (mounted) setScenario(res.scenario);
-      } catch (e: any) {
+      } catch (e) {
         if (mounted) toast.error(humanizeError(e));
       } finally {
         if (mounted) setLoading(false);
@@ -95,7 +101,7 @@ export default function ScenarioDetailPage() {
     try {
       const res = await toggleScenarioLike(id);
       setScenario((s) => (s ? { ...s, liked: res.liked, stats: { ...s.stats, likeCount: res.likeCount } } : s));
-    } catch (e: any) {
+    } catch (e) {
       // 仅回滚点赞相关字段，避免覆盖并发成功的收藏操作
       setScenario((s) => (s ? { ...s, liked: prev.liked, stats: { ...s.stats, likeCount: prev.stats.likeCount } } : s));
       toast.error(humanizeError(e));
@@ -120,7 +126,7 @@ export default function ScenarioDetailPage() {
       setScenario((s) =>
         s ? { ...s, bookmarked: res.bookmarked, stats: { ...s.stats, bookmarkCount: res.bookmarkCount } } : s
       );
-    } catch (e: any) {
+    } catch (e) {
       // 仅回滚收藏相关字段，避免覆盖并发成功的点赞操作
       setScenario((s) =>
         s ? { ...s, bookmarked: prev.bookmarked, stats: { ...s.stats, bookmarkCount: prev.stats.bookmarkCount } } : s
@@ -269,6 +275,11 @@ export default function ScenarioDetailPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* 讨论区：情景作者是版主，可删任何人的评论 */}
+      <div className="mt-4">
+        <CommentThread targetType="scenario" targetId={scenario._id} canModerate={isOwner} />
       </div>
     </div>
   );

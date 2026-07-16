@@ -13,6 +13,7 @@
  * - 操作（需登录）：下载收藏/取消收藏（乐观更新 downloadCount）、点赞（toggle）、装备（equip）
  * - 装备成功后写 localStorage 'lbw_active_persona' = {name, descriptor} 供插件读取
  * - 作者可编辑/删除；未登录操作引导登录
+ * - 页面下方 <CommentThread targetType="persona">：给大家讨论这个人格用的评论区
  */
 
 import { useEffect, useState } from "react";
@@ -30,6 +31,7 @@ import {
   type SpeakingProfile,
 } from "../api";
 import StyleStandCard from "../components/StyleStandCard";
+import CommentThread from "../components/CommentThread";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 
@@ -323,6 +325,9 @@ export default function PersonaDetailPage() {
 
         {/* ===== 风格面板 ===== */}
         <StyleStandCard profile={toProfile(persona)} />
+
+        {/* ===== 讨论区：人格作者是版主，可删任何人的评论 ===== */}
+        <CommentThread targetType="persona" targetId={persona._id} canModerate={isOwner} />
       </div>
     </div>
   );
