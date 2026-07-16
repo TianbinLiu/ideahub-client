@@ -11,6 +11,8 @@
  * - 显示未读通知徽章
  * - 用户登录状态显示
  * - 登录/注册/登出按钮
+ * - 已登录时的用户小菜单（下拉）：我的主页 /arena/profile、插件设置 /arena/extension
+ *   （点外部关闭 / Esc 关闭 / 换路由关闭；aria-haspopup + aria-expanded + role=menu）
  * - 移动端响应式菜单
  * 
  * 依赖文件:
@@ -32,7 +34,7 @@
 
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../authContext";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getUnreadCount, listGroups, type Group } from "../api";
 import { UserHoverCard } from "./UserHoverCard";
 import { useTranslation } from "react-i18next";
@@ -42,6 +44,7 @@ import {
   Bomb,
   Bot,
   Building2,
+  ChevronDown,
   CircleHelp,
   CircleUserRound,
   FileText,
@@ -49,9 +52,11 @@ import {
   LogIn,
   LogOut,
   MessageSquareWarning,
+  Puzzle,
   Search,
   Shield,
   UserPlus,
+  UserRoundCog,
   UsersRound,
 } from "lucide-react";
 
@@ -74,7 +79,10 @@ export default function Navbar() {
   const [groups, setGroups] = useState<Group[]>([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
   const [guestMenuOpen, setGuestMenuOpen] = useState(false);
   const [autoGuestMenuShown, setAutoGuestMenuShown] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authDialog, setAuthDialog] = useState<AuthDialogState | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const userMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const loc = useLocation();
   const nav = useNavigate();
 
@@ -141,7 +149,33 @@ export default function Navbar() {
 
   useEffect(() => {
     setGuestMenuOpen(false);
+    setUserMenuOpen(false);
   }, [loc.key]);
+
+  // 用户小菜单：点外部关闭 + Esc 关闭（关时把焦点还给触发按钮）
+  useEffect(() => {
+    if (!userMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (userMenuRef.current?.contains(target)) return;
+      setUserMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setUserMenuOpen(false);
+      userMenuButtonRef.current?.focus();
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [userMenuOpen]);
 
   useEffect(() => {
     function handleOpenAuth(event: Event) {
@@ -327,6 +361,48 @@ export default function Navbar() {
                   </Link>
                 </UserHoverCard>
               )}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  ref={userMenuButtonRef}
+                  type="button"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  title={t("nav.userMenu")}
+                  aria-label={t("nav.userMenu")}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  aria-controls="navbar-user-menu"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-700 hover:bg-gray-900"
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {userMenuOpen ? (
+                  <div
+                    id="navbar-user-menu"
+                    role="menu"
+                    aria-label={t("nav.userMenu")}
+                    className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 p-1.5 shadow-2xl"
+                  >
+                    <Link
+                      to="/arena/profile"
+                      role="menuitem"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-gray-200 hover:bg-gray-900 hover:text-white"
+                    >
+                      <UserRoundCog className="h-4 w-4 text-cyan-300" />
+                      {t("nav.arenaProfile")}
+                    </Link>
+                    <Link
+                      to="/arena/extension"
+                      role="menuitem"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-gray-200 hover:bg-gray-900 hover:text-white"
+                    >
+                      <Puzzle className="h-4 w-4 text-cyan-300" />
+                      {t("nav.extensionSettings")}
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
               <button
                 onClick={logout}
                 title={t("nav.logout")}

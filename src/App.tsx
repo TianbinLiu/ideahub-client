@@ -61,6 +61,8 @@ import BountyBoardPage from "./pages/BountyBoardPage";
 import BountyDetailPage from "./pages/BountyDetailPage";
 import BountyEditorPage from "./pages/BountyEditorPage";
 import StyleProfilePage from "./pages/StyleProfilePage";
+import ArenaProfilePage from "./pages/ArenaProfilePage";
+import ExtensionSettingsPage from "./pages/ExtensionSettingsPage";
 import PersonaGalleryPage from "./pages/PersonaGalleryPage";
 import PersonaDetailPage from "./pages/PersonaDetailPage";
 import PersonaEditorPage from "./pages/PersonaEditorPage";
@@ -215,6 +217,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <StyleProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/arena/profile"
+          element={
+            <ProtectedRoute>
+              <ArenaProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/arena/extension"
+          element={
+            <ProtectedRoute>
+              <ExtensionSettingsPage />
             </ProtectedRoute>
           }
         />

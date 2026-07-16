@@ -468,6 +468,19 @@ export function deleteAccount(userId: string) {
   });
 }
 
+/**
+ * 注销（停用）当前账号 —— 【软删除】，不是永久删除：
+ * 账号被停用后无法再登录，但已发布的内容（想法/情景/悬赏/人格/评论）不会被删除。
+ * 必须传入与当前用户名完全一致的 confirmUsername 作为二次确认，否则后端拒绝。
+ * 成功后调用方必须清掉本地登录态（clearToken / authContext.logout）。
+ */
+export function deactivateAccount(confirmUsername: string) {
+  return apiFetch<{ ok: true }>("/api/me/deactivate", {
+    method: "POST",
+    body: JSON.stringify({ confirmUsername }),
+  });
+}
+
 // Ideas and groups API - Type definitions
 export type ExternalSource = {
   platform?: string;
@@ -1546,6 +1559,17 @@ export function generateStyleProfile(styleTally?: Record<string, number>) {
       body: JSON.stringify(styleTally ? { styleTally } : {}),
     }
   );
+}
+
+/**
+ * 删除当前用户的风格档案（只删这份 AI 生成的档案本身）。
+ * deleted=false 表示本来就没有档案（不是错误）。
+ * ⚠️ 不会动风格记忆样本 —— 样本要用 clearStyleSamples / deleteStyleSample 单独删。
+ */
+export function deleteMyStyleProfile() {
+  return apiFetch<{ ok: true; deleted: boolean }>("/api/speaking-style", {
+    method: "DELETE",
+  });
 }
 
 /** 公开查看某用户的风格档案（供后续人格分享），未生成过则 profile 为 null */

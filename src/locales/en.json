@@ -29,7 +29,10 @@
     "register": "Register",
     "logout": "Logout",
     "guide": "Guide",
-    "arena": "Arena"
+    "arena": "Arena",
+    "userMenu": "User menu",
+    "arenaProfile": "My profile",
+    "extensionSettings": "Extension settings"
   },
   "auth": {
     "username": "Username",

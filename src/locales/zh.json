@@ -27,7 +27,10 @@
     "register": "注册",
     "logout": "退出登录",
     "guide": "指引",
-    "arena": "卢本伟广场"
+    "arena": "卢本伟广场",
+    "userMenu": "用户菜单",
+    "arenaProfile": "我的主页",
+    "extensionSettings": "插件设置"
   },
   "auth": {
     "username": "用户名",
