@@ -1069,7 +1069,20 @@ export function captureScenario(url: string) {
   });
 }
 
-export function generateScenarioComments(body: { topic: string; platform?: string; intensity?: string; count?: number }) {
+/**
+ * 生成种子评论区。topic 与 sourceText 至少给一个（都缺后端回 400「请提供话题或素材」）。
+ *
+ * ⚠️ sourceText = 真实评论素材（插件抓取 / 用户上传的文本），是【一次性入参】：
+ * 只送给 AI 当输入，让它【重新生成】一套评论区。真实评论绝不入库、绝不发布，
+ * 也绝不能进 ScenarioInput（createScenario / updateScenario 的提交结构里没有这个字段）。
+ */
+export function generateScenarioComments(body: {
+  topic?: string;
+  sourceText?: string;
+  platform?: string;
+  intensity?: string;
+  count?: number;
+}) {
   return apiFetch<{ ok: true; comments: ScenarioComment[]; model?: string }>("/api/scenarios/generate", {
     method: "POST",
     body: JSON.stringify(body),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   apiUploadImage,
@@ -22,11 +22,22 @@ const PLATFORM_OPTIONS: { value: string; label: string }[] = [
   { value: "generic", label: "通用" },
 ];
 
-const INTENSITY_OPTIONS: { value: "mild" | "heated" | "flame"; label: string }[] = [
+type Intensity = "mild" | "heated" | "flame";
+
+const INTENSITY_OPTIONS: { value: Intensity; label: string }[] = [
   { value: "mild", label: "温和" },
   { value: "heated", label: "激烈" },
   { value: "flame", label: "火药味" },
 ];
+
+/**
+ * 素材上限。必须与后端三处保持一致：generateBody 的 z.string().max(8000)、
+ * 以及 scenarioAi.service.js 里 prompt 对 sourceText 的 slice 上限。
+ * 三者一旦不一致，就会出现「前端说都用了、后端其实只用了一部分」的骗人提示。
+ */
+const MAX_SOURCE_TEXT = 8000;
+/** 上传素材文件大小上限 200KB */
+const MAX_SOURCE_FILE_BYTES = 200 * 1024;
 
 function newId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -38,6 +49,16 @@ function newId() {
 function snippet(text: string, max = 18) {
   const clean = (text || "").replace(/\s+/g, " ").trim();
   return clean.length > max ? `${clean.slice(0, max)}…` : clean;
+}
+
+/** 用 FileReader 把纯文本文件读成字符串（失败则 reject，由调用方 toast） */
+function readTextFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("读取文件失败"));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsText(file);
+  });
 }
 
 export default function ScenarioEditorPage() {
@@ -59,8 +80,24 @@ export default function ScenarioEditorPage() {
   const [shared, setShared] = useState(false);
   const [topic, setTopic] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [intensity, setIntensity] = useState<"mild" | "heated" | "flame">("heated");
+  const [intensity, setIntensity] = useState<Intensity>("heated");
   const [comments, setComments] = useState<ScenarioComment[]>([]);
+
+  // ★★ 真实评论素材（插件抓取 / 上传的文本）只活在这两个 state 里，【只用于喂 AI 生成】。
+  // 它们绝不进 comments / topic，也绝不进 handleSave 的 body —— 提交出去的永远只有
+  // AI 重新生成的评论。理由：PIPL 第25条对「已合法公开的个人信息」没有豁免口；
+  // 只换用户名、正文照抄属【去标识化】而非【匿名化】，仍是个人信息。
+  const [captureSourceText, setCaptureSourceText] = useState("");
+  const [uploadSourceText, setUploadSourceText] = useState("");
+  const [uploadFileName, setUploadFileName] = useState("");
+
+  // 插件交接的 effect 只在挂载时绑定一次，闭包里的 platform/intensity 会是初始值 —— 用 ref 读最新值。
+  const platformRef = useRef(platform);
+  const intensityRef = useRef(intensity);
+  useEffect(() => {
+    platformRef.current = platform;
+    intensityRef.current = intensity;
+  }, [platform, intensity]);
 
   const parsedTags = useMemo(
     () => tagsText.split(/[#,，,\s]+/).map((x) => x.trim()).filter(Boolean).slice(0, 12),
@@ -94,9 +131,50 @@ export default function ScenarioEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, id]);
 
-  // A：导入插件抓取的评论（localStorage 'lbw_pending_capture'），预填平台与评论后清除。
+  /**
+   * 按真实素材生成模拟评论区。
+   *
+   * ★ 素材（真实评论原文）只作为【入参】送给后端喂 AI，回来的 AI 评论才进 comments。
+   * 真实评论不进 state.comments、不进 topic、不进任何提交字段。
+   * 只读参数与 setter，不读组件 state —— 供挂载时的 effect 直接调用而不怕闭包过期。
+   */
+  async function generateFromSource(
+    text: string,
+    nextPlatform: string,
+    nextIntensity: Intensity,
+    successMessage: string
+  ) {
+    try {
+      setAiBusy(true);
+      const res = await generateScenarioComments({
+        sourceText: text,
+        platform: nextPlatform,
+        intensity: nextIntensity,
+      });
+      const generated = (res.comments || []).map((c) => ({ ...c, id: c.id || newId() }));
+      if (generated.length === 0) {
+        toast.error("AI 未生成任何评论，请重试，或改用「用话题生成」");
+        return;
+      }
+      setComments(generated);
+      toast.success(successMessage);
+    } catch (e: any) {
+      if (e?.status === 501) {
+        toast.error("服务器未配置 AI，无法按素材生成；请改用「用话题生成」");
+      } else {
+        toast.error(`${humanizeError(e)}（也可改用「用话题生成」）`);
+      }
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  // A：消费插件抓取的评论（localStorage 'lbw_pending_capture'）。
   // 同时监听 'lbw:capture-ready'：插件写入 localStorage 是异步的，可能早于或晚于本页挂载，
   // 两条路径都消费一次即可覆盖两种时序（消费后立即删除，保证只导入一次）。
+  //
+  // ★★ 抓到的真实评论【不再】直接 setComments 预填 —— 那等于把他人评论原样入库/发布。
+  // 现在只把它们拼成 sourceText 当作 AI 的输入素材，用【AI 重新生成的评论】填充编辑器。
   useEffect(() => {
     function consumeCapture() {
       try {
@@ -107,28 +185,79 @@ export default function ScenarioEditorPage() {
           platform?: string;
           comments?: { authorName?: string; text?: string }[];
         };
+        // setPlatform 是异步的，本轮拿不到新值 —— 生成用的平台直接取 capture 里的
+        const nextPlatform = capture?.platform || platformRef.current;
         if (capture?.platform) setPlatform(capture.platform);
-        const imported: ScenarioComment[] = (capture?.comments || [])
-          .map((c) => ({
-            id: newId(),
-            authorName: (c.authorName || "").trim(),
-            text: (c.text || "").trim(),
-            parentId: null as string | null,
-            likeCount: 0,
-          }))
+
+        const rows = (capture?.comments || [])
+          .map((c) => ({ authorName: (c.authorName || "").trim(), text: (c.text || "").trim() }))
           .filter((c) => c.authorName || c.text);
-        if (imported.length > 0) {
-          setComments((prev) => [...prev, ...imported]);
-          toast.success(`已从插件导入抓取的评论（${imported.length} 条）`);
-        }
+        if (rows.length === 0) return;
+
+        // 「作者：正文」逐行拼成素材；只存进 captureSourceText，绝不进 comments
+        const text = rows
+          .map((c) => `${c.authorName || "匿名"}：${c.text}`)
+          .join("\n")
+          .slice(0, MAX_SOURCE_TEXT);
+        setCaptureSourceText(text);
+        void generateFromSource(
+          text,
+          nextPlatform,
+          intensityRef.current,
+          `已按抓取到的 ${rows.length} 条真实评论生成模拟评论区`
+        );
       } catch (e) {
-        console.error("导入插件抓取的评论失败", e);
+        console.error("读取插件抓取的评论失败", e);
+        toast.error("读取插件抓取的评论失败");
       }
     }
     consumeCapture();
     window.addEventListener("lbw:capture-ready", consumeCapture);
     return () => window.removeEventListener("lbw:capture-ready", consumeCapture);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // B：上传文本文档 → 读成 sourceText（不依赖插件的独立路径）
+  async function handleSourceFile(file: File | null) {
+    if (!file) return;
+    setUploadSourceText("");
+    setUploadFileName("");
+    if (file.size > MAX_SOURCE_FILE_BYTES) {
+      toast.error(`文件过大（${Math.ceil(file.size / 1024)}KB），上限 200KB`);
+      return;
+    }
+    // 扩展名 + MIME 都要过：MIME 非空且不是 text/* → 拒（挡掉把二进制改名成 .txt 的情况）；
+    // .md 在部分系统上没有注册 MIME（file.type 为空），故空 MIME 放行、只认扩展名。
+    const hasTextExt = /\.(txt|md|markdown)$/i.test(file.name);
+    const isTextMime = !file.type || /^text\//i.test(file.type);
+    if (!hasTextExt || !isTextMime) {
+      toast.error("只支持 .txt / .md 纯文本文件");
+      return;
+    }
+    try {
+      const raw = await readTextFile(file);
+      const text = raw.trim().slice(0, MAX_SOURCE_TEXT);
+      if (!text) {
+        toast.error("文件内容为空");
+        return;
+      }
+      setUploadSourceText(text);
+      setUploadFileName(file.name);
+      if (raw.trim().length > MAX_SOURCE_TEXT) {
+        toast(`内容超过 ${MAX_SOURCE_TEXT} 字，已截取前 ${MAX_SOURCE_TEXT} 字作为素材`, { icon: "ℹ️" });
+      }
+    } catch (e) {
+      toast.error(humanizeError(e));
+    }
+  }
+
+  async function handleGenerateFromUpload() {
+    if (!uploadSourceText) {
+      toast.error("请先选择一份文本文档");
+      return;
+    }
+    await generateFromSource(uploadSourceText, platform, intensity, "已按上传的素材生成模拟评论区");
+  }
 
   async function handleCoverUpload(file: File | null) {
     if (!file) return;
@@ -396,6 +525,52 @@ export default function ScenarioEditorPage() {
               <p className="text-xs text-gray-500">依据上方“争论主题/背景”与所选平台生成一段带对立立场的评论区，追加到下方列表。</p>
             </div>
 
+            {captureSourceText && (
+              <div className="rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-3 space-y-1">
+                <div className="text-sm font-medium text-cyan-100">
+                  插件抓取的素材（{captureSourceText.length} 字）
+                </div>
+                <p className="text-xs text-cyan-200/70">
+                  抓到的真实评论只作为 AI 的生成素材，不会入库、不会被发布；下方评论区是 AI 重新写的版本，可自行编辑。
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-3">
+              <div className="text-sm font-medium text-gray-200">上传文本文档生成</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="cursor-pointer rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">
+                  选择文本文件
+                  <input
+                    type="file"
+                    accept=".txt,.md,text/plain"
+                    className="hidden"
+                    onChange={(e) => {
+                      void handleSourceFile(e.target.files?.[0] || null);
+                      e.target.value = ""; // 允许重复选择同一文件
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={aiBusy || !uploadSourceText}
+                  onClick={handleGenerateFromUpload}
+                  className="rounded-xl border border-cyan-600 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
+                >
+                  {aiBusy ? "生成中..." : "生成模板"}
+                </button>
+                {uploadFileName && (
+                  <span className="text-xs text-gray-400">
+                    {uploadFileName}（{uploadSourceText.length} 字）
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                上传一份包含评论内容的文本，AI 会据此重建一个该平台风格的争论评论区。原文只用于生成，不会被发布。
+                使用上方所选的「平台皮肤」与「争论强度」；支持 .txt / .md，最大 200KB。
+              </p>
+            </div>
+
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-3">
               <div className="text-sm font-medium text-gray-200">从链接抓取（兜底）</div>
               <div className="flex flex-wrap items-center gap-2">
@@ -440,11 +615,11 @@ export default function ScenarioEditorPage() {
             </div>
 
             <p className="text-xs text-amber-300/80">
-              隐私提示：导入的评论默认可编辑，建议匿名化他人用户名后再发布。
+              隐私提示：这里的评论应当是 AI 生成或你自己撰写的。抓取/上传的真实评论只用于喂 AI 生成，不会入库、不会被发布；请勿把他人评论原文粘贴到这里。
             </p>
 
             {comments.length === 0 ? (
-              <p className="text-sm text-gray-400">还没有评论。手动添加、用话题生成，或从链接抓取。</p>
+              <p className="text-sm text-gray-400">还没有评论。手动添加、用话题生成、上传文本生成，或从链接抓取。</p>
             ) : (
               <div className="space-y-3">
                 {comments.map((c, index) => (
