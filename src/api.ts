@@ -1457,6 +1457,54 @@ export function getUserStyleProfile(userId: string) {
   );
 }
 
+// ===== 风格记忆：用户自己的发言样本（Style Samples）=====
+// 只收录用户自己提供的样本：手动粘贴（source='paste'），或用浏览器插件在自己的主页/评论页
+// 主动点 🧠 就地收集（source='capture'）。绝不自动爬取平台账号历史。
+// 样本可累积/查看/删除；生成风格档案时后端会把这些样本排在聚合文本最前面（最能代表本人口吻）。
+
+/** 一条用户自己的发言样本 */
+export type StyleSample = { _id: string; text: string; source: string; platform: string; createdAt: string };
+
+/** 批量加入风格记忆；后端按 hash 去重，重复的计入 skipped 而非失败 */
+export function addStyleSamples(body: { texts: string[]; source?: string; platform?: string }) {
+  return apiFetch<{ ok: boolean; added: number; skipped: number; total: number }>(
+    "/api/speaking-style/samples",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+/** 分页查看自己的发言样本（按创建时间倒序） */
+export function listStyleSamples(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<{
+    ok: boolean;
+    samples: StyleSample[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/api/speaking-style/samples${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+/** 删除单条发言样本 */
+export function deleteStyleSample(id: string) {
+  return apiFetch<{ ok: boolean }>(`/api/speaking-style/samples/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/** 清空自己的全部发言样本 */
+export function clearStyleSamples() {
+  return apiFetch<{ ok: boolean; deleted: number }>("/api/speaking-style/samples", {
+    method: "DELETE",
+  });
+}
+
 // ===== 人格下载（Persona）=====
 // 用户把自己的发言风格（来自阶段5 SpeakingProfile）发布为可分享的「人格」，
 // 其他用户可浏览/下载收藏/点赞/装备。装备后（本人风格 或 某下载的人格）驱动浏览器插件
