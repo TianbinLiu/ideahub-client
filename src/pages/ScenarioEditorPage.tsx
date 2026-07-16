@@ -94,6 +94,42 @@ export default function ScenarioEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, id]);
 
+  // A：导入插件抓取的评论（localStorage 'lbw_pending_capture'），预填平台与评论后清除。
+  // 同时监听 'lbw:capture-ready'：插件写入 localStorage 是异步的，可能早于或晚于本页挂载，
+  // 两条路径都消费一次即可覆盖两种时序（消费后立即删除，保证只导入一次）。
+  useEffect(() => {
+    function consumeCapture() {
+      try {
+        const raw = localStorage.getItem("lbw_pending_capture");
+        if (!raw) return;
+        localStorage.removeItem("lbw_pending_capture");
+        const capture = JSON.parse(raw) as {
+          platform?: string;
+          comments?: { authorName?: string; text?: string }[];
+        };
+        if (capture?.platform) setPlatform(capture.platform);
+        const imported: ScenarioComment[] = (capture?.comments || [])
+          .map((c) => ({
+            id: newId(),
+            authorName: (c.authorName || "").trim(),
+            text: (c.text || "").trim(),
+            parentId: null as string | null,
+            likeCount: 0,
+          }))
+          .filter((c) => c.authorName || c.text);
+        if (imported.length > 0) {
+          setComments((prev) => [...prev, ...imported]);
+          toast.success(`已从插件导入抓取的评论（${imported.length} 条）`);
+        }
+      } catch (e) {
+        console.error("导入插件抓取的评论失败", e);
+      }
+    }
+    consumeCapture();
+    window.addEventListener("lbw:capture-ready", consumeCapture);
+    return () => window.removeEventListener("lbw:capture-ready", consumeCapture);
+  }, []);
+
   async function handleCoverUpload(file: File | null) {
     if (!file) return;
     try {
@@ -402,6 +438,10 @@ export default function ScenarioEditorPage() {
                 </button>
               </div>
             </div>
+
+            <p className="text-xs text-amber-300/80">
+              隐私提示：导入的评论默认可编辑，建议匿名化他人用户名后再发布。
+            </p>
 
             {comments.length === 0 ? (
               <p className="text-sm text-gray-400">还没有评论。手动添加、用话题生成，或从链接抓取。</p>
