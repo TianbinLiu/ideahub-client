@@ -922,7 +922,9 @@ export function getWorkshopTagInsights(limit = 240) {
 }
 
 // ===== 情景模拟（Scenario Simulation）=====
-// 平台标识：'bilibili' | 'weibo' | 'tieba' | 'zhihu' | 'instagram' | 'generic'（未知一律 generic）
+// 平台标识：'bilibili' | 'weibo' | 'tieba' | 'zhihu' | 'instagram' | 'douyin' | 'xiaohongshu' | 'generic'
+// 真源是 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS，枚举外的值会被后端【静默降级为 generic】。
+// 每个平台的评论区皮肤见 components/skins/（一个平台一个独立组件，没有别名复用）。
 
 /** Scenario.comments 的子文档 / 前端共享评论类型 */
 export type ScenarioComment = {

@@ -13,11 +13,16 @@ import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import PlatformCommentView from "../components/PlatformCommentView";
 
+// ⚠️ 必须与 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS 保持一致：
+// 这里多出的值会被后端 normalizePlatform【静默降级为 generic】（用户选了却不生效）；
+// 这里少的值则是用户根本选不到。每个值也都要在 components/skins/index.ts 里有专属皮肤。
 const PLATFORM_OPTIONS: { value: string; label: string }[] = [
   { value: "bilibili", label: "哔哩哔哩" },
   { value: "weibo", label: "微博" },
   { value: "tieba", label: "贴吧" },
   { value: "zhihu", label: "知乎" },
+  { value: "douyin", label: "抖音" },
+  { value: "xiaohongshu", label: "小红书" },
   { value: "instagram", label: "Instagram" },
   { value: "generic", label: "通用" },
 ];

@@ -33,11 +33,15 @@ import { useAuth } from "../authContext";
 import PlatformCommentView from "../components/PlatformCommentView";
 import CommentThread from "../components/CommentThread";
 
+// 页面自己的平台小徽标（与评论区皮肤无关：皮肤在 components/skins/ 里各自实现）。
+// 新增平台时要跟着补一行，否则会 fallback 成「通用」徽标。
 const PLATFORM_META: Record<string, { label: string; className: string }> = {
   bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
   weibo: { label: "微博", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
   tieba: { label: "贴吧", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
   zhihu: { label: "知乎", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
+  douyin: { label: "抖音", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
+  xiaohongshu: { label: "小红书", className: "border-red-600/60 bg-red-950/30 text-red-200" },
   instagram: { label: "Instagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
   generic: { label: "通用", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
 };
