@@ -274,13 +274,17 @@ export default function BountyDetailPage() {
       const res = await reviewBountySubmission(id, sub._id, status);
       setSubmissions((prev) => prev.map((s) => (s._id === sub._id ? res.submission : s)));
       if (status === "approved" && !wasApproved) {
+        // 入账金额以服务端返回的 awardedPoints 为准（账本真值），不要自己拿 reward 算
+        const awarded = res.submission.awardedPoints;
         setBounty((b) => {
           if (!b) return b;
           const approvedCount = b.approvedCount + 1;
           const nextStatus = approvedCount >= b.slots ? "completed" : b.status;
-          return { ...b, approvedCount, status: nextStatus };
+          // 托管同步减掉这次发出去的点数，否则页面上的「剩余托管」会一直显示旧值
+          const escrowPoints = Math.max(0, (b.escrowPoints ?? 0) - awarded);
+          return { ...b, approvedCount, status: nextStatus, escrowPoints };
         });
-        toast.success("已通过，赏金点数已发放给该猎人");
+        toast.success(`已通过，${awarded} 点虚拟点数已入账给该猎人`);
       } else if (status === "rejected") {
         toast.success("已拒绝该提交");
       }
@@ -357,6 +361,8 @@ export default function BountyDetailPage() {
                 名额 {bounty.approvedCount}/{bounty.slots} 已通过
               </span>
             </div>
+            {/* 文案红线：虚拟点数，无现金价值，不可提现/兑换。不得暗示任何真实收益。 */}
+            <p className="mt-1.5 text-[11px] text-gray-500">赏金为平台虚拟点数，无现金价值，不可提现或兑换。</p>
 
             <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
               {bounty.description || "暂无描述"}
@@ -473,8 +479,13 @@ export default function BountyDetailPage() {
                       className="mt-2 max-h-56 rounded-lg border border-gray-800 object-contain"
                     />
                   )}
+                  {/* ★入账金额只能用 awardedPoints（审批那一刻记进账本的真值），
+                      不能用 bounty.reward —— reward 事后可被发布者改，用它就是对猎人报一个假数。
+                      文案也不得暗示这是真钱收益：是虚拟点数，无现金价值。 */}
                   {mySubmission.status === "approved" && (
-                    <p className="mt-2 text-sm text-emerald-300">已通过审核，你获得了 {bounty.reward} 点赏金。</p>
+                    <p className="mt-2 text-sm text-emerald-300">
+                      已通过审核，已入账 {mySubmission.awardedPoints} 点虚拟点数（无现金价值，不可提现/兑换）。
+                    </p>
                   )}
                 </div>
               )}
@@ -560,8 +571,11 @@ export default function BountyDetailPage() {
             <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-white">收到的提交</h2>
+                {/* ★这里【不能】写「累计发放 = approvedCount × reward」：reward 事后可改，
+                    改完这个乘积就和账本对不上，等于对发布者报一个编造的数字。
+                    改为显示服务端给的「剩余托管」——那是权威值。发放明细看各条提交的已入账点数。 */}
                 <span className="text-xs text-gray-500">
-                  已通过 {bounty.approvedCount}/{bounty.slots} · 累计发放 {bounty.approvedCount * bounty.reward} 点
+                  已通过 {bounty.approvedCount}/{bounty.slots} · 剩余托管 {bounty.escrowPoints ?? 0} 点
                 </span>
               </div>
 
@@ -583,6 +597,9 @@ export default function BountyDetailPage() {
                           </span>
                         </div>
                         <p className="mt-2 whitespace-pre-wrap text-sm text-gray-300">{s.speechText}</p>
+                        {s.status === "approved" && (
+                          <p className="mt-1 text-xs text-emerald-300">已入账 {s.awardedPoints} 点给该猎人</p>
+                        )}
                         {s.note && <p className="mt-1 text-xs text-gray-500">备注：{s.note}</p>}
                         {s.screenshotUrl && (
                           <a href={s.screenshotUrl} target="_blank" rel="noreferrer">

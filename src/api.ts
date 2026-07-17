@@ -1263,6 +1263,12 @@ export type BountySubmission = {
   screenshotUrl?: string;
   note?: string;
   status: "pending" | "approved" | "rejected";
+  /**
+   * 审批通过时【实际入账】的虚拟点数（账本真值，审批那一刻写死）。
+   * ★渲染「已入账 N 点」只能用它，不能用 bounty.reward —— reward 事后可被发布者改，
+   *   用 reward 就会对猎人显示一个和他账本不符的数。
+   */
+  awardedPoints: number;
   createdAt: string;
 };
 
@@ -1283,6 +1289,10 @@ export type Bounty = {
   approvedCount: number;
   isOwner?: boolean;
   mySubmission?: BountySubmission | null;
+  /** 还锁在这个悬赏里、尚未发放的托管点数。★只有发布者拿得到（后端对他人不返回） */
+  escrowPoints?: number;
+  /** 有值 = 托管已退还发布者，悬赏进入终态（不能再审批 / 重开 / 改赏金） */
+  refundedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1397,6 +1407,45 @@ export function reviewBountySubmission(id: string, sid: string, status: "approve
     method: "POST",
     body: JSON.stringify({ status }),
   });
+}
+
+// ===== 虚拟点数（Points）=====
+// ★这是平台【虚拟点数】，不是真钱：无现金价值，不可提现、不可兑换，不涉及任何真实支付。
+//   UI 上必须写明这一点，不得出现任何暗示真实收益的文案。
+
+/** 一条点数流水（记账分录）。delta 正 = 入账，负 = 出账 */
+export type PointsLedgerEntry = {
+  _id: string;
+  delta: number;
+  /** signup=注册赠送 / bounty_hold=发布悬赏托管 / bounty_reward=赏金入账 / bounty_refund=托管退回 */
+  reason: "signup" | "bounty_hold" | "bounty_reward" | "bounty_refund";
+  /** 这笔之后的余额快照（便于对账）；后端可能为 null */
+  balanceAfter: number | null;
+  bounty: string | null;
+  memo: string;
+  createdAt: string;
+};
+
+type PointsLedgerResponse = {
+  ok: true;
+  entries: PointsLedgerEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+/** 我的虚拟点数余额 */
+export function getMyPoints() {
+  return apiFetch<{ ok: true; points: number }>("/api/me/points");
+}
+
+/** 我的虚拟点数流水（分页；只返回自己的，悬赏托管账户的分录不会出现在这里） */
+export function listMyPointsLedger(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<PointsLedgerResponse>(`/api/me/points/ledger${qs.toString() ? `?${qs.toString()}` : ""}`);
 }
 
 type BountyCommentListResponse = {

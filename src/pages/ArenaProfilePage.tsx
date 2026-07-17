@@ -35,6 +35,7 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   Brain,
+  Coins,
   Gauge,
   Puzzle,
   ShieldAlert,
@@ -50,13 +51,16 @@ import {
   deactivateAccount,
   deleteMyStyleProfile,
   deleteStyleSample,
+  getMyPoints,
   getMyStyleProfile,
   listMyBounties,
+  listMyPointsLedger,
   listMyScenarios,
   listPersonas,
   listStyleSamples,
   type BountyCard,
   type Persona,
+  type PointsLedgerEntry,
   type ScenarioCard,
   type SpeakingProfile,
   type StyleSample,
@@ -82,6 +86,17 @@ const BOUNTY_STATUS_LABELS: Record<string, string> = {
   open: "进行中",
   closed: "已关闭",
   completed: "已完成",
+};
+
+/** 点数流水：每页条数 */
+const LEDGER_PAGE_SIZE = 20;
+
+/** 流水文案：把记账 reason 翻译成人话。★不得出现任何暗示真实货币/收益的说法 */
+const LEDGER_REASON_LABELS: Record<PointsLedgerEntry["reason"], string> = {
+  signup: "注册赠送",
+  bounty_hold: "发布悬赏 · 托管",
+  bounty_reward: "赏金入账",
+  bounty_refund: "托管退回",
 };
 
 type TabKey = "scenario" | "bounty" | "persona";
@@ -155,6 +170,14 @@ export default function ArenaProfilePage() {
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [tabLoading, setTabLoading] = useState(false);
 
+  // ===== 虚拟点数：余额 + 流水 =====
+  const [points, setPoints] = useState<number | null>(null);
+  const [pointsLoading, setPointsLoading] = useState(true);
+  const [ledger, setLedger] = useState<PointsLedgerEntry[]>([]);
+  const [ledgerTotal, setLedgerTotal] = useState(0);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
+
   // ===== 个人记录：风格记忆样本 =====
   const [samples, setSamples] = useState<StyleSample[]>([]);
   const [sampleTotal, setSampleTotal] = useState(0);
@@ -207,6 +230,42 @@ export default function ArenaProfilePage() {
   useEffect(() => {
     void loadSamples(1, false);
   }, [loadSamples]);
+
+  const loadLedger = useCallback(async (targetPage: number, append: boolean) => {
+    setLedgerLoading(true);
+    try {
+      const res = await listMyPointsLedger({ page: targetPage, limit: LEDGER_PAGE_SIZE });
+      setLedger((prev) => (append ? [...prev, ...res.entries] : res.entries));
+      setLedgerTotal(res.total);
+      setLedgerPage(res.page);
+    } catch (e) {
+      toast.error(humanizeError(e));
+    } finally {
+      setLedgerLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setPointsLoading(true);
+        const res = await getMyPoints();
+        if (mounted) setPoints(res.points);
+      } catch (e) {
+        if (mounted) toast.error(humanizeError(e));
+      } finally {
+        if (mounted) setPointsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    void loadLedger(1, false);
+  }, [loadLedger]);
 
   // 我的发布：只在首次切到该 tab 时拉一次
   useEffect(() => {
@@ -340,6 +399,7 @@ export default function ArenaProfilePage() {
 
   const parsedCount = parseSampleTexts(pasteText).length;
   const hasMoreSamples = samples.length < sampleTotal;
+  const hasMoreLedger = ledger.length < ledgerTotal;
   const canDeactivate = Boolean(user) && confirmUsername === user?.username && !deactivating;
 
   return (
@@ -391,6 +451,85 @@ export default function ArenaProfilePage() {
             {profile ? "重新分析发言风格" : "分析我的发言风格"}
           </Link>
           <span className="text-xs text-gray-500">生成 / 重新生成都在「发言风格面板」页进行。</span>
+        </div>
+      </section>
+
+      {/* ===== 虚拟点数：余额 + 流水 ===== */}
+      {/* ★文案红线：这是虚拟点数，无现金价值、不可提现/兑换。
+          任何时候都不得改成「余额 / 收益 / 钱包 / ¥」之类暗示真实货币的说法。 */}
+      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+            <Coins className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-white">我的点数</h2>
+            <p className="mt-0.5 text-xs text-gray-500">发布悬赏会托管点数，赏金审批通过后入账。</p>
+          </div>
+          <div className="ml-auto text-right">
+            <div className="text-2xl font-bold text-amber-200">
+              {pointsLoading ? "—" : (points ?? 0).toLocaleString()}
+            </div>
+            <div className="text-[11px] text-gray-500">虚拟点数</div>
+          </div>
+        </div>
+
+        <p className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-200/90">
+          ⚠️ 点数是<span className="font-semibold">平台虚拟点数，无现金价值</span>：
+          不可提现、不可兑换成任何真实货币或商品，也不涉及任何真实支付。仅用于站内悬赏玩法。
+        </p>
+
+        <div className="mt-5">
+          <h3 className="text-sm font-semibold text-gray-200">点数流水</h3>
+          {ledgerLoading && ledger.length === 0 ? (
+            <p className="mt-3 text-sm text-gray-400">加载中...</p>
+          ) : ledger.length === 0 ? (
+            <div className="mt-3 rounded-xl border border-dashed border-gray-800 p-6 text-center text-sm text-gray-400">
+              还没有任何点数变动记录。
+            </div>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {ledger.map((e) => (
+                <li
+                  key={e._id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/60 px-3 py-2.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-gray-200">{LEDGER_REASON_LABELS[e.reason] || e.reason}</p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500">
+                      <span>{e.createdAt ? new Date(e.createdAt).toLocaleString() : ""}</span>
+                      {e.memo ? <span className="truncate">· {e.memo}</span> : null}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {/* delta 正负决定颜色；显式带上 +/- 号，避免「-100」被看成「100」 */}
+                    <div
+                      className={`text-sm font-semibold tabular-nums ${
+                        e.delta >= 0 ? "text-emerald-300" : "text-rose-300"
+                      }`}
+                    >
+                      {e.delta >= 0 ? "+" : "−"}
+                      {Math.abs(e.delta).toLocaleString()}
+                    </div>
+                    {e.balanceAfter !== null ? (
+                      <div className="text-[11px] text-gray-600 tabular-nums">余 {e.balanceAfter.toLocaleString()}</div>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {hasMoreLedger ? (
+            <button
+              type="button"
+              disabled={ledgerLoading}
+              onClick={() => loadLedger(ledgerPage + 1, true)}
+              className="mt-3 w-full rounded-xl border border-gray-800 py-2 text-sm text-gray-300 hover:border-amber-500/50 hover:text-amber-300 disabled:opacity-60"
+            >
+              {ledgerLoading ? "加载中..." : `加载更多（还有 ${ledgerTotal - ledger.length} 条）`}
+            </button>
+          ) : null}
         </div>
       </section>
 
