@@ -162,7 +162,16 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
     oauthQueryOverride === "false" ||
     (import.meta as any).env?.VITE_AUTH_FORCE_HIDE_OAUTH === "1";
 
-  const isChinaRegion = authCaps?.region === "CN";
+  // 预览/联调覆盖：?region=cn 强制中国区登录套、?region=global（或 intl）强制海外套。
+  // 仅覆盖【展示哪组登录按钮】这一 UI，不改真实鉴权后端；便于在非 CN 网络下预览 CN 界面
+  // （与上面 ?oauth= 覆盖同一套思路）。默认仍按服务端 detectRegion 下发的 region。
+  const regionQueryOverride = new URLSearchParams(loc.search).get("region")?.toLowerCase();
+  const isChinaRegion =
+    regionQueryOverride === "cn"
+      ? true
+      : regionQueryOverride === "global" || regionQueryOverride === "intl"
+        ? false
+        : authCaps?.region === "CN";
   const shouldShowOAuth = forceShowOAuth
     ? true
     : forceHideOAuth
