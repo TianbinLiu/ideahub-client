@@ -12,6 +12,7 @@ import {
   type SiteDraftNodeStyle,
 } from "../utils/siteDraft";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { humanizeError } from "../utils/humanizeError";
 import SiteGlobalAiAssistant, { applyOpsToDraft } from "./SiteGlobalAiAssistant";
 import { useAuth } from "../authContext";
@@ -201,6 +202,7 @@ function cssTextToReactStyle(cssText?: string): React.CSSProperties {
 }
 
 export default function SiteTemplateEditOverlay() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
@@ -627,7 +629,7 @@ export default function SiteTemplateEditOverlay() {
         next.pages[pageKey] = page;
         return next;
       });
-      toast.success("页面背景已更新");
+      toast.success(t("siteTemplateEdit.backgroundUpdated"));
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -739,15 +741,15 @@ export default function SiteTemplateEditOverlay() {
         data-ws-editor-ui="1"
         className="fixed bottom-4 right-4 z-[1200] w-[320px] rounded-2xl border border-cyan-700/70 bg-slate-950/95 p-3 text-xs text-gray-200 shadow-2xl"
       >
-        <div className="font-semibold text-cyan-200">全站编辑模式</div>
+        <div className="font-semibold text-cyan-200">{t("siteTemplateEdit.title")}</div>
         <p className="mt-1 text-gray-400">
-          右键组件打开样式面板 · <kbd className="rounded bg-gray-700 px-1">Alt</kbd> 拖移 ·{" "}
-          <kbd className="rounded bg-gray-700 px-1">Alt+Shift</kbd> 缩放
+          {t("siteTemplateEdit.hintRightClick")} · <kbd className="rounded bg-gray-700 px-1">Alt</kbd> {t("siteTemplateEdit.hintDrag")} ·{" "}
+          <kbd className="rounded bg-gray-700 px-1">Alt+Shift</kbd> {t("siteTemplateEdit.hintResize")}
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1">
-            {uploadingBg ? "上传中…" : "上传页面背景"}
+            {uploadingBg ? t("siteTemplateEdit.uploading") : t("siteTemplateEdit.uploadPageBackground")}
             <input
               type="file"
               accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime"
@@ -770,7 +772,7 @@ export default function SiteTemplateEditOverlay() {
               })
             }
           >
-            清除背景
+            {t("siteTemplateEdit.clearBackground")}
           </button>
         </div>
 
@@ -782,7 +784,7 @@ export default function SiteTemplateEditOverlay() {
             disabled={pastDrafts.length === 0}
             title="Ctrl/Cmd+Z"
           >
-            返回上一步
+            {t("siteTemplateEdit.undo")}
           </button>
           <button
             type="button"
@@ -791,25 +793,25 @@ export default function SiteTemplateEditOverlay() {
             disabled={futureDrafts.length === 0}
             title="Ctrl/Cmd+Y"
           >
-            取消返回
+            {t("siteTemplateEdit.redo")}
           </button>
           <button
             type="button"
             className="rounded-lg bg-cyan-500 px-3 py-1 text-black font-semibold"
             onClick={handleSaveAsTemplate}
           >
-            保存为模板
+            {t("siteTemplateEdit.saveAsTemplate")}
           </button>
           <button
             type="button"
             className="rounded-lg border border-gray-700 px-3 py-1"
             onClick={resetEditSession}
           >
-            退出编辑模式
+            {t("siteTemplateEdit.exitEditMode")}
           </button>
         </div>
 
-        <div className="mt-2 text-[11px] text-gray-500">当前页面: {pageKey}</div>
+        <div className="mt-2 text-[11px] text-gray-500">{t("siteTemplateEdit.currentPage", { page: pageKey })}</div>
       </div>
 
       {/* CSS / form panel */}
@@ -819,63 +821,63 @@ export default function SiteTemplateEditOverlay() {
           className="fixed top-16 right-4 z-[1250] w-[390px] rounded-2xl border border-gray-700 bg-slate-950/97 p-3 shadow-2xl"
         >
           <div className="flex items-center justify-between gap-2">
-            <div className="text-sm font-semibold text-white">组件样式编辑</div>
+            <div className="text-sm font-semibold text-white">{t("siteTemplateEdit.styleEditorTitle")}</div>
             <div className="flex overflow-hidden rounded-lg border border-gray-700 text-xs">
               <button
                 type="button"
                 className={`px-3 py-1 transition ${formMode ? "bg-cyan-600 text-white" : "text-gray-400 hover:bg-gray-800"}`}
                 onClick={switchToForm}
               >
-                属性表单
+                {t("siteTemplateEdit.tabPropertyForm")}
               </button>
               <button
                 type="button"
                 className={`px-3 py-1 transition ${!formMode ? "bg-cyan-600 text-white" : "text-gray-400 hover:bg-gray-800"}`}
                 onClick={switchToRaw}
               >
-                原始 CSS
+                {t("siteTemplateEdit.tabRawCss")}
               </button>
             </div>
           </div>
 
           {formMode ? (
             <div className="mt-3 max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
-              <PropGroupLabel>文字</PropGroupLabel>
-              <ColorRow label="文字颜色" prop="color" values={formValues} onChange={setFormValues} />
-              <TextRow label="字号" prop="fontSize" placeholder="16px" values={formValues} onChange={setFormValues} />
+              <PropGroupLabel>{t("siteTemplateEdit.groupText")}</PropGroupLabel>
+              <ColorRow label={t("siteTemplateEdit.labelTextColor")} prop="color" values={formValues} onChange={setFormValues} />
+              <TextRow label={t("siteTemplateEdit.labelFontSize")} prop="fontSize" placeholder="16px" values={formValues} onChange={setFormValues} />
               <SelectRow
-                label="字重"
+                label={t("siteTemplateEdit.labelFontWeight")}
                 prop="fontWeight"
                 values={formValues}
                 onChange={setFormValues}
-                options={[["", "默认"], ["300", "300 Light"], ["400", "400 Normal"], ["500", "500 Medium"], ["600", "600 Semi"], ["700", "700 Bold"], ["800", "800 Extra"], ["900", "900 Black"]]}
+                options={[["", t("siteTemplateEdit.optionDefault")], ["300", "300 Light"], ["400", "400 Normal"], ["500", "500 Medium"], ["600", "600 Semi"], ["700", "700 Bold"], ["800", "800 Extra"], ["900", "900 Black"]]}
               />
-              <TextRow label="字间距" prop="letterSpacing" placeholder="0.05em" values={formValues} onChange={setFormValues} />
-              <TextRow label="行高" prop="lineHeight" placeholder="1.5" values={formValues} onChange={setFormValues} />
+              <TextRow label={t("siteTemplateEdit.labelLetterSpacing")} prop="letterSpacing" placeholder="0.05em" values={formValues} onChange={setFormValues} />
+              <TextRow label={t("siteTemplateEdit.labelLineHeight")} prop="lineHeight" placeholder="1.5" values={formValues} onChange={setFormValues} />
               <SelectRow
-                label="大小写"
+                label={t("siteTemplateEdit.labelTextTransform")}
                 prop="textTransform"
                 values={formValues}
                 onChange={setFormValues}
-                options={[["", "默认"], ["none", "无"], ["uppercase", "全大写"], ["lowercase", "全小写"], ["capitalize", "首字母大写"]]}
+                options={[["", t("siteTemplateEdit.optionDefault")], ["none", t("siteTemplateEdit.optionNone")], ["uppercase", t("siteTemplateEdit.optionUppercase")], ["lowercase", t("siteTemplateEdit.optionLowercase")], ["capitalize", t("siteTemplateEdit.optionCapitalize")]]}
               />
               <SelectRow
-                label="文字装饰"
+                label={t("siteTemplateEdit.labelTextDecoration")}
                 prop="textDecoration"
                 values={formValues}
                 onChange={setFormValues}
-                options={[["", "默认"], ["none", "无"], ["underline", "下划线"], ["line-through", "删除线"]]}
+                options={[["", t("siteTemplateEdit.optionDefault")], ["none", t("siteTemplateEdit.optionNone")], ["underline", t("siteTemplateEdit.optionUnderline")], ["line-through", t("siteTemplateEdit.optionStrikethrough")]]}
               />
 
-              <PropGroupLabel>背景与边框</PropGroupLabel>
-              <ColorRow label="背景颜色" prop="backgroundColor" values={formValues} onChange={setFormValues} />
-              <TextRow label="圆角" prop="borderRadius" placeholder="8px" values={formValues} onChange={setFormValues} />
-              <ColorRow label="边框颜色" prop="borderColor" values={formValues} onChange={setFormValues} />
-              <TextRow label="阴影" prop="boxShadow" placeholder="0 2px 8px rgba(0,0,0,.3)" values={formValues} onChange={setFormValues} />
+              <PropGroupLabel>{t("siteTemplateEdit.groupBackgroundBorder")}</PropGroupLabel>
+              <ColorRow label={t("siteTemplateEdit.labelBackgroundColor")} prop="backgroundColor" values={formValues} onChange={setFormValues} />
+              <TextRow label={t("siteTemplateEdit.labelBorderRadius")} prop="borderRadius" placeholder="8px" values={formValues} onChange={setFormValues} />
+              <ColorRow label={t("siteTemplateEdit.labelBorderColor")} prop="borderColor" values={formValues} onChange={setFormValues} />
+              <TextRow label={t("siteTemplateEdit.labelBoxShadow")} prop="boxShadow" placeholder="0 2px 8px rgba(0,0,0,.3)" values={formValues} onChange={setFormValues} />
 
-              <PropGroupLabel>间距与透明度</PropGroupLabel>
-              <TextRow label="内边距" prop="padding" placeholder="8px 16px" values={formValues} onChange={setFormValues} />
-              <TextRow label="外边距" prop="margin" placeholder="0 auto" values={formValues} onChange={setFormValues} />
+              <PropGroupLabel>{t("siteTemplateEdit.groupSpacingOpacity")}</PropGroupLabel>
+              <TextRow label={t("siteTemplateEdit.labelPadding")} prop="padding" placeholder="8px 16px" values={formValues} onChange={setFormValues} />
+              <TextRow label={t("siteTemplateEdit.labelMargin")} prop="margin" placeholder="0 auto" values={formValues} onChange={setFormValues} />
               <OpacityRow values={formValues} onChange={setFormValues} />
             </div>
           ) : (
@@ -887,7 +889,7 @@ export default function SiteTemplateEditOverlay() {
                 className="mt-2 w-full rounded-xl border border-gray-700 bg-black/40 px-3 py-2 font-mono text-xs text-gray-100"
               />
               <p className="mt-1 text-[10px] text-gray-500">
-                允许属性: color · background-color · border-radius · border-color · font-size · font-weight ·
+                {t("siteTemplateEdit.allowedProperties")} color · background-color · border-radius · border-color · font-size · font-weight ·
                 letter-spacing · line-height · padding · margin · box-shadow · opacity · text-transform · text-decoration
               </p>
             </>
@@ -899,21 +901,21 @@ export default function SiteTemplateEditOverlay() {
               className="rounded-lg bg-emerald-500 px-3 py-1 text-sm font-semibold text-black"
               onClick={applyCss}
             >
-              应用
+              {t("siteTemplateEdit.apply")}
             </button>
             <button
               type="button"
               className="rounded-lg border border-rose-800/70 px-3 py-1 text-sm text-rose-300"
               onClick={clearNodeOverrides}
             >
-              清除覆盖
+              {t("siteTemplateEdit.clearOverrides")}
             </button>
             <button
               type="button"
               className="ml-auto rounded-lg border border-gray-700 px-3 py-1 text-sm"
               onClick={() => setShowCssPanel(false)}
             >
-              关闭
+              {t("siteTemplateEdit.close")}
             </button>
           </div>
 
@@ -1048,6 +1050,7 @@ function ColorRow({
   label: string; prop: keyof CssFormValues;
   values: CssFormValues; onChange: (v: CssFormValues) => void;
 }) {
+  const { t } = useTranslation();
   const hex = toHexColor(values[prop]);
   return (
     <div className="flex items-center gap-2">
@@ -1057,7 +1060,7 @@ function ColorRow({
           type="color"
           value={hex || "#000000"}
           onChange={(e) => onChange({ ...values, [prop]: e.target.value })}
-          title="颜色选择器"
+          title={t("siteTemplateEdit.colorPicker")}
           className="h-6 w-7 shrink-0 cursor-pointer rounded border border-gray-700 bg-transparent p-0"
         />
         <input
@@ -1095,11 +1098,12 @@ function SelectRow({
 }
 
 function OpacityRow({ values, onChange }: { values: CssFormValues; onChange: (v: CssFormValues) => void }) {
+  const { t } = useTranslation();
   const num = parseFloat(values.opacity);
   const safe = isNaN(num) ? 1 : num;
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 text-[11px] text-gray-400">透明度</span>
+      <span className="w-20 shrink-0 text-[11px] text-gray-400">{t("siteTemplateEdit.labelOpacity")}</span>
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <input
           type="range"

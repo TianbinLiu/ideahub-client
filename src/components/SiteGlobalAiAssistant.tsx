@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { previewWorkshopAiSiteEdit, type SiteEditAiOperations } from "../api";
 import { normalizeSafeUrl, normalizeSiteDraft, sanitizeCssBlock, type SiteDraft, type SiteDraftWidget } from "../utils/siteDraft";
 import toast from "react-hot-toast";
@@ -81,6 +82,7 @@ function applyOpsToDraft(base: SiteDraft, pageKey: string, operations: SiteEditA
 }
 
 export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selectedNodeId, collectNodeCatalog, onApplyOperations }: Props) {
+  const { t } = useTranslation();
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -94,7 +96,7 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
 
   async function handleApply() {
     if (!prompt.trim()) {
-      toast.error("请输入 AI 指令");
+      toast.error(t("siteAiAssistant.enterInstruction"));
       return;
     }
 
@@ -112,10 +114,10 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
 
       const operations = res.operations || {};
       setPendingOps(operations);
-      setPendingMessage(res.assistantMessage || "已生成改版草案，请确认后应用。");
-      setMessages([...nextHistory, { role: "assistant", content: "已生成改版预览，请确认应用。" }]);
+      setPendingMessage(res.assistantMessage || t("siteAiAssistant.draftGeneratedFallback"));
+      setMessages([...nextHistory, { role: "assistant", content: t("siteAiAssistant.previewGeneratedMessage") }]);
       setPrompt("");
-      toast.success("已生成改版预览");
+      toast.success(t("siteAiAssistant.previewGeneratedToast"));
     } catch (e: unknown) {
       toast.error(humanizeError(e));
     } finally {
@@ -124,12 +126,12 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
   }
 
   function summarizeOps(operations: SiteEditAiOperations | null) {
-    if (!operations) return "无待应用变更";
+    if (!operations) return t("siteAiAssistant.noChanges");
     const nodes = operations.updateNodes?.length || 0;
     const create = operations.createWidgets?.length || 0;
     const remove = operations.removeWidgetIds?.length || 0;
     const bg = operations.pageBackground ? 1 : 0;
-    return `组件改动 ${nodes} · 新增组件 ${create} · 删除组件 ${remove} · 背景变更 ${bg}`;
+    return t("siteAiAssistant.opsSummary", { nodes, create, remove, bg });
   }
 
   function previewDraftDiff(operations: SiteEditAiOperations | null) {
@@ -150,7 +152,7 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
     onApplyOperations(pendingOps);
     setPendingOps(null);
     setPendingMessage("");
-    toast.success("AI 改版已应用");
+    toast.success(t("siteAiAssistant.applied"));
   }
 
   function cancelPreview() {
@@ -161,14 +163,14 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
   return (
     <div data-ws-editor-ui="1" className="fixed left-4 bottom-4 z-[1220] w-[360px] rounded-2xl border border-emerald-700/70 bg-slate-950/95 p-3 text-xs text-gray-200 shadow-2xl">
       <div className="flex items-center justify-between">
-        <div className="font-semibold text-emerald-300">AI 全局改版助手</div>
+        <div className="font-semibold text-emerald-300">{t("siteAiAssistant.title")}</div>
         <button type="button" className="rounded border border-gray-700 px-2 py-0.5" onClick={() => setOpen((v) => !v)}>
-          {open ? "收起" : "展开"}
+          {open ? t("siteAiAssistant.collapse") : t("siteAiAssistant.expand")}
         </button>
       </div>
 
-      <div className="mt-1 text-gray-400">可同时修改多个组件，并支持新增组件（image/card/link-list/form 等）。当前页：{pageKey}</div>
-      <div className="mt-1 text-gray-500">已识别组件 {Object.keys(pageDraft.nodes || {}).length}，新增组件 {Array.isArray(pageDraft.widgets) ? pageDraft.widgets.length : 0}，当前选中 {selectedNodeId || "无"}</div>
+      <div className="mt-1 text-gray-400">{t("siteAiAssistant.description", { pageKey })}</div>
+      <div className="mt-1 text-gray-500">{t("siteAiAssistant.stats", { nodes: Object.keys(pageDraft.nodes || {}).length, widgets: Array.isArray(pageDraft.widgets) ? pageDraft.widgets.length : 0, selected: selectedNodeId || t("siteAiAssistant.noneSelected") })}</div>
 
       {open && (
         <>
@@ -176,7 +178,7 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
             rows={4}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="例如：把顶部导航和筛选条改成更轻玻璃风；在右下新增一个‘联系我们’按钮组件，跳转 /company"
+            placeholder={t("siteAiAssistant.promptPlaceholder")}
             className="mt-2 w-full rounded-xl border border-gray-700 bg-black/40 px-3 py-2 text-xs text-gray-100"
           />
           <button
@@ -185,12 +187,12 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
             onClick={handleApply}
             className="mt-2 rounded-lg border border-emerald-700 bg-emerald-500/15 px-3 py-1 font-semibold text-emerald-100 disabled:opacity-50"
           >
-            {busy ? "AI 处理中..." : "执行全局改版"}
+            {busy ? t("siteAiAssistant.processing") : t("siteAiAssistant.runRedesign")}
           </button>
 
           {pendingOps && (
             <div className="mt-2 rounded-lg border border-emerald-700/60 bg-emerald-900/10 p-2 text-[11px]">
-              <div className="font-semibold text-emerald-200">差异预览（未应用）</div>
+              <div className="font-semibold text-emerald-200">{t("siteAiAssistant.diffPreviewTitle")}</div>
               <div className="mt-1 text-gray-300">{summarizeOps(pendingOps)}</div>
               {pendingMessage && <div className="mt-1 text-gray-400">{pendingMessage}</div>}
               {(() => {
@@ -198,13 +200,13 @@ export default function SiteGlobalAiAssistant({ enabled, pageKey, draft, selecte
                 if (!diff) return null;
                 return (
                   <div className="mt-1 text-gray-400">
-                    节点数 {diff.beforeNodes} → {diff.afterNodes}，组件数 {diff.beforeWidgets} → {diff.afterWidgets}
+                    {t("siteAiAssistant.diffCounts", { beforeNodes: diff.beforeNodes, afterNodes: diff.afterNodes, beforeWidgets: diff.beforeWidgets, afterWidgets: diff.afterWidgets })}
                   </div>
                 );
               })()}
               <div className="mt-2 flex gap-2">
-                <button type="button" onClick={confirmApply} className="rounded border border-emerald-700 px-2 py-1 text-emerald-100">确认应用</button>
-                <button type="button" onClick={cancelPreview} className="rounded border border-gray-700 px-2 py-1 text-gray-300">取消</button>
+                <button type="button" onClick={confirmApply} className="rounded border border-emerald-700 px-2 py-1 text-emerald-100">{t("siteAiAssistant.confirmApply")}</button>
+                <button type="button" onClick={cancelPreview} className="rounded border border-gray-700 px-2 py-1 text-gray-300">{t("common.cancel")}</button>
               </div>
             </div>
           )}

@@ -21,6 +21,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import toast from "react-hot-toast";
 import { ImagePlus, MessageSquare, Send, Trash2, X } from "lucide-react";
 import {
@@ -49,9 +51,9 @@ type CommentThreadProps = {
   onCountChange?: (delta: number) => void;
 };
 
-function authorName(a: ArenaComment["author"]) {
-  if (!a) return "匿名用户";
-  return typeof a === "string" ? "用户" : a.username || "用户";
+function authorName(a: ArenaComment["author"], t: TFunction) {
+  if (!a) return t("commentThread.anonymous");
+  return typeof a === "string" ? t("commentThread.user") : a.username || t("commentThread.user");
 }
 
 function authorId(a: ArenaComment["author"]) {
@@ -76,6 +78,7 @@ type ComposerProps = {
 };
 
 function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCancel }: ComposerProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -87,7 +90,7 @@ function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCan
       setUploading(true);
       const res = await apiUploadImage(file, "comment");
       setImageUrl(res.imageUrl);
-      toast.success("图片已上传");
+      toast.success(t("commentThread.imageUploaded"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -97,11 +100,11 @@ function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCan
 
   async function handleSubmit() {
     if (!text.trim()) {
-      toast.error("请输入评论内容");
+      toast.error(t("commentThread.contentRequired"));
       return;
     }
     if (uploading) {
-      toast.error("图片正在上传，请稍候再发布");
+      toast.error(t("commentThread.imageUploadingWait"));
       return;
     }
     setPosting(true);
@@ -126,7 +129,7 @@ function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCan
       <div className="flex flex-wrap items-center gap-3">
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">
           <ImagePlus className="h-4 w-4" />
-          {uploading ? "上传中…" : "添加图片"}
+          {uploading ? t("commentThread.uploading") : t("commentThread.addImage")}
           <input
             type="file"
             accept="image/*"
@@ -141,7 +144,7 @@ function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCan
             onClick={() => setImageUrl("")}
             className="text-xs text-rose-300 hover:text-rose-200"
           >
-            移除图片
+            {t("commentThread.removeImage")}
           </button>
         )}
         {onCancel && (
@@ -150,7 +153,7 @@ function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCan
             onClick={onCancel}
             className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200"
           >
-            <X className="h-3.5 w-3.5" /> 取消
+            <X className="h-3.5 w-3.5" /> {t("commentThread.cancel")}
           </button>
         )}
         <button
@@ -159,11 +162,11 @@ function Composer({ placeholder, submitLabel, autoFocus = false, onSubmit, onCan
           onClick={handleSubmit}
           className="ml-auto inline-flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
         >
-          <Send className="h-3.5 w-3.5" /> {posting ? "发布中…" : submitLabel}
+          <Send className="h-3.5 w-3.5" /> {posting ? t("commentThread.posting") : submitLabel}
         </button>
       </div>
       {imageUrl && (
-        <img src={imageUrl} alt="评论配图" className="max-h-40 rounded-lg border border-gray-800 object-contain" />
+        <img src={imageUrl} alt={t("commentThread.imageAlt")} className="max-h-40 rounded-lg border border-gray-800 object-contain" />
       )}
     </div>
   );
@@ -175,6 +178,7 @@ export default function CommentThread({
   canModerate = false,
   onCountChange,
 }: CommentThreadProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -235,7 +239,7 @@ export default function CommentThread({
       setComments((prev) => [...prev, res.comment]);
       setTotal((t) => t + 1);
       onCountChange?.(1);
-      toast.success(parentId ? "已回复" : "已发布评论");
+      toast.success(parentId ? t("commentThread.replied") : t("commentThread.commentPosted"));
       return true;
     } catch (e) {
       toast.error(humanizeError(e));
@@ -267,8 +271,8 @@ export default function CommentThread({
     const replyCount = isTop ? (repliesByParent.get(c._id)?.length ?? 0) : 0;
     const message =
       replyCount > 0
-        ? `确定删除这条评论？其下 ${replyCount} 条回复会一并删除，此操作不可撤销。`
-        : "确定删除这条评论？此操作不可撤销。";
+        ? t("commentThread.deleteConfirmWithReplies", { count: replyCount })
+        : t("commentThread.deleteConfirm");
     if (!window.confirm(message)) return;
 
     try {
@@ -280,7 +284,7 @@ export default function CommentThread({
       const removed = typeof res.deleted === "number" && res.deleted > 0 ? res.deleted : 1 + replyCount;
       setTotal((t) => Math.max(0, t - removed));
       onCountChange?.(-removed);
-      toast.success("已删除");
+      toast.success(t("commentThread.deleted"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -293,7 +297,7 @@ export default function CommentThread({
     return (
       <>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-gray-200">{authorName(c.author)}</span>
+          <span className="text-sm font-medium text-gray-200">{authorName(c.author, t)}</span>
           <span className="shrink-0 text-[11px] text-gray-600">{formatDate(c.createdAt)}</span>
         </div>
         {c.content && (
@@ -303,7 +307,7 @@ export default function CommentThread({
           <a href={c.imageUrl} target="_blank" rel="noreferrer">
             <img
               src={c.imageUrl}
-              alt="评论图片"
+              alt={t("commentThread.imageAlt")}
               className="mt-2 max-h-56 rounded-lg border border-gray-800 object-contain"
             />
           </a>
@@ -315,7 +319,7 @@ export default function CommentThread({
               onClick={() => setReplyTo((prev) => (prev === replyTargetId ? null : replyTargetId))}
               className="inline-flex items-center gap-1 transition-colors hover:text-gray-300"
             >
-              <MessageSquare className="h-3.5 w-3.5" /> 回复
+              <MessageSquare className="h-3.5 w-3.5" /> {t("commentThread.reply")}
             </button>
           )}
           {canDelete(c) && (
@@ -325,7 +329,7 @@ export default function CommentThread({
               onClick={() => handleDelete(c)}
               className="inline-flex items-center gap-1 text-rose-400 transition-colors hover:text-rose-300 disabled:opacity-50"
             >
-              <Trash2 className="h-3.5 w-3.5" /> {deletingId === c._id ? "删除中…" : "删除"}
+              <Trash2 className="h-3.5 w-3.5" /> {deletingId === c._id ? t("commentThread.deleting") : t("commentThread.delete")}
             </button>
           )}
         </div>
@@ -336,28 +340,28 @@ export default function CommentThread({
   return (
     <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-semibold text-white">讨论区</h2>
-        <span className="text-xs text-gray-500">{total} 条评论</span>
+        <h2 className="text-base font-semibold text-white">{t("commentThread.discussion")}</h2>
+        <span className="text-xs text-gray-500">{t("commentThread.commentCount", { count: total })}</span>
       </div>
-      <p className="mt-1 text-xs text-gray-500">在这里交流、发布截图，也可以回复别人的评论。</p>
+      <p className="mt-1 text-xs text-gray-500">{t("commentThread.intro")}</p>
 
       {/* 发表框（未登录引导登录） */}
       <div className="mt-3">
         {user ? (
           <Composer
-            placeholder="写下你的评论…"
-            submitLabel="发布"
+            placeholder={t("commentThread.composerPlaceholder")}
+            submitLabel={t("commentThread.post")}
             onSubmit={(content, imageUrl) => handleCreate(content, imageUrl, null)}
           />
         ) : (
           <div className="rounded-xl border border-dashed border-gray-800 bg-gray-950/40 p-4 text-center">
-            <p className="text-sm text-gray-400">登录后即可参与讨论</p>
+            <p className="text-sm text-gray-400">{t("commentThread.loginToJoin")}</p>
             <button
               type="button"
               onClick={goLogin}
               className="mt-2 rounded-xl border border-gray-700 px-4 py-1.5 text-sm text-gray-200 hover:bg-gray-800"
             >
-              去登录
+              {t("commentThread.goLogin")}
             </button>
           </div>
         )}
@@ -365,9 +369,9 @@ export default function CommentThread({
 
       {/* 列表：加载态 / 空态 / 楼层 */}
       <div className="mt-4 space-y-3">
-        {loading && <p className="text-sm text-gray-400">加载中…</p>}
+        {loading && <p className="text-sm text-gray-400">{t("commentThread.loading")}</p>}
         {!loading && topLevel.length === 0 && (
-          <p className="text-sm text-gray-400">还没有评论，来说两句吧。</p>
+          <p className="text-sm text-gray-400">{t("commentThread.empty")}</p>
         )}
 
         {!loading &&
@@ -392,8 +396,8 @@ export default function CommentThread({
                   <div className="mt-3 border-t border-gray-800 pt-3">
                     <Composer
                       key={`reply-${c._id}`}
-                      placeholder={`回复 @${authorName(c.author)}…`}
-                      submitLabel="回复"
+                      placeholder={t("commentThread.replyPlaceholder", { name: authorName(c.author, t) })}
+                      submitLabel={t("commentThread.reply")}
                       autoFocus
                       onCancel={() => setReplyTo(null)}
                       onSubmit={async (content, imageUrl) => {
@@ -415,7 +419,7 @@ export default function CommentThread({
             onClick={handleLoadMore}
             className="w-full rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-50"
           >
-            {loadingMore ? "加载中…" : `加载更多（还有 ${total - comments.length} 条）`}
+            {loadingMore ? t("commentThread.loading") : t("commentThread.loadMore", { count: total - comments.length })}
           </button>
         )}
       </div>
