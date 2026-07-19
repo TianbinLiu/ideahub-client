@@ -844,7 +844,7 @@ export default function UserProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex gap-2 border-b border-gray-800 overflow-x-auto">
+      <div className="mt-6 flex gap-2 border-b border-gray-800 overflow-x-auto no-scrollbar">
         {availableTabs.map((tab) => (
           <button
             key={tab.key}
