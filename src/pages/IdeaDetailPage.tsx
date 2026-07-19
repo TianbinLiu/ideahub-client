@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiFetch, apiUploadImage } from "../api";
@@ -103,8 +103,14 @@ export default function IdeaDetailPage() {
     setIsFullscreen(!isFullscreen);
   }
 
+  // 竞态守卫：快速切换创意时（同一组件实例，只 id 变），丢弃已切走那条的迟到响应，
+  // 避免「地址是这条、内容/评论是上一条」串页。currentIdRef 在下面的 useEffect 里更新为当前 id。
+  const currentIdRef = useRef(id);
+
   async function loadComments() {
-    const res = await apiFetch<{ comments: Comment[] }>(`/api/ideas/${id}/comments`);
+    const forId = id;
+    const res = await apiFetch<{ comments: Comment[] }>(`/api/ideas/${forId}/comments`);
+    if (currentIdRef.current !== forId) return; // 已切走，丢弃陈旧响应
     setComments(res.comments || []);
   }
 
@@ -374,7 +380,9 @@ export default function IdeaDetailPage() {
         return;
       }
 
-      const res = await apiFetch<{ idea: Idea; liked?: boolean; bookmarked?: boolean }>(`/api/ideas/${id}`);
+      const forId = id;
+      const res = await apiFetch<{ idea: Idea; liked?: boolean; bookmarked?: boolean }>(`/api/ideas/${forId}`);
+      if (currentIdRef.current !== forId) return; // 已切走，丢弃陈旧响应
       setIdea(res.idea);
       setLiked(!!res.liked);
       setBookmarked(!!res.bookmarked);
@@ -410,9 +418,14 @@ export default function IdeaDetailPage() {
 
 
   useEffect(() => {
+    currentIdRef.current = id; // 标记当前正在查看的创意，供上面两处竞态守卫比对
     (async () => {
-      await load();
-      await loadComments();
+      try {
+        await load();
+        await loadComments();
+      } catch {
+        // load 已自行吞错并提示；这里兜住 loadComments 的失败，避免未处理的 promise rejection
+      }
     })();
   }, [id]);
 
@@ -430,6 +443,7 @@ export default function IdeaDetailPage() {
         title: resIdea.idea.title,
         summary: resIdea.idea.summary,
         content: resIdea.idea.content,
+        imageUrls: resIdea.idea.imageUrls || [], // ★必须带上：随后会硬删服务端原帖，漏了图片就永久丢失
         tags: resIdea.idea.tags,
         createdAt: resIdea.idea.createdAt,
         comments: resComments.comments || [],
@@ -545,6 +559,7 @@ export default function IdeaDetailPage() {
                           title: idea.title,
                           summary: idea.summary,
                           content: idea.content,
+                          imageUrls: idea.imageUrls || [], // ★必须带上：下一步硬删服务端，漏了图片就永久丢失
                           tags: idea.tags,
                           createdAt: idea.createdAt,
                         });
