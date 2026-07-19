@@ -91,6 +91,7 @@ export default function Navbar() {
   const [authDialog, setAuthDialog] = useState<AuthDialogState | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const guestMenuRef = useRef<HTMLDivElement | null>(null);
   const loc = useLocation();
   const nav = useNavigate();
 
@@ -184,6 +185,31 @@ export default function Navbar() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [userMenuOpen]);
+
+  // 未登录「快速登录」小菜单：点外部关闭 + Esc 关闭。
+  // 它会自动弹出一次（见上方 onboarding 清场后的 effect），此时指针从未进入过菜单，
+  // 单靠容器的 onMouseLeave 不会触发 → 点页面别处关不掉。补一个 document 级外部点击兜底。
+  useEffect(() => {
+    if (!guestMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (guestMenuRef.current?.contains(target)) return; // 点在头像/菜单内不关（含 toggle 按钮）
+      setGuestMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setGuestMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [guestMenuOpen]);
 
   useEffect(() => {
     function handleOpenAuth(event: Event) {
@@ -300,6 +326,7 @@ export default function Navbar() {
 
           {!user ? (
             <div
+              ref={guestMenuRef}
               className="relative"
               onMouseEnter={() => setGuestMenuOpen(true)}
               onMouseLeave={() => setGuestMenuOpen(false)}
