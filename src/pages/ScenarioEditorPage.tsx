@@ -10,29 +10,30 @@ import {
   type ScenarioComment,
 } from "../api";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { humanizeError } from "../utils/humanizeError";
 import PlatformCommentView from "../components/PlatformCommentView";
 
 // ⚠️ 必须与 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS 保持一致：
 // 这里多出的值会被后端 normalizePlatform【静默降级为 generic】（用户选了却不生效）；
 // 这里少的值则是用户根本选不到。每个值也都要在 components/skins/index.ts 里有专属皮肤。
-const PLATFORM_OPTIONS: { value: string; label: string }[] = [
-  { value: "bilibili", label: "哔哩哔哩" },
-  { value: "weibo", label: "微博" },
-  { value: "tieba", label: "贴吧" },
-  { value: "zhihu", label: "知乎" },
-  { value: "douyin", label: "抖音" },
-  { value: "xiaohongshu", label: "小红书" },
-  { value: "instagram", label: "Instagram" },
-  { value: "generic", label: "通用" },
+const PLATFORM_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "bilibili", labelKey: "platformBilibili" },
+  { value: "weibo", labelKey: "platformWeibo" },
+  { value: "tieba", labelKey: "platformTieba" },
+  { value: "zhihu", labelKey: "platformZhihu" },
+  { value: "douyin", labelKey: "platformDouyin" },
+  { value: "xiaohongshu", labelKey: "platformXiaohongshu" },
+  { value: "instagram", labelKey: "platformInstagram" },
+  { value: "generic", labelKey: "platformGeneric" },
 ];
 
 type Intensity = "mild" | "heated" | "flame";
 
-const INTENSITY_OPTIONS: { value: Intensity; label: string }[] = [
-  { value: "mild", label: "温和" },
-  { value: "heated", label: "激烈" },
-  { value: "flame", label: "火药味" },
+const INTENSITY_OPTIONS: { value: Intensity; labelKey: string }[] = [
+  { value: "mild", labelKey: "intensityMild" },
+  { value: "heated", labelKey: "intensityHeated" },
+  { value: "flame", labelKey: "intensityFlame" },
 ];
 
 /**
@@ -57,16 +58,17 @@ function snippet(text: string, max = 18) {
 }
 
 /** 用 FileReader 把纯文本文件读成字符串（失败则 reject，由调用方 toast） */
-function readTextFile(file: File): Promise<string> {
+function readTextFile(file: File, errorMessage: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("读取文件失败"));
+    reader.onerror = () => reject(new Error(errorMessage));
     reader.onload = () => resolve(String(reader.result || ""));
     reader.readAsText(file);
   });
 }
 
 export default function ScenarioEditorPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -158,16 +160,16 @@ export default function ScenarioEditorPage() {
       });
       const generated = (res.comments || []).map((c) => ({ ...c, id: c.id || newId() }));
       if (generated.length === 0) {
-        toast.error("AI 未生成任何评论，请重试，或改用「用话题生成」");
+        toast.error(t("arena.scenarioEditor.aiNoCommentsRetryOrTopic"));
         return;
       }
       setComments(generated);
       toast.success(successMessage);
     } catch (e: any) {
       if (e?.status === 501) {
-        toast.error("服务器未配置 AI，无法按素材生成；请改用「用话题生成」");
+        toast.error(t("arena.scenarioEditor.aiNotConfiguredSource"));
       } else {
-        toast.error(`${humanizeError(e)}（也可改用「用话题生成」）`);
+        toast.error(t("arena.scenarioEditor.generateSourceFailed", { error: humanizeError(e) }));
       }
     } finally {
       setAiBusy(false);
@@ -209,11 +211,11 @@ export default function ScenarioEditorPage() {
           text,
           nextPlatform,
           intensityRef.current,
-          `已按抓取到的 ${rows.length} 条真实评论生成模拟评论区`
+          t("arena.scenarioEditor.generatedFromCaptured", { count: rows.length })
         );
       } catch (e) {
         console.error("读取插件抓取的评论失败", e);
-        toast.error("读取插件抓取的评论失败");
+        toast.error(t("arena.scenarioEditor.readCaptureFailed"));
       }
     }
     consumeCapture();
@@ -228,7 +230,7 @@ export default function ScenarioEditorPage() {
     setUploadSourceText("");
     setUploadFileName("");
     if (file.size > MAX_SOURCE_FILE_BYTES) {
-      toast.error(`文件过大（${Math.ceil(file.size / 1024)}KB），上限 200KB`);
+      toast.error(t("arena.scenarioEditor.fileTooLarge", { size: Math.ceil(file.size / 1024) }));
       return;
     }
     // 扩展名 + MIME 都要过：MIME 非空且不是 text/* → 拒（挡掉把二进制改名成 .txt 的情况）；
@@ -236,20 +238,20 @@ export default function ScenarioEditorPage() {
     const hasTextExt = /\.(txt|md|markdown)$/i.test(file.name);
     const isTextMime = !file.type || /^text\//i.test(file.type);
     if (!hasTextExt || !isTextMime) {
-      toast.error("只支持 .txt / .md 纯文本文件");
+      toast.error(t("arena.scenarioEditor.onlyTextFiles"));
       return;
     }
     try {
-      const raw = await readTextFile(file);
+      const raw = await readTextFile(file, t("arena.scenarioEditor.readFileFailed"));
       const text = raw.trim().slice(0, MAX_SOURCE_TEXT);
       if (!text) {
-        toast.error("文件内容为空");
+        toast.error(t("arena.scenarioEditor.fileEmpty"));
         return;
       }
       setUploadSourceText(text);
       setUploadFileName(file.name);
       if (raw.trim().length > MAX_SOURCE_TEXT) {
-        toast(`内容超过 ${MAX_SOURCE_TEXT} 字，已截取前 ${MAX_SOURCE_TEXT} 字作为素材`, { icon: "ℹ️" });
+        toast(t("arena.scenarioEditor.contentTruncated", { max: MAX_SOURCE_TEXT }), { icon: "ℹ️" });
       }
     } catch (e) {
       toast.error(humanizeError(e));
@@ -258,10 +260,10 @@ export default function ScenarioEditorPage() {
 
   async function handleGenerateFromUpload() {
     if (!uploadSourceText) {
-      toast.error("请先选择一份文本文档");
+      toast.error(t("arena.scenarioEditor.selectTextDocFirst"));
       return;
     }
-    await generateFromSource(uploadSourceText, platform, intensity, "已按上传的素材生成模拟评论区");
+    await generateFromSource(uploadSourceText, platform, intensity, t("arena.scenarioEditor.generatedFromUpload"));
   }
 
   async function handleCoverUpload(file: File | null) {
@@ -270,7 +272,7 @@ export default function ScenarioEditorPage() {
       setUploading(true);
       const res = await apiUploadImage(file, "idea");
       setCoverImageUrl(res.imageUrl);
-      toast.success("封面已上传");
+      toast.success(t("arena.scenarioEditor.coverUploaded"));
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -307,7 +309,7 @@ export default function ScenarioEditorPage() {
 
   async function handleGenerate() {
     if (!topic.trim()) {
-      toast.error("请先填写争论主题/背景");
+      toast.error(t("arena.scenarioEditor.fillTopicFirst"));
       return;
     }
     try {
@@ -315,14 +317,14 @@ export default function ScenarioEditorPage() {
       const res = await generateScenarioComments({ topic: topic.trim(), platform, intensity });
       const generated = (res.comments || []).map((c) => ({ ...c, id: c.id || newId() }));
       if (generated.length === 0) {
-        toast.error("AI 未生成任何评论，请调整话题后重试");
+        toast.error(t("arena.scenarioEditor.aiNoCommentsAdjustTopic"));
         return;
       }
       setComments((prev) => [...prev, ...generated]);
-      toast.success(`已生成 ${generated.length} 条评论`);
+      toast.success(t("arena.scenarioEditor.generatedCount", { count: generated.length }));
     } catch (e: any) {
       if (e?.status === 501) {
-        toast.error("服务器未配置 AI，无法生成评论");
+        toast.error(t("arena.scenarioEditor.aiNotConfigured"));
       } else {
         toast.error(humanizeError(e));
       }
@@ -333,7 +335,7 @@ export default function ScenarioEditorPage() {
 
   async function handleCapture() {
     if (!sourceUrl.trim()) {
-      toast.error("请先填写来源链接");
+      toast.error(t("arena.scenarioEditor.fillSourceUrlFirst"));
       return;
     }
     try {
@@ -346,9 +348,9 @@ export default function ScenarioEditorPage() {
       const captured = (draft.comments || []).map((c) => ({ ...c, id: c.id || newId() }));
       if (captured.length > 0) {
         setComments((prev) => [...prev, ...captured]);
-        toast.success(`已从链接补充 ${captured.length} 条评论`);
+        toast.success(t("arena.scenarioEditor.capturedFromLink", { count: captured.length }));
       } else {
-        toast("未抓到评论，已预填平台/标题/封面，请手动补充评论", { icon: "ℹ️" });
+        toast(t("arena.scenarioEditor.noCommentsCaptured"), { icon: "ℹ️" });
       }
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -359,7 +361,7 @@ export default function ScenarioEditorPage() {
 
   async function handleSave() {
     if (!title.trim()) {
-      toast.error("请填写标题");
+      toast.error(t("arena.scenarioEditor.fillTitle"));
       return;
     }
     const cleanComments = comments
@@ -381,7 +383,7 @@ export default function ScenarioEditorPage() {
     try {
       setSaving(true);
       const res = isEdit && id ? await updateScenario(id, body) : await createScenario(body);
-      toast.success("已保存");
+      toast.success(t("arena.scenarioEditor.saved"));
       navigate(`/arena/simulate/${res.scenario._id}`);
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -391,20 +393,20 @@ export default function ScenarioEditorPage() {
   }
 
   if (loading) {
-    return <div className="max-w-6xl mx-auto p-4 pb-20 text-gray-400">加载中...</div>;
+    return <div className="max-w-6xl mx-auto p-4 pb-20 text-gray-400">{t("arena.scenarioEditor.loading")}</div>;
   }
 
   return (
     <div className="max-w-6xl mx-auto p-4 pb-20">
       <Link to="/arena/simulate" className="text-sm text-gray-400 hover:text-white">
-        ← 返回情景模拟
+        ← {t("arena.scenarioEditor.backToSimulate")}
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">{isEdit ? "编辑情景" : "创建情景"}</h1>
+          <h1 className="text-2xl font-bold text-white">{isEdit ? t("arena.scenarioEditor.editScenario") : t("arena.scenarioEditor.createScenario")}</h1>
           <p className="mt-1 text-sm text-gray-400">
-            录入或用 AI 生成一段评论区，发布后其他用户可进入模拟与 AI 对线。
+            {t("arena.scenarioEditor.pageIntro")}
           </p>
         </div>
         <button
@@ -413,7 +415,7 @@ export default function ScenarioEditorPage() {
           onClick={handleSave}
           className="rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200 disabled:opacity-60"
         >
-          {saving ? "保存中..." : isEdit ? "保存修改" : "发布情景"}
+          {saving ? t("arena.scenarioEditor.saving") : isEdit ? t("arena.scenarioEditor.saveChanges") : t("arena.scenarioEditor.publishScenario")}
         </button>
       </div>
 
@@ -421,32 +423,32 @@ export default function ScenarioEditorPage() {
         {/* 左侧：表单 + 评论编辑器 */}
         <div className="space-y-4">
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-3">
-            <h2 className="text-lg font-semibold text-white">基本信息</h2>
+            <h2 className="text-lg font-semibold text-white">{t("arena.scenarioEditor.basicInfo")}</h2>
 
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="标题"
+              placeholder={t("arena.scenarioEditor.titlePlaceholder")}
               className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
             />
             <textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="简介 / 一句话介绍"
+              placeholder={t("arena.scenarioEditor.summaryPlaceholder")}
               rows={2}
               className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
             />
             <textarea
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="争论主题 / 背景（供 AI 扮演与生成评论使用）"
+              placeholder={t("arena.scenarioEditor.topicPlaceholder")}
               rows={3}
               className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
             />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm text-gray-300">
-                平台皮肤
+                {t("arena.scenarioEditor.platformSkin")}
                 <select
                   value={platform}
                   onChange={(e) => setPlatform(e.target.value)}
@@ -454,17 +456,17 @@ export default function ScenarioEditorPage() {
                 >
                   {PLATFORM_OPTIONS.map((p) => (
                     <option key={p.value} value={p.value}>
-                      {p.label}
+                      {t(`arena.scenarioEditor.${p.labelKey}`)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="block text-sm text-gray-300">
-                标签（逗号分隔）
+                {t("arena.scenarioEditor.tagsLabel")}
                 <input
                   value={tagsText}
                   onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="如：数码, 争议, 对线"
+                  placeholder={t("arena.scenarioEditor.tagsPlaceholder")}
                   className="mt-1 w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
                 />
               </label>
@@ -483,10 +485,10 @@ export default function ScenarioEditorPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <label className="flex items-center gap-2 text-sm text-gray-300">
                 <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-                发布到情景广场（公开）
+                {t("arena.scenarioEditor.publishToSquare")}
               </label>
               <label className="cursor-pointer rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">
-                {uploading ? "上传中..." : "上传封面"}
+                {uploading ? t("arena.scenarioEditor.uploading") : t("arena.scenarioEditor.uploadCover")}
                 <input
                   type="file"
                   accept="image/*"
@@ -498,14 +500,14 @@ export default function ScenarioEditorPage() {
             </div>
 
             {coverImageUrl && (
-              <img src={coverImageUrl} alt="封面" className="h-44 w-full rounded-xl border border-gray-800 object-cover" />
+              <img src={coverImageUrl} alt={t("arena.scenarioEditor.coverAlt")} className="h-44 w-full rounded-xl border border-gray-800 object-cover" />
             )}
           </section>
 
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-3">
-            <h2 className="text-lg font-semibold text-white">AI 辅助</h2>
+            <h2 className="text-lg font-semibold text-white">{t("arena.scenarioEditor.aiAssist")}</h2>
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-3">
-              <div className="text-sm font-medium text-gray-200">用话题生成评论</div>
+              <div className="text-sm font-medium text-gray-200">{t("arena.scenarioEditor.generateFromTopic")}</div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={intensity}
@@ -514,7 +516,7 @@ export default function ScenarioEditorPage() {
                 >
                   {INTENSITY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
-                      争论强度：{o.label}
+                      {t("arena.scenarioEditor.intensityWithLabel", { label: t(`arena.scenarioEditor.${o.labelKey}`) })}
                     </option>
                   ))}
                 </select>
@@ -524,28 +526,28 @@ export default function ScenarioEditorPage() {
                   onClick={handleGenerate}
                   className="rounded-xl border border-cyan-600 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
                 >
-                  {aiBusy ? "生成中..." : "用话题生成评论"}
+                  {aiBusy ? t("arena.scenarioEditor.generating") : t("arena.scenarioEditor.generateFromTopic")}
                 </button>
               </div>
-              <p className="text-xs text-gray-500">依据上方“争论主题/背景”与所选平台生成一段带对立立场的评论区，追加到下方列表。</p>
+              <p className="text-xs text-gray-500">{t("arena.scenarioEditor.generateFromTopicHint")}</p>
             </div>
 
             {captureSourceText && (
               <div className="rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-3 space-y-1">
                 <div className="text-sm font-medium text-cyan-100">
-                  插件抓取的素材（{captureSourceText.length} 字）
+                  {t("arena.scenarioEditor.captureMaterial", { count: captureSourceText.length })}
                 </div>
                 <p className="text-xs text-cyan-200/70">
-                  抓到的真实评论只作为 AI 的生成素材，不会入库、不会被发布；下方评论区是 AI 重新写的版本，可自行编辑。
+                  {t("arena.scenarioEditor.captureMaterialHint")}
                 </p>
               </div>
             )}
 
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-3">
-              <div className="text-sm font-medium text-gray-200">上传文本文档生成</div>
+              <div className="text-sm font-medium text-gray-200">{t("arena.scenarioEditor.generateFromUpload")}</div>
               <div className="flex flex-wrap items-center gap-2">
                 <label className="cursor-pointer rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">
-                  选择文本文件
+                  {t("arena.scenarioEditor.selectTextFile")}
                   <input
                     type="file"
                     accept=".txt,.md,text/plain"
@@ -562,27 +564,26 @@ export default function ScenarioEditorPage() {
                   onClick={handleGenerateFromUpload}
                   className="rounded-xl border border-cyan-600 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
                 >
-                  {aiBusy ? "生成中..." : "生成模板"}
+                  {aiBusy ? t("arena.scenarioEditor.generating") : t("arena.scenarioEditor.generateTemplate")}
                 </button>
                 {uploadFileName && (
                   <span className="text-xs text-gray-400">
-                    {uploadFileName}（{uploadSourceText.length} 字）
+                    {t("arena.scenarioEditor.fileWithChars", { name: uploadFileName, count: uploadSourceText.length })}
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500">
-                上传一份包含评论内容的文本，AI 会据此重建一个该平台风格的争论评论区。原文只用于生成，不会被发布。
-                使用上方所选的「平台皮肤」与「争论强度」；支持 .txt / .md，最大 200KB。
+                {t("arena.scenarioEditor.uploadHint")}
               </p>
             </div>
 
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-3">
-              <div className="text-sm font-medium text-gray-200">从链接抓取（兜底）</div>
+              <div className="text-sm font-medium text-gray-200">{t("arena.scenarioEditor.captureFromLink")}</div>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   value={sourceUrl}
                   onChange={(e) => setSourceUrl(e.target.value)}
-                  placeholder="粘贴评论区链接"
+                  placeholder={t("arena.scenarioEditor.pasteLinkPlaceholder")}
                   className="min-w-[220px] flex-1 rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                 />
                 <button
@@ -591,40 +592,40 @@ export default function ScenarioEditorPage() {
                   onClick={handleCapture}
                   className="rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-60"
                 >
-                  {captureBusy ? "抓取中..." : "从链接抓取"}
+                  {captureBusy ? t("arena.scenarioEditor.capturing") : t("arena.scenarioEditor.captureFromLinkButton")}
                 </button>
               </div>
-              <p className="text-xs text-gray-500">尽力抓取平台/标题/封面；抓不到评论时请手动补充。</p>
+              <p className="text-xs text-gray-500">{t("arena.scenarioEditor.captureHint")}</p>
             </div>
           </section>
 
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-white">评论编辑器</h2>
+              <h2 className="text-lg font-semibold text-white">{t("arena.scenarioEditor.commentEditor")}</h2>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={clearOP}
                   className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
                 >
-                  清除楼主
+                  {t("arena.scenarioEditor.clearOP")}
                 </button>
                 <button
                   type="button"
                   onClick={addComment}
                   className="rounded-lg border border-cyan-700 px-3 py-1.5 text-xs text-cyan-200 hover:bg-cyan-950/30"
                 >
-                  + 添加评论
+                  + {t("arena.scenarioEditor.addComment")}
                 </button>
               </div>
             </div>
 
             <p className="text-xs text-amber-300/80">
-              隐私提示：这里的评论应当是 AI 生成或你自己撰写的。抓取/上传的真实评论只用于喂 AI 生成，不会入库、不会被发布；请勿把他人评论原文粘贴到这里。
+              {t("arena.scenarioEditor.privacyNotice")}
             </p>
 
             {comments.length === 0 ? (
-              <p className="text-sm text-gray-400">还没有评论。手动添加、用话题生成、上传文本生成，或从链接抓取。</p>
+              <p className="text-sm text-gray-400">{t("arena.scenarioEditor.noCommentsYet")}</p>
             ) : (
               <div className="space-y-3">
                 {comments.map((c, index) => (
@@ -636,7 +637,7 @@ export default function ScenarioEditorPage() {
                         onClick={() => removeComment(c.id)}
                         className="text-xs text-rose-300 hover:text-rose-200"
                       >
-                        删除
+                        {t("arena.scenarioEditor.delete")}
                       </button>
                     </div>
 
@@ -644,7 +645,7 @@ export default function ScenarioEditorPage() {
                       <input
                         value={c.authorName}
                         onChange={(e) => updateComment(c.id, { authorName: e.target.value })}
-                        placeholder="账号名"
+                        placeholder={t("arena.scenarioEditor.accountNamePlaceholder")}
                         className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                       />
                       <select
@@ -652,12 +653,12 @@ export default function ScenarioEditorPage() {
                         onChange={(e) => updateComment(c.id, { parentId: e.target.value || null })}
                         className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                       >
-                        <option value="">顶楼（无回复对象）</option>
+                        <option value="">{t("arena.scenarioEditor.topLevelOption")}</option>
                         {comments
                           .filter((other) => other.id !== c.id)
                           .map((other) => (
                             <option key={other.id} value={other.id}>
-                              回复 @{other.authorName || "(未命名)"}：{snippet(other.text)}
+                              {t("arena.scenarioEditor.replyToOption", { name: other.authorName || t("arena.scenarioEditor.unnamed"), text: snippet(other.text) })}
                             </option>
                           ))}
                       </select>
@@ -666,7 +667,7 @@ export default function ScenarioEditorPage() {
                     <textarea
                       value={c.text}
                       onChange={(e) => updateComment(c.id, { text: e.target.value })}
-                      placeholder="评论内容"
+                      placeholder={t("arena.scenarioEditor.commentContentPlaceholder")}
                       rows={2}
                       className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                     />
@@ -674,7 +675,7 @@ export default function ScenarioEditorPage() {
                     <input
                       value={c.stance || ""}
                       onChange={(e) => updateComment(c.id, { stance: e.target.value })}
-                      placeholder="立场/观点提示（供 AI 扮演，可空）"
+                      placeholder={t("arena.scenarioEditor.stancePlaceholder")}
                       className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                     />
 
@@ -685,7 +686,7 @@ export default function ScenarioEditorPage() {
                         checked={!!c.isOP}
                         onChange={() => setOP(c.id)}
                       />
-                      设为楼主
+                      {t("arena.scenarioEditor.setAsOP")}
                     </label>
                   </div>
                 ))}
@@ -698,13 +699,16 @@ export default function ScenarioEditorPage() {
         <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">实时预览</h2>
+              <h2 className="text-base font-semibold text-white">{t("arena.scenarioEditor.livePreview")}</h2>
               <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[11px] text-gray-300">
-                {PLATFORM_OPTIONS.find((p) => p.value === platform)?.label || platform}
+                {(() => {
+                  const p = PLATFORM_OPTIONS.find((p) => p.value === platform);
+                  return p ? t(`arena.scenarioEditor.${p.labelKey}`) : platform;
+                })()}
               </span>
             </div>
             {comments.length === 0 ? (
-              <p className="text-sm text-gray-400">添加评论后在这里预览平台皮肤效果。</p>
+              <p className="text-sm text-gray-400">{t("arena.scenarioEditor.previewHint")}</p>
             ) : (
               <PlatformCommentView platform={platform} comments={comments} topic={topic} />
             )}

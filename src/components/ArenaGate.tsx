@@ -22,10 +22,12 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import ExtensionGateModal, { ArenaTransitionLoader } from "./ExtensionGateModal";
 import { useExtensionInstalled } from "../hooks/useExtensionInstalled";
 
 export default function ArenaGate({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const { status, version, recheck } = useExtensionInstalled();
   // 门禁一旦弹出就保持挂载（这个 latch 就是为此存在）：recheck 期间 status 会回到 "checking"，
   // 若此时按 status 切回加载动画，门禁会被卸载，用户勾好的「同意」也跟着没了 ——
@@ -43,7 +45,7 @@ export default function ArenaGate({ children }: { children: ReactNode }) {
   // 已装插件的正常访问：直接进，不拿过渡动画挡路
   if (passed || (status === "installed" && !showGate)) return <>{children}</>;
 
-  if (!showGate) return <ArenaTransitionLoader label="正在检测插件…" />;
+  if (!showGate) return <ArenaTransitionLoader label={t("arena.gate.checkingExtension")} />;
 
   return (
     <ExtensionGateModal

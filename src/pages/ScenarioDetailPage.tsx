@@ -21,6 +21,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { Bookmark, Eye, Heart, Pencil, Play } from "lucide-react";
 import {
   getScenario,
@@ -35,15 +36,15 @@ import CommentThread from "../components/CommentThread";
 
 // 页面自己的平台小徽标（与评论区皮肤无关：皮肤在 components/skins/ 里各自实现）。
 // 新增平台时要跟着补一行，否则会 fallback 成「通用」徽标。
-const PLATFORM_META: Record<string, { label: string; className: string }> = {
-  bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
-  weibo: { label: "微博", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
-  tieba: { label: "贴吧", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
-  zhihu: { label: "知乎", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
-  douyin: { label: "抖音", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
-  xiaohongshu: { label: "小红书", className: "border-red-600/60 bg-red-950/30 text-red-200" },
-  instagram: { label: "Instagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
-  generic: { label: "通用", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
+  bilibili: { labelKey: "platformBilibili", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
+  weibo: { labelKey: "platformWeibo", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
+  tieba: { labelKey: "platformTieba", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
+  zhihu: { labelKey: "platformZhihu", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
+  douyin: { labelKey: "platformDouyin", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
+  xiaohongshu: { labelKey: "platformXiaohongshu", className: "border-red-600/60 bg-red-950/30 text-red-200" },
+  instagram: { labelKey: "platformInstagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
+  generic: { labelKey: "platformGeneric", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
 };
 
 function platformMeta(platform: string) {
@@ -61,6 +62,7 @@ function authorId(author: Scenario["author"]) {
 }
 
 export default function ScenarioDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -88,7 +90,7 @@ export default function ScenarioDetailPage() {
   }, [id]);
 
   function requireLogin() {
-    toast.error("请先登录");
+    toast.error(t("arena.scenarioDetail.loginRequired"));
     navigate(`/login?next=/arena/simulate/${id}`);
   }
 
@@ -139,25 +141,26 @@ export default function ScenarioDetailPage() {
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-6xl p-4 text-gray-300">加载中…</div>;
+  if (loading) return <div className="mx-auto max-w-6xl p-4 text-gray-300">{t("arena.scenarioDetail.loading")}</div>;
   if (!scenario)
     return (
       <div className="mx-auto max-w-6xl p-4">
-        <p className="text-gray-400">情景不存在或已被删除。</p>
+        <p className="text-gray-400">{t("arena.scenarioDetail.notFound")}</p>
         <Link to="/arena/simulate" className="mt-3 inline-block text-sm text-cyan-300 hover:underline">
-          ← 返回情景画廊
+          ← {t("arena.scenarioDetail.backToGallery")}
         </Link>
       </div>
     );
 
   const meta = platformMeta(scenario.platform);
+  const platformLabel = t(`arena.scenarioDetail.${meta.labelKey}`);
   const isOwner = Boolean(scenario.isOwner || (user && authorId(scenario.author) === user._id));
   const previewComments = (scenario.comments || []).slice(0, 6);
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-20">
       <Link to="/arena/simulate" className="text-sm text-gray-400 hover:text-white">
-        ← 返回情景画廊
+        ← {t("arena.scenarioDetail.backToGallery")}
       </Link>
 
       <div className="mt-3 grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
@@ -167,24 +170,24 @@ export default function ScenarioDetailPage() {
               {scenario.coverImageUrl ? (
                 <img src={scenario.coverImageUrl} alt={scenario.title} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-gray-500">暂无封面</div>
+                <div className="flex h-full w-full items-center justify-center text-gray-500">{t("arena.scenarioDetail.noCover")}</div>
               )}
             </div>
             <div className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <h1 className="text-2xl font-bold text-white">{scenario.title}</h1>
                 <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${meta.className}`}>
-                  {meta.label}
+                  {platformLabel}
                 </span>
               </div>
-              <p className="mt-2 text-gray-300">{scenario.summary || "暂无简介"}</p>
+              <p className="mt-2 text-gray-300">{scenario.summary || t("arena.scenarioDetail.noSummary")}</p>
               {scenario.topic && (
                 <p className="mt-2 rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm text-gray-300">
-                  <span className="text-gray-500">争论主题：</span>
+                  <span className="text-gray-500">{t("arena.scenarioDetail.debateTopic")}</span>{" "}
                   {scenario.topic}
                 </p>
               )}
-              <p className="mt-3 text-sm text-gray-400">作者：{authorName(scenario.author)}</p>
+              <p className="mt-3 text-sm text-gray-400">{t("arena.scenarioDetail.author", { name: authorName(scenario.author) })}</p>
 
               {(scenario.tags || []).length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-cyan-200">
@@ -217,7 +220,7 @@ export default function ScenarioDetailPage() {
                   onClick={() => navigate(`/arena/simulate/${scenario._id}/play`)}
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
                 >
-                  <Play className="h-4 w-4" /> 进入模拟
+                  <Play className="h-4 w-4" /> {t("arena.scenarioDetail.enterSimulation")}
                 </button>
                 <button
                   type="button"
@@ -227,7 +230,7 @@ export default function ScenarioDetailPage() {
                   }`}
                 >
                   <Heart className={`h-4 w-4 ${scenario.liked ? "fill-rose-400" : ""}`} />
-                  {scenario.liked ? "已点赞" : "点赞"}
+                  {scenario.liked ? t("arena.scenarioDetail.liked") : t("arena.scenarioDetail.like")}
                 </button>
                 <button
                   type="button"
@@ -239,14 +242,14 @@ export default function ScenarioDetailPage() {
                   }`}
                 >
                   <Bookmark className={`h-4 w-4 ${scenario.bookmarked ? "fill-cyan-400" : ""}`} />
-                  {scenario.bookmarked ? "已收藏" : "收藏"}
+                  {scenario.bookmarked ? t("arena.scenarioDetail.saved") : t("arena.scenarioDetail.save")}
                 </button>
                 {isOwner && (
                   <Link
                     to={`/arena/simulate/${scenario._id}/edit`}
                     className="inline-flex items-center gap-2 rounded-xl border border-cyan-700 px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-950/30"
                   >
-                    <Pencil className="h-4 w-4" /> 编辑
+                    <Pencil className="h-4 w-4" /> {t("arena.scenarioDetail.edit")}
                   </Link>
                 )}
               </div>
@@ -257,11 +260,11 @@ export default function ScenarioDetailPage() {
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">评论区预览</h2>
-              <span className="text-xs text-gray-500">仿 {meta.label} 皮肤</span>
+              <h2 className="text-base font-semibold text-white">{t("arena.scenarioDetail.commentPreview")}</h2>
+              <span className="text-xs text-gray-500">{t("arena.scenarioDetail.skinPreview", { platform: platformLabel })}</span>
             </div>
             {previewComments.length === 0 ? (
-              <p className="text-sm text-gray-400">该情景暂未录入评论。</p>
+              <p className="text-sm text-gray-400">{t("arena.scenarioDetail.noComments")}</p>
             ) : (
               <PlatformCommentView
                 platform={scenario.platform}
@@ -275,7 +278,7 @@ export default function ScenarioDetailPage() {
               onClick={() => navigate(`/arena/simulate/${scenario._id}/play`)}
               className="mt-4 w-full rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800"
             >
-              进入完整模拟，与 AI 对线 →
+              {t("arena.scenarioDetail.enterFullSimulation")} →
             </button>
           </div>
         </div>

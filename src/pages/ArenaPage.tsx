@@ -31,6 +31,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ArrowRight, Store, Swords, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -39,10 +40,10 @@ import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 type ArenaBlock = {
   key: string;
   to: string;
-  title: string;
-  tagline: string;
-  desc: string;
-  points: string[];
+  titleKey: string;
+  taglineKey: string;
+  descKey: string;
+  pointKeys: string[];
   icon: LucideIcon;
   /** Tailwind 类必须是完整字面量：拼接出来的类名会被 JIT 扫不到而不生成样式 */
   iconWrap: string;
@@ -56,10 +57,10 @@ const BLOCKS: ArenaBlock[] = [
   {
     key: "simulate",
     to: "/arena/simulate",
-    title: "情景模拟",
-    tagline: "把评论区搬进来，和 AI 对线",
-    desc: "上传评论区链接，AI 识别所属平台并重建仿真页面，扮演页面里的其他账号与你争论。",
-    points: ["自动识别平台并套用 UI 模板", "AI 依据真实评论扮演其他账号", "可发布模板供其他人体验"],
+    titleKey: "simulateTitle",
+    taglineKey: "simulateTagline",
+    descKey: "simulateDesc",
+    pointKeys: ["simulatePoint1", "simulatePoint2", "simulatePoint3"],
     icon: Swords,
     iconWrap: "bg-cyan-500/10 text-cyan-300",
     activeBorder: "border-cyan-500/60",
@@ -69,10 +70,10 @@ const BLOCKS: ArenaBlock[] = [
   {
     key: "bounty",
     to: "/arena/bounty",
-    title: "赏金猎人",
-    tagline: "去真实战场，拿走赏金",
-    desc: "发布或接取带外链的悬赏，去真实平台参与对话；插件追踪你的发言，完成即提示提交。",
-    points: ["发布带外链的热点悬赏", "插件实时追踪发言并提示完成", "提交前可自动截图存证"],
+    titleKey: "bountyTitle",
+    taglineKey: "bountyTagline",
+    descKey: "bountyDesc",
+    pointKeys: ["bountyPoint1", "bountyPoint2", "bountyPoint3"],
     icon: Target,
     iconWrap: "bg-amber-500/10 text-amber-300",
     activeBorder: "border-amber-500/60",
@@ -82,10 +83,10 @@ const BLOCKS: ArenaBlock[] = [
   {
     key: "persona",
     to: "/arena/persona",
-    title: "人格市场",
-    tagline: "换一张嘴，换一套打法",
-    desc: "收藏并加装其他用户分享的发言风格，在任意平台发言时自由切换本人风格或下载的人格。",
-    points: ["浏览并下载他人分享的人格", "按场合切换你的嘴替", "自己的风格也能打包分享"],
+    titleKey: "personaTitle",
+    taglineKey: "personaTagline",
+    descKey: "personaDesc",
+    pointKeys: ["personaPoint1", "personaPoint2", "personaPoint3"],
     icon: Store,
     iconWrap: "bg-fuchsia-500/10 text-fuchsia-300",
     activeBorder: "border-fuchsia-500/60",
@@ -95,6 +96,7 @@ const BLOCKS: ArenaBlock[] = [
 ];
 
 export default function ArenaPage() {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
 
@@ -126,7 +128,7 @@ export default function ArenaPage() {
               // 键盘用户也该看到同样的高亮，否则 Tab 过去完全没有反馈
               onFocus={() => setHovered(block.key)}
               onBlur={() => setHovered(null)}
-              aria-label={`${block.title} · ${block.tagline}`}
+              aria-label={`${t(`arena.landing.${block.titleKey}`)} · ${t(`arena.landing.${block.taglineKey}`)}`}
               className={[
                 "group relative flex min-h-[180px] flex-col overflow-hidden rounded-3xl border bg-gray-900 p-6",
                 "outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70",
@@ -159,8 +161,8 @@ export default function ArenaPage() {
                   <Icon className="h-6 w-6" />
                 </span>
 
-                <h2 className="mt-4 whitespace-nowrap text-2xl font-bold text-white">{block.title}</h2>
-                <p className="mt-1 text-sm text-gray-400">{block.tagline}</p>
+                <h2 className="mt-4 whitespace-nowrap text-2xl font-bold text-white">{t(`arena.landing.${block.titleKey}`)}</h2>
+                <p className="mt-1 text-sm text-gray-400">{t(`arena.landing.${block.taglineKey}`)}</p>
 
                 {/* 被挤窄的块里塞满字会挤成一团，淡出即可；宽度回来时再淡入 */}
                 <div
@@ -169,19 +171,19 @@ export default function ArenaPage() {
                     isDimmed ? "md:opacity-0" : "opacity-100",
                   ].join(" ")}
                 >
-                  <p className="mt-4 text-sm leading-relaxed text-gray-300">{block.desc}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-gray-300">{t(`arena.landing.${block.descKey}`)}</p>
                   <ul className="mt-4 space-y-2 text-sm text-gray-300">
-                    {block.points.map((point) => (
-                      <li key={point} className="flex gap-2">
+                    {block.pointKeys.map((pointKey) => (
+                      <li key={pointKey} className="flex gap-2">
                         <span className={`mt-2 h-1 w-1 shrink-0 rounded-full ${block.bullet}`} />
-                        <span>{point}</span>
+                        <span>{t(`arena.landing.${pointKey}`)}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-semibold text-white">
-                  进入
+                  {t("arena.landing.enter")}
                   <ArrowRight
                     className={[
                       "h-4 w-4 transition-transform duration-300 motion-reduce:transition-none",

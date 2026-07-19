@@ -30,6 +30,7 @@
  */
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, ExternalLink, Puzzle, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { EXT_STORE_URL } from "../config";
 import type { ExtensionStatus } from "../hooks/useExtensionInstalled";
@@ -70,6 +71,7 @@ export default function ExtensionGateModal({
   onPass,
   onClose,
 }: ExtensionGateModalProps) {
+  const { t } = useTranslation();
   const [agreed, setAgreed] = useState(false);
   const titleId = useId();
   const consentId = useId();
@@ -124,7 +126,7 @@ export default function ExtensionGateModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="关闭"
+            aria-label={t("arena.gateModal.close")}
             className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-900 hover:text-white"
           >
             <X className="h-4 w-4" />
@@ -132,7 +134,7 @@ export default function ExtensionGateModal({
         ) : null}
 
         {installed ? (
-          <ArenaTransitionLoader label={version ? `已检测到插件 v${version}，正在进入广场…` : "已检测到插件，正在进入广场…"} />
+          <ArenaTransitionLoader label={version ? t("arena.gateModal.detectedWithVersion", { version }) : t("arena.gateModal.detectedNoVersion")} />
         ) : (
           <div className="max-h-[80vh] overflow-y-auto p-6">
             {/* ① 要求安装插件 */}
@@ -142,35 +144,34 @@ export default function ExtensionGateModal({
               </span>
               <div>
                 <h2 id={titleId} className="text-lg font-bold text-white">
-                  需要先安装浏览器插件
+                  {t("arena.gateModal.title")}
                 </h2>
-                <p className="mt-0.5 text-xs text-gray-400">卢本伟广场的能力都跑在插件里</p>
+                <p className="mt-0.5 text-xs text-gray-400">{t("arena.gateModal.subtitle")}</p>
               </div>
             </div>
 
             <p className="mt-4 text-sm leading-relaxed text-gray-300">
-              发言方案推荐、表情梗图插入、悬赏发言追踪都由插件在页面上完成。没有插件，广场里的功能只是一堆看不见效果的入口，
-              所以这里先拦一道。
+              {t("arena.gateModal.intro")}
             </p>
 
             {/* ② 免责说明（必须在勾选之前） */}
             <section className="mt-5 rounded-2xl border border-amber-700/40 bg-amber-500/5 p-4">
               <div className="flex items-center gap-2 text-amber-200">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                <h3 className="text-sm font-semibold">安装前请知情</h3>
+                <h3 className="text-sm font-semibold">{t("arena.gateModal.disclosureHeading")}</h3>
               </div>
               <ul className="mt-3 space-y-2 text-sm leading-relaxed text-gray-300">
                 <li className="flex gap-2">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-400" />
-                  <span>插件会<strong className="font-semibold text-amber-100">读取你浏览的页面内容</strong>，用来生成贴合当前语境的发言方案。</span>
+                  <span>{t("arena.gateModal.dataReadPrefix")}<strong className="font-semibold text-amber-100">{t("arena.gateModal.dataReadEmphasis")}</strong>{t("arena.gateModal.dataReadSuffix")}</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-400" />
-                  <span>这些数据会用于<strong className="font-semibold text-amber-100">生成你的个人风格分析</strong>，让推荐越来越像你自己。</span>
+                  <span>{t("arena.gateModal.styleAnalysisPrefix")}<strong className="font-semibold text-amber-100">{t("arena.gateModal.styleAnalysisEmphasis")}</strong>{t("arena.gateModal.styleAnalysisSuffix")}</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-400" />
-                  <span>你可以<strong className="font-semibold text-amber-100">随时在插件设置里关闭</strong>（插件弹窗或 <span className="whitespace-nowrap">/arena/extension</span> 页面）。</span>
+                  <span>{t("arena.gateModal.optOutPrefix")}<strong className="font-semibold text-amber-100">{t("arena.gateModal.optOutEmphasis")}</strong>{t("arena.gateModal.optOutSuffixBefore")}<span className="whitespace-nowrap">/arena/extension</span>{t("arena.gateModal.optOutSuffixAfter")}</span>
                 </li>
               </ul>
             </section>
@@ -187,7 +188,7 @@ export default function ExtensionGateModal({
                 onChange={(event) => setAgreed(event.target.checked)}
                 className="mt-0.5 h-4 w-4 shrink-0 accent-cyan-500"
               />
-              <span className="text-sm text-gray-200">我已阅读并理解上述说明，同意安装并使用插件</span>
+              <span className="text-sm text-gray-200">{t("arena.gateModal.consent")}</span>
             </label>
 
             {/* ④ 去商店安装 + ⑤ 我已装好，重新检测 */}
@@ -196,10 +197,10 @@ export default function ExtensionGateModal({
                 type="button"
                 onClick={openStore}
                 disabled={!agreed || !EXT_STORE_URL}
-                title={EXT_STORE_URL ? "在新标签页打开插件商店" : "商店地址未配置（插件尚未上架）"}
+                title={EXT_STORE_URL ? t("arena.gateModal.openStoreTitle") : t("arena.gateModal.storeNotConfigured")}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-500"
               >
-                <ExternalLink className="h-4 w-4" /> 去商店安装
+                <ExternalLink className="h-4 w-4" /> {t("arena.gateModal.installButton")}
               </button>
               <button
                 type="button"
@@ -208,24 +209,23 @@ export default function ExtensionGateModal({
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-100 hover:bg-gray-900 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-500"
               >
                 <RefreshCw className={`h-4 w-4 ${checking ? "motion-safe:animate-spin" : ""}`} />
-                {checking ? "检测中…" : "我已装好，重新检测"}
+                {checking ? t("arena.gateModal.checking") : t("arena.gateModal.recheckButton")}
               </button>
             </div>
 
             {!EXT_STORE_URL ? (
-              <p className="mt-2 text-xs text-amber-300/90">商店地址未配置（插件尚未上架）</p>
+              <p className="mt-2 text-xs text-amber-300/90">{t("arena.gateModal.storeNotConfigured")}</p>
             ) : null}
 
             {status === "missing" && agreed ? (
-              <p className="mt-2 text-xs text-gray-500">还是没检测到插件？装好后可能需要刷新本页，或确认插件在本站是启用状态。</p>
+              <p className="mt-2 text-xs text-gray-500">{t("arena.gateModal.recheckHint")}</p>
             ) : null}
 
             {/* 诚实说明：网页装不了扩展，别让用户以为点一下就完事 */}
             <div className="mt-5 flex gap-2 rounded-2xl border border-gray-800 bg-gray-900/40 p-4">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
               <p className="text-xs leading-relaxed text-gray-400">
-                网页无法替你安装扩展（Chrome 已于 2018 年移除网页内联安装），只能由你在商店里手动点「添加至浏览器」。
-                装好后回到本页点「我已装好，重新检测」，检测通过会自动放行。支持 Chrome / Edge 等 Chromium 内核浏览器。
+                {t("arena.gateModal.honestyNote")}
               </p>
             </div>
           </div>

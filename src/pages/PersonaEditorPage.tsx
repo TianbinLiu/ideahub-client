@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Download } from "lucide-react";
@@ -34,6 +35,7 @@ import { humanizeError } from "../utils/humanizeError";
 const EMOJI_PRESETS = ["🎭", "🔥", "🧠", "😈", "🛡️", "💧", "🎯", "⚔️", "🌟", "🤡", "👑", "🐍"];
 
 export default function PersonaEditorPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -97,13 +99,13 @@ export default function PersonaEditorPage() {
       const res = await getMyStyleProfile();
       const p = res.profile;
       if (!p) {
-        toast.error("你还没有发言风格面板，请先到「我的发言风格面板」生成");
+        toast.error(t("arena.personaEditor.noStyleProfile"));
         return;
       }
       setSummary(p.summary || "");
       setCatchphrasesText((p.catchphrases || []).join("，"));
       setStats(p.stats || []);
-      toast.success("已从发言风格面板导入");
+      toast.success(t("arena.personaEditor.importedFromStyleProfile"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -113,7 +115,7 @@ export default function PersonaEditorPage() {
 
   async function handleSave() {
     if (!name.trim()) {
-      toast.error("请填写人格名称");
+      toast.error(t("arena.personaEditor.nameRequired"));
       return;
     }
 
@@ -136,7 +138,7 @@ export default function PersonaEditorPage() {
     try {
       setSaving(true);
       const res = isEdit && id ? await updatePersona(id, body) : await createPersona(body);
-      toast.success("已保存");
+      toast.success(t("arena.personaEditor.saved"));
       navigate(`/arena/persona/${res.persona._id}`);
     } catch (e) {
       toast.error(humanizeError(e));
@@ -154,7 +156,7 @@ export default function PersonaEditorPage() {
   };
 
   if (loading) {
-    return <div className="mx-auto max-w-3xl p-4 pb-20 text-gray-400">加载中…</div>;
+    return <div className="mx-auto max-w-3xl p-4 pb-20 text-gray-400">{t("arena.personaEditor.loading")}</div>;
   }
 
   return (
@@ -163,14 +165,14 @@ export default function PersonaEditorPage() {
         to={isEdit && id ? `/arena/persona/${id}` : "/arena/persona"}
         className="text-sm text-gray-400 hover:text-white"
       >
-        ← 返回{isEdit ? "人格详情" : "人格广场"}
+        ← {isEdit ? t("arena.personaEditor.backToPersonaDetail") : t("arena.personaEditor.backToPersonaList")}
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">{isEdit ? "编辑人格" : "发布人格"}</h1>
+          <h1 className="text-2xl font-bold text-white">{isEdit ? t("arena.personaEditor.editPersona") : t("arena.personaEditor.publishPersona")}</h1>
           <p className="mt-1 text-sm text-gray-400">
-            把你的发言风格封装成可分享的人格；其他用户可下载收藏并装备，在其它平台生成三条方案。
+            {t("arena.personaEditor.pageDescription")}
           </p>
         </div>
         <button
@@ -179,7 +181,7 @@ export default function PersonaEditorPage() {
           onClick={handleSave}
           className="rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200 disabled:opacity-60"
         >
-          {saving ? "保存中…" : isEdit ? "保存修改" : "发布人格"}
+          {saving ? t("arena.personaEditor.saving") : isEdit ? t("arena.personaEditor.saveChanges") : t("arena.personaEditor.publishPersona")}
         </button>
       </div>
 
@@ -190,30 +192,30 @@ export default function PersonaEditorPage() {
           onClick={handleImport}
           className="inline-flex items-center gap-2 rounded-xl border border-cyan-600 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
         >
-          <Download className="h-4 w-4" /> {importing ? "导入中…" : "从我的发言风格面板导入"}
+          <Download className="h-4 w-4" /> {importing ? t("arena.personaEditor.importing") : t("arena.personaEditor.importFromStyleProfile")}
         </button>
-        <span className="text-xs text-gray-500">一键带入你的点评 / 口头禅 / 能力数值。</span>
+        <span className="text-xs text-gray-500">{t("arena.personaEditor.importHint")}</span>
       </div>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">
-        <h2 className="text-lg font-semibold text-white">基本信息</h2>
+        <h2 className="text-lg font-semibold text-white">{t("arena.personaEditor.basicInfo")}</h2>
 
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="人格名称"
+          placeholder={t("arena.personaEditor.namePlaceholder")}
           className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="人格简介：适合什么场合、什么风格"
+          placeholder={t("arena.personaEditor.descriptionPlaceholder")}
           rows={3}
           className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
         />
 
         <div>
-          <label className="block text-sm text-gray-300">封面 Emoji</label>
+          <label className="block text-sm text-gray-300">{t("arena.personaEditor.coverEmoji")}</label>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <input
               value={coverEmoji}
@@ -240,11 +242,11 @@ export default function PersonaEditorPage() {
         </div>
 
         <label className="block text-sm text-gray-300">
-          标签（逗号分隔）
+          {t("arena.personaEditor.tagsLabel")}
           <input
             value={tagsText}
             onChange={(e) => setTagsText(e.target.value)}
-            placeholder="如：理性, 对线, 嘴替"
+            placeholder={t("arena.personaEditor.tagsPlaceholder")}
             className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
           />
         </label>
@@ -261,51 +263,51 @@ export default function PersonaEditorPage() {
 
         <label className="flex items-center gap-2 text-sm text-gray-300">
           <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-          发布到人格广场（公开，其他用户可下载装备）
+          {t("arena.personaEditor.sharedLabel")}
         </label>
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">
-        <h2 className="text-lg font-semibold text-white">风格设定</h2>
+        <h2 className="text-lg font-semibold text-white">{t("arena.personaEditor.styleSettings")}</h2>
 
         <label className="block text-sm text-gray-300">
-          风格点评（summary）
+          {t("arena.personaEditor.summaryLabel")}
           <textarea
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
-            placeholder="一段话描述这个人格的说话风格与气质"
+            placeholder={t("arena.personaEditor.summaryPlaceholder")}
             rows={3}
             className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
           />
         </label>
 
         <label className="block text-sm text-gray-300">
-          口头禅 / 风格短语（逗号分隔）
+          {t("arena.personaEditor.catchphrasesLabel")}
           <input
             value={catchphrasesText}
             onChange={(e) => setCatchphrasesText(e.target.value)}
-            placeholder="如：就这？，逻辑呢，典中典"
+            placeholder={t("arena.personaEditor.catchphrasesPlaceholder")}
             className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
           />
         </label>
 
         <label className="block text-sm text-gray-300">
-          立场 / 倾向提示（stanceHint，可空）
+          {t("arena.personaEditor.stanceHintLabel")}
           <input
             value={stanceHint}
             onChange={(e) => setStanceHint(e.target.value)}
-            placeholder="如：偏理性中立，遇到人身攻击会反击"
+            placeholder={t("arena.personaEditor.stanceHintPlaceholder")}
             className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
           />
         </label>
 
         <p className="text-xs text-gray-500">
-          能力数值（雷达图）来自「从我的发言风格面板导入」；当前已带入 {stats.length} 项能力。
+          {t("arena.personaEditor.statsHint", { count: stats.length })}
         </p>
       </section>
 
       <div className="mt-4">
-        <div className="mb-2 text-sm font-medium text-gray-300">面板预览</div>
+        <div className="mb-2 text-sm font-medium text-gray-300">{t("arena.personaEditor.panelPreview")}</div>
         <StyleStandCard profile={previewProfile} />
       </div>
     </div>

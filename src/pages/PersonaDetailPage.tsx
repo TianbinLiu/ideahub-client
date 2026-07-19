@@ -19,6 +19,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { Download, Heart, Pencil, Sparkles, Trash2 } from "lucide-react";
 import {
   deletePersona,
@@ -59,6 +60,7 @@ function toProfile(persona: Persona): SpeakingProfile {
 }
 
 export default function PersonaDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -87,7 +89,7 @@ export default function PersonaDetailPage() {
   }, [id]);
 
   function requireLogin() {
-    toast.error("请先登录");
+    toast.error(t("arena.personaDetail.loginRequired"));
     navigate(`/login?next=/arena/persona/${id}`);
   }
 
@@ -153,7 +155,7 @@ export default function PersonaDetailPage() {
         const merged = eq && eq._id === p._id ? { ...p, ...eq } : p;
         return { ...merged, equipped: true, installed: true };
       });
-      toast.success("已装备该人格");
+      toast.success(t("arena.personaDetail.equippedToast"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -171,7 +173,7 @@ export default function PersonaDetailPage() {
       localStorage.setItem(ACTIVE_PERSONA_KEY, JSON.stringify({ name: "self", descriptor: "" }));
       window.dispatchEvent(new CustomEvent("lbw:persona-equipped"));
       setPersona((p) => (p ? { ...p, equipped: false } : p));
-      toast.success("已切回本人风格");
+      toast.success(t("arena.personaDetail.switchedBackToast"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -181,23 +183,23 @@ export default function PersonaDetailPage() {
 
   async function handleDelete() {
     if (!id || !persona) return;
-    if (typeof window !== "undefined" && !window.confirm("确定删除该人格？此操作不可撤销。")) return;
+    if (typeof window !== "undefined" && !window.confirm(t("arena.personaDetail.deleteConfirm"))) return;
     try {
       await deletePersona(id);
-      toast.success("已删除");
+      toast.success(t("arena.personaDetail.deleted"));
       navigate("/arena/persona");
     } catch (e) {
       toast.error(humanizeError(e));
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-6xl p-4 text-gray-300">加载中…</div>;
+  if (loading) return <div className="mx-auto max-w-6xl p-4 text-gray-300">{t("arena.personaDetail.loading")}</div>;
   if (!persona)
     return (
       <div className="mx-auto max-w-6xl p-4">
-        <p className="text-gray-400">人格不存在或已被删除。</p>
+        <p className="text-gray-400">{t("arena.personaDetail.notFound")}</p>
         <Link to="/arena/persona" className="mt-3 inline-block text-sm text-cyan-300 hover:underline">
-          ← 返回人格广场
+          ← {t("arena.personaDetail.backToPersonas")}
         </Link>
       </div>
     );
@@ -207,7 +209,7 @@ export default function PersonaDetailPage() {
   return (
     <div className="mx-auto max-w-5xl p-4 pb-20">
       <Link to="/arena/persona" className="text-sm text-gray-400 hover:text-white">
-        ← 返回人格广场
+        ← {t("arena.personaDetail.backToPersonas")}
       </Link>
 
       <div className="mt-3 space-y-4">
@@ -220,22 +222,24 @@ export default function PersonaDetailPage() {
                 <h1 className="text-2xl font-bold text-white">{persona.name}</h1>
                 {persona.equipped ? (
                   <span className="rounded-full border border-cyan-500/60 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-medium text-cyan-200">
-                    已装备
+                    {t("arena.personaDetail.equippedBadge")}
                   </span>
                 ) : persona.installed ? (
                   <span className="rounded-full border border-gray-700 bg-gray-800/60 px-2.5 py-0.5 text-xs text-gray-300">
-                    已收藏
+                    {t("arena.personaDetail.savedBadge")}
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-sm text-gray-400">作者：{authorName(persona.author)}</p>
+              <p className="mt-1 text-sm text-gray-400">
+                {t("arena.personaDetail.authorLabel", { name: authorName(persona.author) })}
+              </p>
             </div>
           </div>
 
           {persona.description ? (
             <p className="mt-3 text-gray-300">{persona.description}</p>
           ) : (
-            <p className="mt-3 text-gray-500">暂无简介</p>
+            <p className="mt-3 text-gray-500">{t("arena.personaDetail.noDescription")}</p>
           )}
 
           {(persona.tags || []).length > 0 && (
@@ -263,7 +267,8 @@ export default function PersonaDetailPage() {
                 onClick={handleUnequip}
                 className="inline-flex items-center gap-2 rounded-xl border border-cyan-500 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-950/30 disabled:opacity-60"
               >
-                <Sparkles className="h-4 w-4" /> {equipping ? "处理中…" : "切回本人风格"}
+                <Sparkles className="h-4 w-4" />{" "}
+                {equipping ? t("arena.personaDetail.processing") : t("arena.personaDetail.switchBackStyle")}
               </button>
             ) : (
               <button
@@ -272,7 +277,8 @@ export default function PersonaDetailPage() {
                 onClick={handleEquip}
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-60"
               >
-                <Sparkles className="h-4 w-4" /> {equipping ? "装备中…" : "装备该人格"}
+                <Sparkles className="h-4 w-4" />{" "}
+                {equipping ? t("arena.personaDetail.equippingButton") : t("arena.personaDetail.equipPersona")}
               </button>
             )}
             <button
@@ -285,7 +291,7 @@ export default function PersonaDetailPage() {
               }`}
             >
               <Download className="h-4 w-4" />
-              {persona.installed ? "取消收藏" : "下载收藏"}
+              {persona.installed ? t("arena.personaDetail.unsave") : t("arena.personaDetail.downloadSave")}
             </button>
             <button
               type="button"
@@ -295,7 +301,7 @@ export default function PersonaDetailPage() {
               }`}
             >
               <Heart className={`h-4 w-4 ${persona.liked ? "fill-rose-400" : ""}`} />
-              {persona.liked ? "已点赞" : "点赞"}
+              {persona.liked ? t("arena.personaDetail.liked") : t("arena.personaDetail.like")}
             </button>
             {isOwner && (
               <>
@@ -303,14 +309,14 @@ export default function PersonaDetailPage() {
                   to={`/arena/persona/${persona._id}/edit`}
                   className="inline-flex items-center gap-2 rounded-xl border border-cyan-700 px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-950/30"
                 >
-                  <Pencil className="h-4 w-4" /> 编辑
+                  <Pencil className="h-4 w-4" /> {t("arena.personaDetail.edit")}
                 </Link>
                 <button
                   type="button"
                   onClick={handleDelete}
                   className="inline-flex items-center gap-2 rounded-xl border border-rose-800 px-4 py-2 text-sm text-rose-300 hover:bg-rose-950/30"
                 >
-                  <Trash2 className="h-4 w-4" /> 删除
+                  <Trash2 className="h-4 w-4" /> {t("arena.personaDetail.delete")}
                 </button>
               </>
             )}
@@ -318,7 +324,7 @@ export default function PersonaDetailPage() {
 
           {!user && (
             <p className="mt-3 text-xs text-gray-500">
-              登录后即可下载收藏、点赞并装备该人格。
+              {t("arena.personaDetail.loginHint")}
             </p>
           )}
         </div>

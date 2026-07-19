@@ -37,35 +37,38 @@ import {
 import CommentThread from "../components/CommentThread";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
+import { useTranslation } from "react-i18next";
 
-const PLATFORM_META: Record<string, { label: string; className: string }> = {
-  weibo: { label: "微博", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
-  bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
-  tieba: { label: "贴吧", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
-  zhihu: { label: "知乎", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
-  douyin: { label: "抖音", className: "border-neutral-500/60 bg-neutral-900 text-neutral-200" },
-  xiaohongshu: { label: "小红书", className: "border-rose-600/60 bg-rose-950/30 text-rose-200" },
-  instagram: { label: "Instagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
-  other: { label: "其他", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+type Translate = ReturnType<typeof useTranslation>["t"];
+
+const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
+  weibo: { labelKey: "platformWeibo", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
+  bilibili: { labelKey: "platformBilibili", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
+  tieba: { labelKey: "platformTieba", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
+  zhihu: { labelKey: "platformZhihu", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
+  douyin: { labelKey: "platformDouyin", className: "border-neutral-500/60 bg-neutral-900 text-neutral-200" },
+  xiaohongshu: { labelKey: "platformXiaohongshu", className: "border-rose-600/60 bg-rose-950/30 text-rose-200" },
+  instagram: { labelKey: "platformInstagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
+  other: { labelKey: "platformOther", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
 };
 
-const STATUS_META: Record<string, { label: string; className: string }> = {
-  open: { label: "进行中", className: "border-emerald-600/60 bg-emerald-950/30 text-emerald-200" },
-  closed: { label: "已关闭", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
-  completed: { label: "已完成", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
+const STATUS_META: Record<string, { labelKey: string; className: string }> = {
+  open: { labelKey: "statusOpen", className: "border-emerald-600/60 bg-emerald-950/30 text-emerald-200" },
+  closed: { labelKey: "statusClosed", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+  completed: { labelKey: "statusCompleted", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
 };
 
-const SUBMISSION_STATUS_META: Record<string, { label: string; className: string }> = {
-  pending: { label: "待审核", className: "border-amber-600/60 bg-amber-950/30 text-amber-200" },
-  approved: { label: "已通过", className: "border-emerald-600/60 bg-emerald-950/30 text-emerald-200" },
-  rejected: { label: "已拒绝", className: "border-rose-600/60 bg-rose-950/30 text-rose-200" },
+const SUBMISSION_STATUS_META: Record<string, { labelKey: string; className: string }> = {
+  pending: { labelKey: "submissionStatusPending", className: "border-amber-600/60 bg-amber-950/30 text-amber-200" },
+  approved: { labelKey: "submissionStatusApproved", className: "border-emerald-600/60 bg-emerald-950/30 text-emerald-200" },
+  rejected: { labelKey: "submissionStatusRejected", className: "border-rose-600/60 bg-rose-950/30 text-rose-200" },
 };
 
 type Person = { _id: string; username: string } | string | undefined;
 
-function personName(p: Person) {
-  if (!p) return "匿名用户";
-  return typeof p === "string" ? "用户" : p.username || "用户";
+function personName(p: Person, t: Translate) {
+  if (!p) return t("arena.bountyDetail.anonymousUser");
+  return typeof p === "string" ? t("arena.bountyDetail.user") : p.username || t("arena.bountyDetail.user");
 }
 
 function personId(p: Person) {
@@ -92,6 +95,7 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 }
 
 export default function BountyDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -167,7 +171,7 @@ export default function BountyDetailPage() {
       const pending = JSON.parse(raw) as { speechText?: string; screenshotDataUrl?: string };
       if (pending.speechText) setSpeechText(pending.speechText);
       if (pending.screenshotDataUrl) setPendingShot(pending.screenshotDataUrl);
-      else if (pending.speechText) toast.success("已从插件导入你的发言");
+      else if (pending.speechText) toast.success(t("arena.bountyDetail.importedSpeechFromPlugin"));
     } catch {
       // 忽略损坏的数据
     }
@@ -186,7 +190,7 @@ export default function BountyDetailPage() {
         const res = await apiUploadImage(file, "comment");
         if (mounted) {
           setScreenshotUrl(res.imageUrl);
-          toast.success("已从插件导入发言与截图");
+          toast.success(t("arena.bountyDetail.importedSpeechAndScreenshot"));
         }
       } catch (e) {
         if (mounted) toast.error(humanizeError(e));
@@ -200,7 +204,7 @@ export default function BountyDetailPage() {
   }, [pendingShot, user]);
 
   function requireLogin() {
-    toast.error("请先登录");
+    toast.error(t("arena.bountyDetail.pleaseLoginFirst"));
     navigate(`/login?next=/arena/bounty/${id}`);
   }
 
@@ -231,7 +235,7 @@ export default function BountyDetailPage() {
       setUploadingShot(true);
       const res = await apiUploadImage(file, "comment");
       setScreenshotUrl(res.imageUrl);
-      toast.success("截图已上传");
+      toast.success(t("arena.bountyDetail.screenshotUploaded"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -243,11 +247,11 @@ export default function BountyDetailPage() {
     if (!id || !bounty) return;
     if (!user) return requireLogin();
     if (!speechText.trim()) {
-      toast.error("请填写你的发言内容");
+      toast.error(t("arena.bountyDetail.enterSpeechContent"));
       return;
     }
     if (uploadingShot) {
-      toast.error("截图正在上传，请稍候再提交");
+      toast.error(t("arena.bountyDetail.screenshotUploadingWait"));
       return;
     }
     try {
@@ -258,7 +262,7 @@ export default function BountyDetailPage() {
         note: note.trim() || undefined,
       });
       setBounty((b) => (b ? { ...b, mySubmission: res.submission } : b));
-      toast.success("已提交，等待发布者审核");
+      toast.success(t("arena.bountyDetail.submittedWaitingReview"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -284,9 +288,9 @@ export default function BountyDetailPage() {
           const escrowPoints = Math.max(0, (b.escrowPoints ?? 0) - awarded);
           return { ...b, approvedCount, status: nextStatus, escrowPoints };
         });
-        toast.success(`已通过，${awarded} 点虚拟点数已入账给该猎人`);
+        toast.success(t("arena.bountyDetail.approvedPointsAwarded", { points: awarded }));
       } else if (status === "rejected") {
-        toast.success("已拒绝该提交");
+        toast.success(t("arena.bountyDetail.submissionRejectedToast"));
       }
     } catch (e) {
       toast.error(humanizeError(e));
@@ -297,10 +301,10 @@ export default function BountyDetailPage() {
 
   async function handleDelete() {
     if (!id) return;
-    if (!window.confirm("确定删除该悬赏？此操作不可撤销。")) return;
+    if (!window.confirm(t("arena.bountyDetail.confirmDeleteBounty"))) return;
     try {
       await deleteBounty(id);
-      toast.success("已删除");
+      toast.success(t("arena.bountyDetail.deleted"));
       navigate("/arena/bounty");
     } catch (e) {
       toast.error(humanizeError(e));
@@ -312,19 +316,19 @@ export default function BountyDetailPage() {
     try {
       const res = await setBountyStatus(id, status);
       setBounty(res.bounty);
-      toast.success("状态已更新");
+      toast.success(t("arena.bountyDetail.statusUpdated"));
     } catch (e) {
       toast.error(humanizeError(e));
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-5xl p-4 text-gray-300">加载中…</div>;
+  if (loading) return <div className="mx-auto max-w-5xl p-4 text-gray-300">{t("arena.bountyDetail.loading")}</div>;
   if (!bounty)
     return (
       <div className="mx-auto max-w-5xl p-4">
-        <p className="text-gray-400">悬赏不存在或已被删除。</p>
+        <p className="text-gray-400">{t("arena.bountyDetail.bountyNotFound")}</p>
         <Link to="/arena/bounty" className="mt-3 inline-block text-sm text-cyan-300 hover:underline">
-          ← 返回悬赏大厅
+          ← {t("arena.bountyDetail.backToBountyHall")}
         </Link>
       </div>
     );
@@ -337,7 +341,7 @@ export default function BountyDetailPage() {
   return (
     <div className="mx-auto max-w-5xl p-4 pb-20">
       <Link to="/arena/bounty" className="text-sm text-gray-400 hover:text-white">
-        ← 返回悬赏大厅
+        ← {t("arena.bountyDetail.backToBountyHall")}
       </Link>
 
       <div className="mt-3 grid gap-4 lg:grid-cols-[1.3fr,0.9fr]">
@@ -348,29 +352,35 @@ export default function BountyDetailPage() {
             <div className="flex items-start justify-between gap-3">
               <h1 className="text-2xl font-bold text-white">{bounty.title}</h1>
               <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${sm.className}`}>
-                {sm.label}
+                {t(`arena.bountyDetail.${sm.labelKey}`)}
               </span>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-lg border border-amber-600/50 bg-amber-500/10 px-3 py-1.5 text-base font-bold text-amber-200">
-                💰 {bounty.reward} 点
+                💰 {t("arena.bountyDetail.rewardPoints", { reward: bounty.reward })}
               </span>
-              <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${pm.className}`}>{pm.label}</span>
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${pm.className}`}>
+                {t(`arena.bountyDetail.${pm.labelKey}`)}
+              </span>
               <span className="text-xs text-gray-400">
-                名额 {bounty.approvedCount}/{bounty.slots} 已通过
+                {t("arena.bountyDetail.slotsApproved", { approved: bounty.approvedCount, total: bounty.slots })}
               </span>
             </div>
             {/* 文案红线：虚拟点数，无现金价值，不可提现/兑换。不得暗示任何真实收益。 */}
-            <p className="mt-1.5 text-[11px] text-gray-500">赏金为平台虚拟点数，无现金价值，不可提现或兑换。</p>
+            <p className="mt-1.5 text-[11px] text-gray-500">{t("arena.bountyDetail.rewardDisclaimer")}</p>
 
             <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
-              {bounty.description || "暂无描述"}
+              {bounty.description || t("arena.bountyDetail.noDescription")}
             </p>
 
-            <p className="mt-3 text-sm text-gray-400">发布者：{personName(bounty.author)}</p>
+            <p className="mt-3 text-sm text-gray-400">
+              {t("arena.bountyDetail.publisher", { name: personName(bounty.author, t) })}
+            </p>
             {bounty.deadline && (
-              <p className="mt-1 text-sm text-gray-400">截止时间：{formatDate(bounty.deadline)}</p>
+              <p className="mt-1 text-sm text-gray-400">
+                {t("arena.bountyDetail.deadline", { date: formatDate(bounty.deadline) })}
+              </p>
             )}
 
             {(bounty.tags || []).length > 0 && (
@@ -395,7 +405,7 @@ export default function BountyDetailPage() {
                   to={`/arena/bounty/${bounty._id}/edit`}
                   className="inline-flex items-center gap-2 rounded-xl border border-cyan-700 px-3 py-2 text-sm text-cyan-300 hover:bg-cyan-950/30"
                 >
-                  <Pencil className="h-4 w-4" /> 编辑
+                  <Pencil className="h-4 w-4" /> {t("arena.bountyDetail.edit")}
                 </Link>
                 {bounty.status !== "open" && (
                   <button
@@ -403,7 +413,7 @@ export default function BountyDetailPage() {
                     onClick={() => handleSetStatus("open")}
                     className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
                   >
-                    设为进行中
+                    {t("arena.bountyDetail.setToOpen")}
                   </button>
                 )}
                 {bounty.status !== "closed" && (
@@ -412,7 +422,7 @@ export default function BountyDetailPage() {
                     onClick={() => handleSetStatus("closed")}
                     className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
                   >
-                    关闭
+                    {t("arena.bountyDetail.close")}
                   </button>
                 )}
                 {bounty.status !== "completed" && (
@@ -421,7 +431,7 @@ export default function BountyDetailPage() {
                     onClick={() => handleSetStatus("completed")}
                     className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
                   >
-                    标记完成
+                    {t("arena.bountyDetail.markCompleted")}
                   </button>
                 )}
                 <button
@@ -429,7 +439,7 @@ export default function BountyDetailPage() {
                   onClick={handleDelete}
                   className="inline-flex items-center gap-2 rounded-xl border border-rose-800 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30"
                 >
-                  <Trash2 className="h-4 w-4" /> 删除
+                  <Trash2 className="h-4 w-4" /> {t("arena.bountyDetail.delete")}
                 </button>
               </div>
             )}
@@ -437,9 +447,9 @@ export default function BountyDetailPage() {
 
           {/* 外链区 */}
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
-            <h2 className="text-base font-semibold text-white">前往外部平台参与</h2>
+            <h2 className="text-base font-semibold text-white">{t("arena.bountyDetail.joinOnExternalPlatform")}</h2>
             <p className="mt-1 text-sm text-gray-400">
-              点击后将在新标签页打开评论区链接，并把当前任务同步给浏览器插件以便追踪你的发言与截图存证。
+              {t("arena.bountyDetail.externalPlatformHint")}
             </p>
             <div className="mt-3 flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2">
               <ExternalLink className="h-4 w-4 shrink-0 text-gray-400" />
@@ -450,32 +460,36 @@ export default function BountyDetailPage() {
               onClick={handleGoTask}
               className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
             >
-              <ExternalLink className="h-4 w-4" /> 去完成任务
+              <ExternalLink className="h-4 w-4" /> {t("arena.bountyDetail.goDoTask")}
             </button>
           </section>
 
           {/* 提交区（登录且非作者） */}
           {!isOwner && (
             <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
-              <h2 className="text-base font-semibold text-white">提交存证领取赏金</h2>
+              <h2 className="text-base font-semibold text-white">{t("arena.bountyDetail.submitEvidenceForReward")}</h2>
 
               {mySubmission && (
                 <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-300">我的提交</span>
+                    <span className="text-sm text-gray-300">{t("arena.bountyDetail.mySubmission")}</span>
                     <span
                       className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                         (SUBMISSION_STATUS_META[mySubmission.status] || SUBMISSION_STATUS_META.pending).className
                       }`}
                     >
-                      {(SUBMISSION_STATUS_META[mySubmission.status] || SUBMISSION_STATUS_META.pending).label}
+                      {t(
+                        `arena.bountyDetail.${
+                          (SUBMISSION_STATUS_META[mySubmission.status] || SUBMISSION_STATUS_META.pending).labelKey
+                        }`
+                      )}
                     </span>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-gray-300">{mySubmission.speechText}</p>
                   {mySubmission.screenshotUrl && (
                     <img
                       src={mySubmission.screenshotUrl}
-                      alt="存证截图"
+                      alt={t("arena.bountyDetail.evidenceScreenshotAlt")}
                       className="mt-2 max-h-56 rounded-lg border border-gray-800 object-contain"
                     />
                   )}
@@ -484,7 +498,7 @@ export default function BountyDetailPage() {
                       文案也不得暗示这是真钱收益：是虚拟点数，无现金价值。 */}
                   {mySubmission.status === "approved" && (
                     <p className="mt-2 text-sm text-emerald-300">
-                      已通过审核，已入账 {mySubmission.awardedPoints} 点虚拟点数（无现金价值，不可提现/兑换）。
+                      {t("arena.bountyDetail.approvedCreditedNotice", { points: mySubmission.awardedPoints })}
                     </p>
                   )}
                 </div>
@@ -496,21 +510,21 @@ export default function BountyDetailPage() {
                   onClick={requireLogin}
                   className="mt-3 rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800"
                 >
-                  登录后提交
+                  {t("arena.bountyDetail.loginToSubmit")}
                 </button>
               ) : mySubmission?.status === "approved" ? null : (
                 <div className="mt-3 space-y-3">
                   <textarea
                     value={speechText}
                     onChange={(e) => setSpeechText(e.target.value)}
-                    placeholder="粘贴或填写你在该平台的发言内容"
+                    placeholder={t("arena.bountyDetail.speechPlaceholder")}
                     rows={4}
                     className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
                   />
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="备注（可空）"
+                    placeholder={t("arena.bountyDetail.notePlaceholder")}
                     rows={2}
                     className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
                   />
@@ -518,7 +532,7 @@ export default function BountyDetailPage() {
                   <div className="flex flex-wrap items-center gap-3">
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">
                       <ImagePlus className="h-4 w-4" />
-                      {uploadingShot ? "上传中…" : "上传截图存证"}
+                      {uploadingShot ? t("arena.bountyDetail.uploading") : t("arena.bountyDetail.uploadScreenshotEvidence")}
                       <input
                         type="file"
                         accept="image/*"
@@ -533,7 +547,7 @@ export default function BountyDetailPage() {
                         onClick={() => setScreenshotUrl("")}
                         className="text-xs text-rose-300 hover:text-rose-200"
                       >
-                        移除截图
+                        {t("arena.bountyDetail.removeScreenshot")}
                       </button>
                     )}
                   </div>
@@ -541,7 +555,7 @@ export default function BountyDetailPage() {
                   {screenshotUrl && (
                     <img
                       src={screenshotUrl}
-                      alt="存证截图"
+                      alt={t("arena.bountyDetail.evidenceScreenshotAlt")}
                       className="max-h-56 rounded-lg border border-gray-800 object-contain"
                     />
                   )}
@@ -554,12 +568,12 @@ export default function BountyDetailPage() {
                   >
                     <Send className="h-4 w-4" />
                     {submitting
-                      ? "提交中…"
+                      ? t("arena.bountyDetail.submitting")
                       : submissionClosed
-                        ? "该悬赏已停止接收提交"
+                        ? t("arena.bountyDetail.submissionsClosed")
                         : mySubmission?.status === "pending"
-                          ? "更新提交"
-                          : "提交存证"}
+                          ? t("arena.bountyDetail.updateSubmission")
+                          : t("arena.bountyDetail.submitEvidence")}
                   </button>
                 </div>
               )}
@@ -570,18 +584,22 @@ export default function BountyDetailPage() {
           {isOwner && (
             <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-white">收到的提交</h2>
+                <h2 className="text-base font-semibold text-white">{t("arena.bountyDetail.receivedSubmissions")}</h2>
                 {/* ★这里【不能】写「累计发放 = approvedCount × reward」：reward 事后可改，
                     改完这个乘积就和账本对不上，等于对发布者报一个编造的数字。
                     改为显示服务端给的「剩余托管」——那是权威值。发放明细看各条提交的已入账点数。 */}
                 <span className="text-xs text-gray-500">
-                  已通过 {bounty.approvedCount}/{bounty.slots} · 剩余托管 {bounty.escrowPoints ?? 0} 点
+                  {t("arena.bountyDetail.approvedAndEscrow", {
+                    approved: bounty.approvedCount,
+                    total: bounty.slots,
+                    escrow: bounty.escrowPoints ?? 0,
+                  })}
                 </span>
               </div>
 
-              {loadingSubs && <p className="mt-3 text-sm text-gray-400">加载中…</p>}
+              {loadingSubs && <p className="mt-3 text-sm text-gray-400">{t("arena.bountyDetail.loading")}</p>}
               {!loadingSubs && submissions.length === 0 && (
-                <p className="mt-3 text-sm text-gray-400">还没有猎人提交。</p>
+                <p className="mt-3 text-sm text-gray-400">{t("arena.bountyDetail.noHunterSubmissions")}</p>
               )}
 
               {!loadingSubs && submissions.length > 0 && (
@@ -591,21 +609,27 @@ export default function BountyDetailPage() {
                     return (
                       <div key={s._id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-gray-200">{personName(s.hunter)}</span>
+                          <span className="text-sm font-medium text-gray-200">{personName(s.hunter, t)}</span>
                           <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${ssm.className}`}>
-                            {ssm.label}
+                            {t(`arena.bountyDetail.${ssm.labelKey}`)}
                           </span>
                         </div>
                         <p className="mt-2 whitespace-pre-wrap text-sm text-gray-300">{s.speechText}</p>
                         {s.status === "approved" && (
-                          <p className="mt-1 text-xs text-emerald-300">已入账 {s.awardedPoints} 点给该猎人</p>
+                          <p className="mt-1 text-xs text-emerald-300">
+                            {t("arena.bountyDetail.creditedToHunter", { points: s.awardedPoints })}
+                          </p>
                         )}
-                        {s.note && <p className="mt-1 text-xs text-gray-500">备注：{s.note}</p>}
+                        {s.note && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {t("arena.bountyDetail.noteLabel", { note: s.note })}
+                          </p>
+                        )}
                         {s.screenshotUrl && (
                           <a href={s.screenshotUrl} target="_blank" rel="noreferrer">
                             <img
                               src={s.screenshotUrl}
-                              alt="存证截图"
+                              alt={t("arena.bountyDetail.evidenceScreenshotAlt")}
                               className="mt-2 max-h-56 rounded-lg border border-gray-800 object-contain"
                             />
                           </a>
@@ -619,7 +643,7 @@ export default function BountyDetailPage() {
                               onClick={() => handleReview(s, "approved")}
                               className="inline-flex items-center gap-1 rounded-lg border border-emerald-700 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-50"
                             >
-                              <Check className="h-3.5 w-3.5" /> 通过
+                              <Check className="h-3.5 w-3.5" /> {t("arena.bountyDetail.approve")}
                             </button>
                             <button
                               type="button"
@@ -627,7 +651,7 @@ export default function BountyDetailPage() {
                               onClick={() => handleReview(s, "rejected")}
                               className="inline-flex items-center gap-1 rounded-lg border border-rose-800 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-950/30 disabled:opacity-50"
                             >
-                              <X className="h-3.5 w-3.5" /> 拒绝
+                              <X className="h-3.5 w-3.5" /> {t("arena.bountyDetail.reject")}
                             </button>
                           </div>
                         )}

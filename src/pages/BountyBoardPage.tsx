@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { Plus, Target } from "lucide-react";
 import { listBounties, listMyBounties, type BountyCard } from "../api";
@@ -26,33 +27,33 @@ import { useAuth } from "../authContext";
 type SortKey = "new" | "hot";
 type ViewKey = SortKey | "mine";
 
-const SORT_TABS: { key: SortKey; label: string }[] = [
-  { key: "new", label: "最新" },
-  { key: "hot", label: "最热" },
+const SORT_TABS: { key: SortKey; labelKey: string }[] = [
+  { key: "new", labelKey: "sortNew" },
+  { key: "hot", labelKey: "sortHot" },
 ];
 
-const STATUS_TABS: { value: string; label: string }[] = [
-  { value: "", label: "全部" },
-  { value: "open", label: "进行中" },
-  { value: "closed", label: "已关闭" },
-  { value: "completed", label: "已完成" },
+const STATUS_TABS: { value: string; labelKey: string }[] = [
+  { value: "", labelKey: "statusAll" },
+  { value: "open", labelKey: "statusOpen" },
+  { value: "closed", labelKey: "statusClosed" },
+  { value: "completed", labelKey: "statusCompleted" },
 ];
 
-const PLATFORM_META: Record<string, { label: string; className: string }> = {
-  weibo: { label: "微博", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
-  bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
-  tieba: { label: "贴吧", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
-  zhihu: { label: "知乎", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
-  douyin: { label: "抖音", className: "border-neutral-500/60 bg-neutral-900 text-neutral-200" },
-  xiaohongshu: { label: "小红书", className: "border-rose-600/60 bg-rose-950/30 text-rose-200" },
-  instagram: { label: "Instagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
-  other: { label: "其他", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
+  weibo: { labelKey: "platformWeibo", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
+  bilibili: { labelKey: "platformBilibili", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
+  tieba: { labelKey: "platformTieba", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
+  zhihu: { labelKey: "platformZhihu", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
+  douyin: { labelKey: "platformDouyin", className: "border-neutral-500/60 bg-neutral-900 text-neutral-200" },
+  xiaohongshu: { labelKey: "platformXiaohongshu", className: "border-rose-600/60 bg-rose-950/30 text-rose-200" },
+  instagram: { labelKey: "platformInstagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
+  other: { labelKey: "platformOther", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
 };
 
-const STATUS_META: Record<string, { label: string; className: string }> = {
-  open: { label: "进行中", className: "border-emerald-600/60 bg-emerald-950/30 text-emerald-200" },
-  closed: { label: "已关闭", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
-  completed: { label: "已完成", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
+const STATUS_META: Record<string, { labelKey: string; className: string }> = {
+  open: { labelKey: "statusOpen", className: "border-emerald-600/60 bg-emerald-950/30 text-emerald-200" },
+  closed: { labelKey: "statusClosed", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+  completed: { labelKey: "statusCompleted", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
 };
 
 function platformMeta(platform: string) {
@@ -64,6 +65,7 @@ function statusMeta(status: string) {
 }
 
 function BountyGrid({ items }: { items: BountyCard[] }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {items.map((b) => {
@@ -78,15 +80,17 @@ function BountyGrid({ items }: { items: BountyCard[] }) {
             <div className="flex items-start justify-between gap-2">
               <h3 className="line-clamp-2 font-semibold text-white">{b.title}</h3>
               <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${sm.className}`}>
-                {sm.label}
+                {t(`arena.bounty.${sm.labelKey}`)}
               </span>
             </div>
 
             <div className="mt-3 flex items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-lg border border-amber-600/50 bg-amber-500/10 px-2.5 py-1 text-sm font-bold text-amber-200">
-                💰 {b.reward} 点
+                💰 {t("arena.bounty.rewardPoints", { reward: b.reward })}
               </span>
-              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${pm.className}`}>{pm.label}</span>
+              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${pm.className}`}>
+                {t(`arena.bounty.${pm.labelKey}`)}
+              </span>
             </div>
 
             {(b.tags || []).length > 0 && (
@@ -104,7 +108,7 @@ function BountyGrid({ items }: { items: BountyCard[] }) {
               <span>✍ {b.stats?.submissionCount || 0}</span>
               <span>💬 {b.stats?.commentCount || 0}</span>
               <span className="ml-auto text-gray-500">
-                {b.approvedCount || 0}/{b.slots} 已通过
+                {t("arena.bounty.approvedCount", { approved: b.approvedCount || 0, slots: b.slots })}
               </span>
             </div>
           </Link>
@@ -115,6 +119,7 @@ function BountyGrid({ items }: { items: BountyCard[] }) {
 }
 
 export default function BountyBoardPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -201,19 +206,19 @@ export default function BountyBoardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-            <Target className="h-6 w-6 text-amber-300" /> 赏金猎人
+            <Target className="h-6 w-6 text-amber-300" /> {t("arena.bounty.title")}
           </h1>
           <p className="mt-1 text-sm text-gray-400">
-            接取悬赏，跳转到外部平台参与热点对话，提交发言与截图存证即可领取赏金点数。
+            {t("arena.bounty.intro")}
           </p>
-          <p className="mt-1 text-xs text-gray-500">赏金为平台虚拟点数，非真实货币，不涉及任何真实支付或转账。</p>
+          <p className="mt-1 text-xs text-gray-500">{t("arena.bounty.disclaimer")}</p>
         </div>
         <button
           type="button"
           onClick={() => navigate("/arena/bounty/new")}
           className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
         >
-          <Plus className="h-4 w-4" /> 发布悬赏
+          <Plus className="h-4 w-4" /> {t("arena.bounty.publishBounty")}
         </button>
       </div>
 
@@ -229,7 +234,7 @@ export default function BountyBoardPage() {
                   view === tab.key ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                {tab.label}
+                {t(`arena.bounty.${tab.labelKey}`)}
               </button>
             ))}
             {user && (
@@ -240,7 +245,7 @@ export default function BountyBoardPage() {
                   view === "mine" ? "border-cyan-400 text-cyan-200" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                我发布的
+                {t("arena.bounty.published")}
               </button>
             )}
           </div>
@@ -252,14 +257,14 @@ export default function BountyBoardPage() {
                 if (e.key === "Enter") submitSearch();
               }}
               className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="搜索标题 / 描述 / 标签"
+              placeholder={t("arena.bounty.searchPlaceholder")}
             />
             <button
               type="button"
               onClick={submitSearch}
               className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
             >
-              搜索
+              {t("arena.bounty.search")}
             </button>
           </div>
         </div>
@@ -277,7 +282,7 @@ export default function BountyBoardPage() {
                     : "border-gray-700 text-gray-400 hover:bg-gray-800"
                 }`}
               >
-                {s.label}
+                {t(`arena.bounty.${s.labelKey}`)}
               </button>
             ))}
           </div>
@@ -285,7 +290,7 @@ export default function BountyBoardPage() {
 
         {tag && view !== "mine" && (
           <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
-            <span>标签筛选：</span>
+            <span>{t("arena.bounty.tagFilter")}</span>
             <button
               type="button"
               onClick={clearTag}
@@ -296,13 +301,13 @@ export default function BountyBoardPage() {
           </div>
         )}
 
-        {loading && <p className="mt-4 text-sm text-gray-400">加载中…</p>}
+        {loading && <p className="mt-4 text-sm text-gray-400">{t("arena.bounty.loading")}</p>}
         {!loading && bounties.length === 0 && (
           <div className="mt-6 rounded-xl border border-dashed border-gray-800 bg-gray-950/40 p-8 text-center">
             <p className="text-sm text-gray-400">
               {view === "mine"
-                ? "你还没有发布悬赏，点击右上角「发布悬赏」开始吧。"
-                : "这里还没有悬赏，来发布第一个吧。"}
+                ? t("arena.bounty.emptyMine")
+                : t("arena.bounty.emptyPublic")}
             </p>
           </div>
         )}
@@ -317,10 +322,10 @@ export default function BountyBoardPage() {
               onClick={() => goPage(page - 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              上一页
+              {t("arena.bounty.prev")}
             </button>
             <span className="text-sm text-gray-400">
-              第 {page} / {totalPages} 页
+              {t("arena.bounty.pageInfo", { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -328,7 +333,7 @@ export default function BountyBoardPage() {
               onClick={() => goPage(page + 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              下一页
+              {t("arena.bounty.next")}
             </button>
           </div>
         )}

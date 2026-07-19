@@ -31,6 +31,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -44,6 +45,7 @@ import {
 } from "lucide-react";
 import { listPersonas, type Persona } from "../api";
 import { humanizeError } from "../utils/humanizeError";
+import i18n from "../i18n";
 
 /** 插件设置（★绝不含 token 明文，只有 hasToken） */
 type ExtensionSettings = {
@@ -88,7 +90,7 @@ function asString(value: unknown, fallback = "") {
  * 多余的键（比如万一带了 token）直接丢掉，绝不进 state、绝不渲染。
  */
 function normalizeSettings(raw: unknown): ExtensionSettings {
-  if (!raw || typeof raw !== "object") throw new Error("插件返回的设置格式不正确");
+  if (!raw || typeof raw !== "object") throw new Error(i18n.t("arena.extension.badSettingsFormat"));
   const s = raw as Record<string, unknown>;
   return {
     enabled: s.enabled === true,
@@ -145,13 +147,13 @@ function bridgeRequest(
 
       cleanup();
       if (data.ok !== true) {
-        reject(new Error(asString(data.error) || "插件处理失败"));
+        reject(new Error(asString(data.error) || i18n.t("arena.extension.processingFailed")));
         return;
       }
       try {
         resolve(normalizeSettings(data.settings));
       } catch (e) {
-        reject(e instanceof Error ? e : new Error("插件返回的设置格式不正确"));
+        reject(e instanceof Error ? e : new Error(i18n.t("arena.extension.badSettingsFormat")));
       }
     }
 
@@ -198,6 +200,7 @@ function ToggleRow({
 }
 
 export default function ExtensionSettingsPage() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status>("detecting");
   const [errorMessage, setErrorMessage] = useState("");
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
@@ -277,9 +280,9 @@ export default function ExtensionSettingsPage() {
       const next = await bridgeRequest("SET_SETTINGS", patch, ACTION_TIMEOUT_MS);
       setSettings(next);
       setDraft(toDraft(next));
-      toast.success("已保存到插件");
+      toast.success(t("arena.extension.saveSuccess"));
     } catch (e) {
-      toast.error(isTimeoutError(e) ? "插件没有响应，请确认插件已启用后重试" : humanizeError(e));
+      toast.error(isTimeoutError(e) ? t("arena.extension.saveTimeout") : humanizeError(e));
     } finally {
       setSaving(false);
     }
@@ -301,17 +304,17 @@ export default function ExtensionSettingsPage() {
           <Puzzle className="h-6 w-6" />
         </span>
         <div>
-          <h1 className="text-2xl font-bold text-white md:text-3xl">插件设置</h1>
+          <h1 className="text-2xl font-bold text-white md:text-3xl">{t("arena.extension.title")}</h1>
           <p className="mt-1 text-sm text-gray-400">
-            本页直接读写浏览器插件里的设置；改完点「保存到插件」才会生效。
+            {t("arena.extension.subtitle")}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <Link to="/arena/profile" className="text-cyan-300 hover:underline">
-            我的主页
+            {t("arena.extension.myProfile")}
           </Link>
           <Link to="/arena" className="text-cyan-300 hover:underline">
-            ← 返回卢本伟广场
+            {t("arena.extension.backToArena")}
           </Link>
         </div>
       </div>
@@ -319,7 +322,7 @@ export default function ExtensionSettingsPage() {
       {/* ===== 桥状态 ===== */}
       {status === "detecting" ? (
         <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-sm text-gray-400">正在检测插件...</p>
+          <p className="text-sm text-gray-400">{t("arena.extension.detecting")}</p>
         </div>
       ) : null}
 
@@ -328,31 +331,30 @@ export default function ExtensionSettingsPage() {
           <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-900 text-gray-500">
             <Puzzle className="h-6 w-6" />
           </span>
-          <p className="mt-3 text-sm font-medium text-gray-200">未检测到插件</p>
+          <p className="mt-3 text-sm font-medium text-gray-200">{t("arena.extension.notDetected")}</p>
           <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-gray-500">
-            本页没有收到插件的回应。可能是还没安装、插件被停用，或者插件的「siteOrigin」没有指向本站
-            （{window.location.origin}）。装好并启用后点下面的按钮重新检测。
+            {t("arena.extension.notDetectedHint", { origin: window.location.origin })}
           </p>
           <button
             type="button"
             onClick={() => void detect()}
             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
           >
-            <RefreshCw className="h-4 w-4" /> 重新检测
+            <RefreshCw className="h-4 w-4" /> {t("arena.extension.redetect")}
           </button>
         </div>
       ) : null}
 
       {status === "error" ? (
         <div className="rounded-2xl border border-red-900/70 bg-red-950/20 p-6">
-          <p className="text-sm font-medium text-red-200">插件返回了错误</p>
+          <p className="text-sm font-medium text-red-200">{t("arena.extension.extensionErrorTitle")}</p>
           <p className="mt-1.5 text-xs text-red-200/80">{errorMessage}</p>
           <button
             type="button"
             onClick={() => void detect()}
             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-700 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-900/30"
           >
-            <RefreshCw className="h-4 w-4" /> 重试
+            <RefreshCw className="h-4 w-4" /> {t("arena.extension.retry")}
           </button>
         </div>
       ) : null}
@@ -366,10 +368,9 @@ export default function ExtensionSettingsPage() {
               <KeyRound className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-white">插件登录态</h2>
+              <h2 className="text-sm font-semibold text-white">{t("arena.extension.loginStateTitle")}</h2>
               <p className="mt-0.5 text-xs text-gray-500">
-                插件用自己保存的 token 调后端。★网页只能看到「有没有」，看不到 token 内容，也无权修改
-                —— 登录 / 退出请在插件弹窗里操作。
+                {t("arena.extension.loginStateHint")}
               </p>
             </div>
             <span
@@ -379,32 +380,32 @@ export default function ExtensionSettingsPage() {
                   : "border-amber-600/50 bg-amber-500/10 text-amber-200"
               }`}
             >
-              {settings.hasToken ? "已登录" : "未登录"}
+              {settings.hasToken ? t("arena.extension.loggedIn") : t("arena.extension.notLoggedIn")}
             </span>
           </section>
 
           {/* --- 开关 --- */}
           <section className="space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-6">
-            <h2 className="text-base font-semibold text-white">开关</h2>
+            <h2 className="text-base font-semibold text-white">{t("arena.extension.togglesTitle")}</h2>
             <div className="grid gap-3 md:grid-cols-2">
               <ToggleRow
                 id="ext-enabled"
-                label="启用插件"
-                desc="关掉后插件不再在任何平台注入发言助手 UI。"
+                label={t("arena.extension.enableLabel")}
+                desc={t("arena.extension.enableDesc")}
                 checked={draft.enabled}
                 onChange={(next) => patchDraft({ enabled: next })}
               />
               <ToggleRow
                 id="ext-watch-replies"
-                label="监听回复 / 私信"
-                desc="监听到别人回复你时，交给「立场展开」生成草稿（永远只出草稿，不会自动发送）。"
+                label={t("arena.extension.watchRepliesLabel")}
+                desc={t("arena.extension.watchRepliesDesc")}
                 checked={draft.watchReplies}
                 onChange={(next) => patchDraft({ watchReplies: next })}
               />
               <ToggleRow
                 id="ext-anonymize"
-                label="抓取时匿名化"
-                desc="用插件收集素材 / 样本时，先抹掉昵称、@某人、链接等可识别信息再上传。"
+                label={t("arena.extension.anonymizeLabel")}
+                desc={t("arena.extension.anonymizeDesc")}
                 checked={draft.anonymizeCapture}
                 onChange={(next) => patchDraft({ anonymizeCapture: next })}
               />
@@ -414,13 +415,13 @@ export default function ExtensionSettingsPage() {
           {/* --- 连接 --- */}
           <section className="space-y-4 rounded-2xl border border-gray-800 bg-gray-900 p-6">
             <div>
-              <h2 className="text-base font-semibold text-white">连接</h2>
-              <p className="mt-0.5 text-xs text-gray-500">插件访问后端与识别本站所用的地址。</p>
+              <h2 className="text-base font-semibold text-white">{t("arena.extension.connectionTitle")}</h2>
+              <p className="mt-0.5 text-xs text-gray-500">{t("arena.extension.connectionHint")}</p>
             </div>
 
             <div>
               <label htmlFor="ext-api-base" className="text-sm text-gray-200">
-                apiBase · 后端地址
+                {t("arena.extension.apiBaseLabel")}
               </label>
               <input
                 id="ext-api-base"
@@ -430,12 +431,12 @@ export default function ExtensionSettingsPage() {
                 placeholder="http://localhost:4000"
                 className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-600 focus:border-cyan-500/60 focus:outline-none"
               />
-              <p className="mt-1.5 text-xs text-gray-500">插件调 /api/arena/suggest 等接口的根地址，不带末尾斜杠。</p>
+              <p className="mt-1.5 text-xs text-gray-500">{t("arena.extension.apiBaseHint")}</p>
             </div>
 
             <div>
               <label htmlFor="ext-site-origin" className="text-sm text-gray-200">
-                siteOrigin · 本站地址
+                {t("arena.extension.siteOriginLabel")}
               </label>
               <input
                 id="ext-site-origin"
@@ -447,7 +448,7 @@ export default function ExtensionSettingsPage() {
               />
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <p className="text-xs text-gray-500">
-                  插件只信任这个来源发来的桥消息（防投毒）。当前页面是 {window.location.origin}。
+                  {t("arena.extension.siteOriginHint", { origin: window.location.origin })}
                 </p>
                 {draft.siteOrigin !== window.location.origin ? (
                   <button
@@ -455,7 +456,7 @@ export default function ExtensionSettingsPage() {
                     onClick={() => patchDraft({ siteOrigin: window.location.origin })}
                     className="rounded-lg border border-gray-800 px-2 py-0.5 text-[11px] text-cyan-300 hover:border-cyan-500/50"
                   >
-                    用当前地址
+                    {t("arena.extension.useCurrentOrigin")}
                   </button>
                 ) : null}
               </div>
@@ -469,11 +470,11 @@ export default function ExtensionSettingsPage() {
                 <UserRoundCog className="h-5 w-5" />
               </span>
               <div>
-                <h2 className="text-base font-semibold text-white">发言人格</h2>
-                <p className="mt-0.5 text-xs text-gray-500">插件生成三条方案时按谁的口吻说话。</p>
+                <h2 className="text-base font-semibold text-white">{t("arena.extension.personaTitle")}</h2>
+                <p className="mt-0.5 text-xs text-gray-500">{t("arena.extension.personaHint")}</p>
               </div>
               <Link to="/arena/persona" className="ml-auto text-xs text-cyan-300 hover:underline">
-                人格广场 →
+                {t("arena.extension.personaMarket")}
               </Link>
             </div>
 
@@ -487,35 +488,34 @@ export default function ExtensionSettingsPage() {
                 onChange={(e) => handlePersonaChange(e.target.value)}
                 className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-100 focus:border-cyan-500/60 focus:outline-none"
               >
-                <option value="self">按本人风格（self）</option>
+                <option value="self">{t("arena.extension.personaSelf")}</option>
                 {installedPersonas.map((p) => (
                   <option key={p._id} value={p._id}>
                     {p.coverEmoji} {p.name}
                   </option>
                 ))}
                 {personaIsCustom ? (
-                  <option value={draft.activePersona}>自定义（{draft.activePersona}）</option>
+                  <option value={draft.activePersona}>{t("arena.extension.personaCustom", { value: draft.activePersona })}</option>
                 ) : null}
               </select>
               <p className="mt-1.5 text-xs text-gray-500">
-                选 self 时插件按你自己的风格走；选其它人格时用下面的 personaText 作为口吻描述。
-                下拉里是你已下载的人格。
+                {t("arena.extension.personaSelectHint")}
               </p>
             </div>
 
             <div>
               <label htmlFor="ext-persona-text" className="text-sm text-gray-200">
-                personaText · 口吻描述
+                {t("arena.extension.personaTextLabel")}
               </label>
               <textarea
                 id="ext-persona-text"
                 value={draft.personaText}
                 onChange={(e) => patchDraft({ personaText: e.target.value })}
                 rows={5}
-                placeholder="选中某个人格后会自动填入它的风格描述，也可以自己改。"
+                placeholder={t("arena.extension.personaTextPlaceholder")}
                 className="mt-2 w-full resize-y rounded-xl border border-gray-800 bg-gray-950 p-3 text-sm text-gray-100 placeholder:text-gray-600 focus:border-cyan-500/60 focus:outline-none"
               />
-              <p className="mt-1.5 text-xs text-gray-500">activePersona 为 self 时这段文本不生效。</p>
+              <p className="mt-1.5 text-xs text-gray-500">{t("arena.extension.personaTextHint")}</p>
             </div>
           </section>
 
@@ -528,7 +528,7 @@ export default function ExtensionSettingsPage() {
               className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-black hover:bg-cyan-400 disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
-              {saving ? "保存中..." : "保存到插件"}
+              {saving ? t("arena.extension.saving") : t("arena.extension.saveToExtension")}
             </button>
             <button
               type="button"
@@ -536,17 +536,17 @@ export default function ExtensionSettingsPage() {
               onClick={() => setDraft(toDraft(settings))}
               className="rounded-xl border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-900 disabled:opacity-60"
             >
-              放弃修改
+              {t("arena.extension.discardChanges")}
             </button>
             <button
               type="button"
               onClick={() => void detect()}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-800 px-3 py-2 text-xs text-gray-400 hover:border-cyan-500/50 hover:text-cyan-300"
             >
-              <RefreshCw className="h-3.5 w-3.5" /> 重新读取
+              <RefreshCw className="h-3.5 w-3.5" /> {t("arena.extension.reload")}
             </button>
             <span className="ml-auto text-xs text-gray-500">
-              {dirty ? "有未保存的修改" : "已与插件同步"}
+              {dirty ? t("arena.extension.unsavedChanges") : t("arena.extension.syncedWithExtension")}
             </span>
           </div>
         </>
@@ -554,7 +554,7 @@ export default function ExtensionSettingsPage() {
 
       {/* ===== 相关能力（复用既有页面，不重写） ===== */}
       <section className="space-y-3 rounded-2xl border border-gray-800 bg-gray-950/40 p-6">
-        <h2 className="text-base font-semibold text-white">相关能力</h2>
+        <h2 className="text-base font-semibold text-white">{t("arena.extension.relatedCapabilitiesTitle")}</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <Link
             to="/arena/memes"
@@ -564,9 +564,9 @@ export default function ExtensionSettingsPage() {
               <Smile className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-white">素材库 / 创意工坊</h3>
+              <h3 className="text-sm font-semibold text-white">{t("arena.extension.memeLibraryTitle")}</h3>
               <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                收藏表情梗图、上传自己的素材；插件在任意评论框旁搜索并插入你收藏的内容。
+                {t("arena.extension.memeLibraryDesc")}
               </p>
             </div>
           </Link>
@@ -578,9 +578,9 @@ export default function ExtensionSettingsPage() {
               <Radar className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-white">立场展开</h3>
+              <h3 className="text-sm font-semibold text-white">{t("arena.extension.standpointTitle")}</h3>
               <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                配置监控代理与回复风格。配合上面的「监听回复 / 私信」开关使用；回复永远只出草稿，需你确认。
+                {t("arena.extension.standpointDesc")}
               </p>
             </div>
           </Link>

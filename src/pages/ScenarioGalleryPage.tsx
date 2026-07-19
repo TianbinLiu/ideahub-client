@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { Plus } from "lucide-react";
 import { listMyScenarios, listScenarios, type ScenarioCard } from "../api";
@@ -24,19 +25,19 @@ import { useAuth } from "../authContext";
 type SortKey = "for_you" | "new" | "hot";
 type ViewKey = SortKey | "mine";
 
-const SORT_TABS: { key: SortKey; label: string }[] = [
-  { key: "for_you", label: "推荐" },
-  { key: "new", label: "最新" },
-  { key: "hot", label: "最热" },
+const SORT_TABS: { key: SortKey; labelKey: string }[] = [
+  { key: "for_you", labelKey: "sortRecommended" },
+  { key: "new", labelKey: "sortLatest" },
+  { key: "hot", labelKey: "sortTrending" },
 ];
 
-const PLATFORM_META: Record<string, { label: string; className: string }> = {
-  bilibili: { label: "哔哩哔哩", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
-  weibo: { label: "微博", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
-  tieba: { label: "贴吧", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
-  zhihu: { label: "知乎", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
-  instagram: { label: "Instagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
-  generic: { label: "通用", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
+  bilibili: { labelKey: "platformBilibili", className: "border-pink-600/60 bg-pink-950/30 text-pink-200" },
+  weibo: { labelKey: "platformWeibo", className: "border-orange-600/60 bg-orange-950/30 text-orange-200" },
+  tieba: { labelKey: "platformTieba", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
+  zhihu: { labelKey: "platformZhihu", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
+  instagram: { labelKey: "platformInstagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
+  generic: { labelKey: "platformGeneric", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
 };
 
 function platformMeta(platform: string) {
@@ -44,13 +45,17 @@ function platformMeta(platform: string) {
 }
 
 function PlatformBadge({ platform }: { platform: string }) {
+  const { t } = useTranslation();
   const meta = platformMeta(platform);
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}>{meta.label}</span>
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}>
+      {t(`arena.scenario.${meta.labelKey}`)}
+    </span>
   );
 }
 
 function ScenarioGrid({ items }: { items: ScenarioCard[] }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {items.map((sc) => (
@@ -63,7 +68,7 @@ function ScenarioGrid({ items }: { items: ScenarioCard[] }) {
             {sc.coverImageUrl ? (
               <img src={sc.coverImageUrl} alt={sc.title} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">暂无封面</div>
+              <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">{t("arena.scenario.noCover")}</div>
             )}
           </div>
           <div className="p-4">
@@ -71,7 +76,7 @@ function ScenarioGrid({ items }: { items: ScenarioCard[] }) {
               <h3 className="line-clamp-1 font-semibold text-white">{sc.title}</h3>
               <PlatformBadge platform={sc.platform} />
             </div>
-            <p className="mt-1 line-clamp-2 text-xs text-gray-300">{sc.summary || "暂无简介"}</p>
+            <p className="mt-1 line-clamp-2 text-xs text-gray-300">{sc.summary || t("arena.scenario.noSummary")}</p>
             {(sc.tags || []).length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-cyan-200">
                 {(sc.tags || []).slice(0, 4).map((tag) => (
@@ -92,6 +97,7 @@ function ScenarioGrid({ items }: { items: ScenarioCard[] }) {
 }
 
 export default function ScenarioGalleryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -167,9 +173,9 @@ export default function ScenarioGalleryPage() {
     <div className="mx-auto max-w-6xl p-4 pb-20">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">情景模拟</h1>
+          <h1 className="text-2xl font-bold text-white">{t("arena.scenario.pageTitle")}</h1>
           <p className="mt-1 text-sm text-gray-400">
-            进入创作者搭建的仿真评论区，与 AI 扮演的账号唇枪舌战，锻炼你的表达与思辨。
+            {t("arena.scenario.pageSubtitle")}
           </p>
         </div>
         <button
@@ -177,7 +183,7 @@ export default function ScenarioGalleryPage() {
           onClick={() => navigate("/arena/simulate/new")}
           className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
         >
-          <Plus className="h-4 w-4" /> 创建情景
+          <Plus className="h-4 w-4" /> {t("arena.scenario.createScenario")}
         </button>
       </div>
 
@@ -193,7 +199,7 @@ export default function ScenarioGalleryPage() {
                   view === tab.key ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                {tab.label}
+                {t(`arena.scenario.${tab.labelKey}`)}
               </button>
             ))}
             {user && (
@@ -204,7 +210,7 @@ export default function ScenarioGalleryPage() {
                   view === "mine" ? "border-cyan-400 text-cyan-200" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                我的情景
+                {t("arena.scenario.myScenarios")}
               </button>
             )}
           </div>
@@ -216,21 +222,21 @@ export default function ScenarioGalleryPage() {
                 if (e.key === "Enter") submitSearch();
               }}
               className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="搜索标题 / 简介 / 标签"
+              placeholder={t("arena.scenario.searchPlaceholder")}
             />
             <button
               type="button"
               onClick={submitSearch}
               className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
             >
-              搜索
+              {t("arena.scenario.search")}
             </button>
           </div>
         </div>
 
         {tag && view !== "mine" && (
           <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
-            <span>标签筛选：</span>
+            <span>{t("arena.scenario.tagFilter")}</span>
             <button
               type="button"
               onClick={clearTag}
@@ -241,11 +247,11 @@ export default function ScenarioGalleryPage() {
           </div>
         )}
 
-        {loading && <p className="mt-4 text-sm text-gray-400">加载中…</p>}
+        {loading && <p className="mt-4 text-sm text-gray-400">{t("arena.scenario.loading")}</p>}
         {!loading && scenarios.length === 0 && (
           <div className="mt-6 rounded-xl border border-dashed border-gray-800 bg-gray-950/40 p-8 text-center">
             <p className="text-sm text-gray-400">
-              {view === "mine" ? "你还没有创建情景，点击右上角「创建情景」开始吧。" : "这里还没有情景，来创建第一个吧。"}
+              {view === "mine" ? t("arena.scenario.emptyMine") : t("arena.scenario.emptyGallery")}
             </p>
           </div>
         )}
@@ -260,10 +266,10 @@ export default function ScenarioGalleryPage() {
               onClick={() => goPage(page - 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              上一页
+              {t("arena.scenario.previous")}
             </button>
             <span className="text-sm text-gray-400">
-              第 {page} / {totalPages} 页
+              {t("arena.scenario.pageInfo", { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -271,7 +277,7 @@ export default function ScenarioGalleryPage() {
               onClick={() => goPage(page + 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              下一页
+              {t("arena.scenario.next")}
             </button>
           </div>
         )}
