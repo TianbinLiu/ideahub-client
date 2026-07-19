@@ -1116,6 +1116,24 @@ export function generateScenarioComments(body: {
   });
 }
 
+/**
+ * 让 AI 按已有内容（话题 + 当前评论）分析并给出展示信息（标题/简介/标签）。
+ * 供「创建情景」向导第三步的「AI 分析并自动填写」使用。
+ *
+ * 后端不落库，只回建议文本；采用与否由前端决定（写进表单后才随 create/update 持久化）。
+ * comments 只作为分析输入，绝不因这次调用被写回。无 AI key 时后端回 501。
+ */
+export function analyzeScenario(body: {
+  topic?: string;
+  platform?: string;
+  comments?: ScenarioComment[];
+}) {
+  return apiFetch<{ ok: true; title: string; summary: string; tags: string[]; model?: string }>(
+    "/api/scenarios/analyze",
+    { method: "POST", body: JSON.stringify(body) }
+  );
+}
+
 // ===== 立场展开（Standpoint / Stance-Unfold）=====
 // 受控/演示环境：账号“绑定”只登记 平台+handle，不存储真实凭证、不真正登录、不真正发帖；
 // “发送”只在本系统内标记为已回复（模拟）。自动发送默认关闭。
