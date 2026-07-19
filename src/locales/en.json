@@ -128,7 +128,11 @@
     "providerGoogle": "Google",
     "providerGitHub": "GitHub",
     "comingSoonOTP": "Coming soon (OTP). We'll enable it after backend Phase B2.",
-    "phoneLoginDescription": "Phone Login"
+    "phoneLoginDescription": "Phone Login",
+    "phoneLoginHint": "An unregistered phone number will automatically create an account and sign you in.",
+    "phoneLoginSuccess": "Signed in.",
+    "invalidPhone": "Please enter a valid phone number.",
+    "smsCodeSent": "Verification code sent — please check your SMS."
   },
   "idea": {
     "title": "Title",

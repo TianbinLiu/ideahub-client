@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { CircleUserRound, Mail, MessageCircle, QrCode, Smartphone, X } from "lucide-react";
 import { API_BASE } from "../config";
-import { apiFetch, getAuthCapabilities, type AuthCapabilities } from "../api";
+import { apiFetch, getAuthCapabilities, phoneLoginStart, phoneLoginVerify, type AuthCapabilities } from "../api";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
 import { safeNext } from "../utils/safeNext";
@@ -81,6 +81,8 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneStep, setPhoneStep] = useState<Step>("START");
+  const [phoneCode, setPhoneCode] = useState("");
 
   const [step, setStep] = useState<Step>("START");
   const [username, setUsername] = useState("");
@@ -180,9 +182,17 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
         ? authCaps.oauthEnabled && authCaps.providers.length > 0
         : true;
   const oauthProviders = authCaps?.providers?.length ? authCaps.providers : ["google", "github"];
-  const loginMethods: LoginMethod[] = isChinaRegion
+
+  // 手机短信登录仅在【真实短信通道已配置】时出现（capabilities.phoneEnabled）；
+  // ?phone=1 是预览覆盖，便于在后端尚未配短信时也能看/测这套 UI（与 ?oauth=/?region= 同思路）。
+  const phoneQueryOverride = new URLSearchParams(loc.search).get("phone");
+  const forceShowPhone = phoneQueryOverride === "1" || phoneQueryOverride === "true";
+  const phoneEnabled = forceShowPhone || authCaps?.phoneEnabled === true;
+
+  const baseLoginMethods: LoginMethod[] = isChinaRegion
     ? ["wechat", "qq", "phone", "email"]
     : ["google", "github", "phone", "email"];
+  const loginMethods: LoginMethod[] = baseLoginMethods.filter((m) => m !== "phone" || phoneEnabled);
 
   const canSend = Boolean(username.trim() && email.trim() && password.length >= 6);
   const canVerify = canSend && Boolean(code.trim());
@@ -205,6 +215,8 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
     setMode(nextMode);
     setErr("");
     setLoginMethod("email");
+    setPhoneStep("START");
+    setPhoneCode("");
   }
 
   async function startOauth(provider: "google" | "github") {
@@ -228,6 +240,8 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
   function selectLoginMethod(method: LoginMethod) {
     setErr("");
     setLoginMethod(method);
+    setPhoneStep("START");
+    setPhoneCode("");
     if (method === "google" || method === "github") {
       void startOauth(method);
     }
@@ -299,6 +313,53 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
       toast.success("Account created!");
       onClose?.();
       nav(startWithGroups ? "/groups?onboarding=1" : resolvedNext, { replace: true });
+    } catch (error: any) {
+      const msg = humanizeError(error);
+      toast.error(msg);
+      setErr(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sendPhoneCode() {
+    // 前端先做一次宽松校验（去空格/+86 后应为 1 开头 11 位）；服务端会再严格校验。
+    const normalized = phone.replace(/[\s-]/g, "").replace(/^\+?86/, "");
+    if (!/^1[3-9]\d{9}$/.test(normalized)) {
+      const msg = t("auth.invalidPhone");
+      setErr(msg);
+      toast.error(msg);
+      return;
+    }
+    try {
+      setErr("");
+      setLoading(true);
+      await phoneLoginStart(phone.trim());
+      toast.success(t("auth.smsCodeSent"));
+      setPhoneStep("VERIFY");
+      setCooldown(defaultCooldown);
+    } catch (error: any) {
+      if (error?.code === "OTP_RESEND_COOLDOWN" && error?.details?.retryAfter) {
+        setCooldown(Number(error.details.retryAfter) || defaultCooldown);
+      }
+      const msg = humanizeError(error);
+      toast.error(msg);
+      setErr(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyPhoneLogin() {
+    try {
+      setErr("");
+      setLoading(true);
+      const res = await phoneLoginVerify(phone.trim(), phoneCode.trim());
+      await loginWithToken(res.token);
+      toast.success(t("auth.phoneLoginSuccess"));
+      onClose?.();
+      // 新建账号引导到群组 onboarding；已有账号回原目标。
+      nav(res.created ? "/groups?onboarding=1" : resolvedNext, { replace: true });
     } catch (error: any) {
       const msg = humanizeError(error);
       toast.error(msg);
@@ -427,11 +488,49 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
                         placeholder={t("auth.phonePlaceholder")}
                         value={phone}
                         onChange={(event) => setPhone(event.target.value)}
+                        disabled={loading || phoneStep === "VERIFY"}
+                        inputMode="tel"
+                        autoComplete="tel"
                       />
-                      <button type="button" disabled className="rounded-xl border border-gray-800 px-4 py-2 text-gray-500">
-                        {t("auth.sendSmsCode")}
-                      </button>
-                      <p className="text-xs text-gray-500">{t("auth.mobileLoginComingSoon")}</p>
+                      {phoneStep === "VERIFY" ? (
+                        <>
+                          <input
+                            className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 tracking-widest"
+                            placeholder={t("auth.verificationCodePlaceholder")}
+                            value={phoneCode}
+                            onChange={(event) => setPhoneCode(event.target.value)}
+                            disabled={loading}
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                          />
+                          <button
+                            type="button"
+                            onClick={verifyPhoneLogin}
+                            disabled={loading || !phoneCode.trim()}
+                            className="rounded-xl bg-white px-4 py-2 font-semibold text-black disabled:opacity-50"
+                          >
+                            {loading ? t("auth.verifying") : t("auth.loginButton")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={sendPhoneCode}
+                            disabled={loading || cooldown > 0}
+                            className="rounded-xl border border-gray-700 px-3 py-2 text-gray-200 hover:bg-gray-950 disabled:opacity-50"
+                          >
+                            {cooldown > 0 ? t("auth.resendCodeWait", { seconds: cooldown }) : t("auth.resendCode")}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={sendPhoneCode}
+                          disabled={loading || !phone.trim()}
+                          className="rounded-xl bg-white px-4 py-2 font-semibold text-black disabled:opacity-50"
+                        >
+                          {loading ? t("auth.sendingCode") : t("auth.sendSmsCode")}
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500">{t("auth.phoneLoginHint")}</p>
                     </div>
                   ) : loginMethod === "wechat" || loginMethod === "qq" ? (
                     <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 text-sm text-gray-400">

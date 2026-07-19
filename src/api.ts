@@ -184,6 +184,8 @@ export type AuthCapabilities = {
   country: string;
   emailPasswordEnabled: boolean;
   oauthEnabled: boolean;
+  /** 手机短信登录是否可用（真实短信通道已配置）。未配则前端不显示「手机登录」入口。 */
+  phoneEnabled?: boolean;
   providers: OauthProvider[];
 };
 
@@ -236,6 +238,21 @@ export type MyComponentsResponse = {
 
 export function getAuthCapabilities() {
   return apiFetch<AuthCapabilities>("/api/auth/capabilities");
+}
+
+// 手机号 + 短信验证码登录（登录即注册）。start 发码，verify 校验并返回 token（新号则自动建号）。
+export function phoneLoginStart(phone: string) {
+  return apiFetch<{ ok: true }>("/api/auth/phone/login/start", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export function phoneLoginVerify(phone: string, code: string) {
+  return apiFetch<{ ok: true; token: string; created: boolean }>("/api/auth/phone/login/verify", {
+    method: "POST",
+    body: JSON.stringify({ phone, code }),
+  });
 }
 
 export function getOauthLinks() {
