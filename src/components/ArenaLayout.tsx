@@ -24,16 +24,20 @@
  * @used_in ../App.tsx - <Route element={<ArenaLayout />}> 包住全部 /arena/* 路由
  */
 
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import ArenaNavbar from "./ArenaNavbar";
 import ArenaGate from "./ArenaGate";
+import PageLoading from "./PageLoading";
 
 export default function ArenaLayout() {
   return (
     <>
       <ArenaNavbar />
       <ArenaGate>
-        <Outlet />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
       </ArenaGate>
     </>
   );

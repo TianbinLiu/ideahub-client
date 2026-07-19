@@ -11,63 +11,66 @@
  */
 
 import { Routes, Route, Navigate, Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import ArenaLayout from "./components/ArenaLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import { useAuth } from "./authContext";
 
-import HomePage from "./pages/HomePage";
-import SearchPage from "./pages/SearchPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import NewIdeaPage from "./pages/NewIdeaPage";
-import NewIdeaTypePage from "./pages/NewIdeaTypePage";
-import IdeaDetailPage from "./pages/IdeaDetailPage";
-import CompanyPage from "./pages/CompanyPage";
-import NotificationsPage from "./pages/NotificationsPage";
-import MessagesPage from "./pages/MessagesPage";
-import MessageRequestsPage from "./pages/MessageRequestsPage";
-import ComponentsPage from "./pages/ComponentsPage";
-import Live2DSettingsPage from "./pages/Live2DSettingsPage";
-import TagRankSettingsPage from "./pages/TagRankSettingsPage";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import FeedbackAdminPage from "./pages/FeedbackAdminPage";
-import DocsAdminPage from "./pages/DocsAdminPage";
-import AdminScraperPage from "./pages/AdminScraperPage";
-import EditIdeaPage from "./pages/EditIdeaPage";
-import PhoneLoginPage from "./pages/PhoneLoginPage";
-import OAuthCallbackPage from "./pages/OAuthCallbackPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import TagRankPage from "./pages/TagRankPage";
-import LeaderboardDetailPage from "./pages/LeaderboardDetailPage";
-import UserProfilePage from "./pages/UserProfilePage";
-import BlacklistPage from "./pages/BlacklistPage";
-import SettingsPage from "./pages/SettingsPage";
-import TagMapPage from "./pages/TagMapPage";
-import WorkshopPage from "./pages/WorkshopPage";
-import WorkshopTemplateDetailPage from "./pages/WorkshopTemplateDetailPage";
-import WorkshopEditorPage from "./pages/WorkshopEditorPage";
-import WorkshopTagMapPage from "./pages/WorkshopTagMapPage";
-import GroupsPage from "./pages/GroupsPage";
-import GroupDetailPage from "./pages/GroupDetailPage";
-import ArenaPage from "./pages/ArenaPage";
-import ScenarioGalleryPage from "./pages/ScenarioGalleryPage";
-import ScenarioDetailPage from "./pages/ScenarioDetailPage";
-import ScenarioEditorPage from "./pages/ScenarioEditorPage";
-import ScenarioPlayPage from "./pages/ScenarioPlayPage";
-import StandpointPage from "./pages/StandpointPage";
-import BountyBoardPage from "./pages/BountyBoardPage";
-import BountyDetailPage from "./pages/BountyDetailPage";
-import BountyEditorPage from "./pages/BountyEditorPage";
-import StyleProfilePage from "./pages/StyleProfilePage";
-import ArenaProfilePage from "./pages/ArenaProfilePage";
-import ExtensionSettingsPage from "./pages/ExtensionSettingsPage";
-import PersonaGalleryPage from "./pages/PersonaGalleryPage";
-import PersonaDetailPage from "./pages/PersonaDetailPage";
-import PersonaEditorPage from "./pages/PersonaEditorPage";
-import MemeLibraryPage from "./pages/MemeLibraryPage";
+// 页面组件按路由懒加载：React.lazy → Vite 给每页拆独立 chunk，首包不再打进全部 ~45 个页面。
+// 切页/首进时的 chunk 加载由各 layout 的 <Suspense fallback={<PageLoading/>}> 兜底。
+import PageLoading from "./components/PageLoading";
+const HomePage = lazy(() => import("./pages/HomePage"));
+const SearchPage = lazy(() => import("./pages/SearchPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const NewIdeaPage = lazy(() => import("./pages/NewIdeaPage"));
+const NewIdeaTypePage = lazy(() => import("./pages/NewIdeaTypePage"));
+const IdeaDetailPage = lazy(() => import("./pages/IdeaDetailPage"));
+const CompanyPage = lazy(() => import("./pages/CompanyPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
+const MessageRequestsPage = lazy(() => import("./pages/MessageRequestsPage"));
+const ComponentsPage = lazy(() => import("./pages/ComponentsPage"));
+const Live2DSettingsPage = lazy(() => import("./pages/Live2DSettingsPage"));
+const TagRankSettingsPage = lazy(() => import("./pages/TagRankSettingsPage"));
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const FeedbackAdminPage = lazy(() => import("./pages/FeedbackAdminPage"));
+const DocsAdminPage = lazy(() => import("./pages/DocsAdminPage"));
+const AdminScraperPage = lazy(() => import("./pages/AdminScraperPage"));
+const EditIdeaPage = lazy(() => import("./pages/EditIdeaPage"));
+const PhoneLoginPage = lazy(() => import("./pages/PhoneLoginPage"));
+const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const TagRankPage = lazy(() => import("./pages/TagRankPage"));
+const LeaderboardDetailPage = lazy(() => import("./pages/LeaderboardDetailPage"));
+const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
+const BlacklistPage = lazy(() => import("./pages/BlacklistPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const TagMapPage = lazy(() => import("./pages/TagMapPage"));
+const WorkshopPage = lazy(() => import("./pages/WorkshopPage"));
+const WorkshopTemplateDetailPage = lazy(() => import("./pages/WorkshopTemplateDetailPage"));
+const WorkshopEditorPage = lazy(() => import("./pages/WorkshopEditorPage"));
+const WorkshopTagMapPage = lazy(() => import("./pages/WorkshopTagMapPage"));
+const GroupsPage = lazy(() => import("./pages/GroupsPage"));
+const GroupDetailPage = lazy(() => import("./pages/GroupDetailPage"));
+const ArenaPage = lazy(() => import("./pages/ArenaPage"));
+const ScenarioGalleryPage = lazy(() => import("./pages/ScenarioGalleryPage"));
+const ScenarioDetailPage = lazy(() => import("./pages/ScenarioDetailPage"));
+const ScenarioEditorPage = lazy(() => import("./pages/ScenarioEditorPage"));
+const ScenarioPlayPage = lazy(() => import("./pages/ScenarioPlayPage"));
+const StandpointPage = lazy(() => import("./pages/StandpointPage"));
+const BountyBoardPage = lazy(() => import("./pages/BountyBoardPage"));
+const BountyDetailPage = lazy(() => import("./pages/BountyDetailPage"));
+const BountyEditorPage = lazy(() => import("./pages/BountyEditorPage"));
+const StyleProfilePage = lazy(() => import("./pages/StyleProfilePage"));
+const ArenaProfilePage = lazy(() => import("./pages/ArenaProfilePage"));
+const ExtensionSettingsPage = lazy(() => import("./pages/ExtensionSettingsPage"));
+const PersonaGalleryPage = lazy(() => import("./pages/PersonaGalleryPage"));
+const PersonaDetailPage = lazy(() => import("./pages/PersonaDetailPage"));
+const PersonaEditorPage = lazy(() => import("./pages/PersonaEditorPage"));
+const MemeLibraryPage = lazy(() => import("./pages/MemeLibraryPage"));
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -87,7 +90,9 @@ function MainLayout() {
   return (
     <>
       <Navbar />
-      <Outlet />
+      <Suspense fallback={<PageLoading />}>
+        <Outlet />
+      </Suspense>
     </>
   );
 }

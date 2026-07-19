@@ -584,10 +584,22 @@ export type Idea = {
   recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
 
+type ListGroupsResp = { ok: true; groups: Group[]; joinedGroupSlugs: string[] };
+// 并发去重：同一查询在「飞行中」时，多个近乎同时的调用方（首页里 Navbar + HomePage 同时挂载，
+// 加上 effect 复跑）共享同一请求，避免 /api/groups 被重复拉 2~3 次。请求 settle 即清除，
+// 【不做跨时缓存】—— 加入/退出圈子后 GroupsPage 的刷新仍拿到最新加入状态，不会读到旧数据。
+const _listGroupsInflight = new Map<string, Promise<ListGroupsResp>>();
 export function listGroups(params?: { q?: string }) {
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q);
-  return apiFetch<{ ok: true; groups: Group[]; joinedGroupSlugs: string[] }>(`/api/groups${qs.toString() ? `?${qs.toString()}` : ""}`);
+  const key = qs.toString();
+  const inflight = _listGroupsInflight.get(key);
+  if (inflight) return inflight;
+  const p = apiFetch<ListGroupsResp>(`/api/groups${key ? `?${key}` : ""}`).finally(() => {
+    _listGroupsInflight.delete(key);
+  });
+  _listGroupsInflight.set(key, p);
+  return p;
 }
 
 export function createGroup(payload: { name: string; slug?: string; description?: string; visibility?: "public" | "private" | "unlisted"; joinCode?: string }) {
