@@ -255,6 +255,8 @@ export default function SiteLive2D() {
   const { user, loading: authLoading } = useAuth();
   const latestConfigKeyRef = useRef("");
   const waifuConfigUrlRef = useRef<string | null>(null);
+  // 缓存已拉取的组件数据（按 userId 归属），显隐切换时复用，避免每次都重新请求 getMyComponents()
+  const cachedLive2dRef = useRef<{ userId: string | undefined; settings: Live2DComponentSettings } | null>(null);
   const [isVisible, setIsVisible] = useState(getStoredVisibility);
   const [isEnabled, setIsEnabled] = useState(false);
   const [reopenSide, setReopenSide] = useState<ReopenSide>(getStoredReopenSide);
@@ -283,10 +285,18 @@ export default function SiteLive2D() {
         });
         if (disposed) return;
 
-        const live2d = user?._id
-          ? (await getMyComponents()).components.live2d
-          : DEFAULT_LIVE2D_SETTINGS;
-        if (disposed) return;
+        // 仅在用户身份变化或缓存为空时才真正拉取组件数据；显隐切换（isVisible）复用缓存，不再触发网络请求
+        const currentUserId = user?._id;
+        let cached = cachedLive2dRef.current;
+        if (!cached || cached.userId !== currentUserId) {
+          const settings = currentUserId
+            ? (await getMyComponents()).components.live2d
+            : DEFAULT_LIVE2D_SETTINGS;
+          if (disposed) return;
+          cached = { userId: currentUserId, settings };
+          cachedLive2dRef.current = cached;
+        }
+        const live2d = cached.settings;
 
         setIsEnabled(live2d.enabled);
         const nextConfigKey = getConfigKey(live2d);
@@ -351,6 +361,8 @@ export default function SiteLive2D() {
     void syncLive2D();
 
     function handleComponentsUpdated() {
+      // 组件配置刚被用户改动，清空缓存以便本次同步重新拉取最新设置
+      cachedLive2dRef.current = null;
       void syncLive2D();
     }
 

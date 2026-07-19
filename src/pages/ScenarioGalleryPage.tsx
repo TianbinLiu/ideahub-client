@@ -37,6 +37,9 @@ const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
   tieba: { labelKey: "platformTieba", className: "border-blue-600/60 bg-blue-950/30 text-blue-200" },
   zhihu: { labelKey: "platformZhihu", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
   instagram: { labelKey: "platformInstagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
+  // 补齐抖音/小红书徽标，否则这两个平台的情景会落到 generic 被误标为「通用」
+  douyin: { labelKey: "platformDouyin", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
+  xiaohongshu: { labelKey: "platformXiaohongshu", className: "border-red-600/60 bg-red-950/30 text-red-200" },
   generic: { labelKey: "platformGeneric", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
 };
 
@@ -102,7 +105,9 @@ export default function ScenarioGalleryPage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
 
-  const view = (params.get("view") || "for_you") as ViewKey;
+  const rawView = (params.get("view") || "for_you") as ViewKey;
+  // 未登录时「我的情景」需要鉴权，直接访问 ?view=mine 会打鉴权端点报 401 并卡在空态；平滑回退到默认视图
+  const view: ViewKey = rawView === "mine" && !user ? "for_you" : rawView;
   const q = params.get("q") || "";
   const tag = params.get("tag") || "";
   const page = Math.max(parseInt(params.get("page") || "1", 10) || 1, 1);

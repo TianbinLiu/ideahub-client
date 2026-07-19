@@ -440,7 +440,8 @@
     "likePost": "{{actor}} liked your nomination \"{{title}}\"",
     "messageRequestAccepted": "{{actor}} accepted your message request",
     "messageRequestRejected": "{{actor}} rejected your message request",
-    "typeFallback": "{{actor}}: {{type}}"
+    "typeFallback": "{{actor}}: {{type}}",
+    "categoryTruncatedHint": "Only the most recent {{limit}} notifications are loaded, so this category may not include older items."
   },
   "me": {
     "pageTitle": "Me",
@@ -1051,7 +1052,9 @@
       "emptyGallery": "No scenarios here yet. Be the first to create one.",
       "previous": "Previous",
       "next": "Next",
-      "pageInfo": "Page {{page}} of {{total}}"
+      "pageInfo": "Page {{page}} of {{total}}",
+      "platformDouyin": "Douyin",
+      "platformXiaohongshu": "Xiaohongshu"
     },
     "meme": {
       "tabLibrary": "Public Library",
@@ -1886,5 +1889,14 @@
     "worldMemberHint": "All users are in the world group by default",
     "processing": "Processing…",
     "enterGroup": "Enter group"
+  },
+  "platformComment": {
+    "empty": "No comments yet",
+    "reply": "Reply",
+    "cancel": "Cancel",
+    "placeholder": "Say something…",
+    "replyPlaceholder": "Reply @{{name}}",
+    "aiReplying": "AI is replying…",
+    "send": "Send"
   }
 }

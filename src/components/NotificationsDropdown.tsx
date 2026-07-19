@@ -54,6 +54,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -154,6 +155,23 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
       window.removeEventListener("resize", updateMenuPosition);
       window.removeEventListener("scroll", updateMenuPosition, true);
     };
+  }, [isOpen]);
+
+  // 触屏设备无 mouseleave，纯 hover 关闭会失效导致菜单卡在页面上层；
+  // 补 document 级外部点击关闭，用 pointerdown 兼容鼠标+触摸（点在触发区/菜单内不关）
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleOutsidePointer(event: PointerEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setIsOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointer);
   }, [isOpen]);
 
   const menuItems: NotificationMenuItem[] = [
@@ -258,6 +276,7 @@ export default function NotificationsDropdown({ unreadCount }: NotificationsDrop
 
       {isOpen && menuPosition && createPortal(
         <div
+          ref={menuRef}
           onMouseEnter={handleMenuEnter}
           onMouseLeave={handleMenuLeave}
           className="fixed z-[100000] w-56 rounded-xl border border-gray-700 bg-gray-900 py-2 shadow-2xl"

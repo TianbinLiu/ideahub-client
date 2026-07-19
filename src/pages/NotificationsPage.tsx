@@ -18,6 +18,10 @@ import { humanizeError } from "../utils/humanizeError";
 
 type TabType = "all" | "system" | "mentions" | "reactions" | "likes" | "dislikes" | "replies" | "messages";
 
+// 通知列表单页上限：分类 tab 仅在已加载的这一页里做客户端过滤，
+// 常量化避免拉取上限与「历史被截断」提示的数值不一致。
+const NOTIFICATIONS_PAGE_LIMIT = 50;
+
 type Conversation = {
   conversationId: string;
   otherUser: {
@@ -56,6 +60,7 @@ export default function NotificationsPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -148,8 +153,16 @@ export default function NotificationsPage() {
     setLoading(true);
     setError("");
     try {
-      const r = await listNotifications({ page: 1, limit: 50 });
+      const r = await listNotifications({ page: 1, limit: NOTIFICATIONS_PAGE_LIMIT });
       setItems(r.items || []);
+      // 记录服务端总数：分类 tab 只在这一页里做客户端过滤，若总数超过本页上限，
+      // 更早的同类通知不会出现，这里留痕并驱动下方提示，避免用户误以为“没有更多”。
+      setTotal(r.total || 0);
+      if ((r.total || 0) > (r.items?.length || 0)) {
+        console.warn(
+          `[NotificationsPage] Loaded ${r.items?.length || 0}/${r.total} notifications; category tabs filter only this page and may omit older items.`
+        );
+      }
     } catch (e: any) {
       console.error("[NotificationsPage] Error loading notifications:", e);
       setError(t("notifications.errorLoad"));
@@ -309,6 +322,13 @@ export default function NotificationsPage() {
           </button>
         ))}
       </div>
+
+      {/* 分类 tab 只在已加载的一页里过滤，服务端总数超过上限时提示历史可能被截断 */}
+      {activeTab !== "all" && activeTab !== "messages" && total > items.length && (
+        <div className="text-amber-400/80 text-xs mb-3">
+          {t("notifications.categoryTruncatedHint", { limit: NOTIFICATIONS_PAGE_LIMIT })}
+        </div>
+      )}
 
       {loading && <div className="text-gray-400 text-sm">{t("common.loading")}</div>}
       {error && <div className="text-red-400 text-sm mb-4">{t("common.error")}: {error}</div>}

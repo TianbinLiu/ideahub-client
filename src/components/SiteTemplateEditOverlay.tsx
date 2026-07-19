@@ -741,9 +741,11 @@ export default function SiteTemplateEditOverlay() {
       ) : null}
 
       {/* Control panel */}
+      {/* 放左上角：右下角已被 Live2D 挂件(z-44)和它的重开按钮(z-46)占用，此面板 z-[1200] 会盖死它们；
+          左下角又被 AI 助手面板(left-4 bottom-4)占着，右上角被样式面板(top-16 right-4)占着，故落到 top-4 left-4 避让。 */}
       <div
         data-ws-editor-ui="1"
-        className="fixed bottom-4 right-4 z-[1200] w-[320px] rounded-2xl border border-cyan-700/70 bg-slate-950/95 p-3 text-xs text-gray-200 shadow-2xl"
+        className="fixed top-4 left-4 z-[1200] w-[320px] rounded-2xl border border-cyan-700/70 bg-slate-950/95 p-3 text-xs text-gray-200 shadow-2xl"
       >
         <div className="font-semibold text-cyan-200">{t("siteTemplateEdit.title")}</div>
         <p className="mt-1 text-gray-400">

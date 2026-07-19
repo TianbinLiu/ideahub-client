@@ -25,13 +25,12 @@ import toast from "react-hot-toast";
 import { deleteAccount } from "../api";
 import { useAuth } from "../authContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
-import { clearToken } from "../auth";
 import { humanizeError } from "../utils/humanizeError";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -44,7 +43,8 @@ export default function SettingsPage() {
     try {
       await deleteAccount(userId);
       toast.success(t("profile.accountDeleted"));
-      clearToken();
+      // 用 logout() 同时清 token 和全局 user，避免删号后 UI 仍显示已登录（与 ArenaProfilePage/MePage 一致）
+      logout();
       setTimeout(() => {
         navigate("/", { replace: true });
       }, 1000);

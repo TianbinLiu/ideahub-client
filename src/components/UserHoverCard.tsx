@@ -86,6 +86,22 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
     }
   }, [isOpen]);
 
+  // 触屏无 mouseleave，纯 hover 无法关卡；补 document 级外部点击关闭，避免悬浮卡卡在页面上层
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleOutsidePointer(e: PointerEvent) {
+      const target = e.target as Node;
+      if (
+        cardRef.current && !cardRef.current.contains(target) &&
+        triggerRef.current && !triggerRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointer);
+  }, [isOpen]);
+
   async function loadProfile() {
     if (profile || loading) return;
     setLoading(true);
@@ -351,8 +367,9 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
                     >
                       {following ? t('profile.following') : t('profile.follow')}
                     </button>
+                    {/* 打开私信弹窗前关闭悬浮卡：弹窗 z 下调到 2300 后，卡片(z-99999)会浮在其上 */}
                     <button
-                      onClick={() => setShowDMModal(true)}
+                      onClick={() => { setIsOpen(false); setShowDMModal(true); }}
                       disabled={dmBlocked}
                       className="flex-1 rounded-lg px-4 py-2 font-semibold text-sm border border-gray-600 text-gray-200 hover:bg-gray-800"
                     >
@@ -433,7 +450,8 @@ export function UserHoverCard({ userId, children }: UserCardProps) {
       {/* DM Modal */}
       {showDMModal && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999999]"
+          // 遮罩需低于 react-hot-toast(z:9999)，否则 50% 黑幕会压暗发送失败 toast；与 AuthDialog 一致用 z-[2300]
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2300]"
           onClick={() => setShowDMModal(false)}
         >
           <div

@@ -22,6 +22,7 @@
  *   · ScenarioPlayPage    —— 带 composer 发言；onSubmit(text, parentId) 的语义不变
  */
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Send, X } from "lucide-react";
 import type { ScenarioComment } from "../api";
 import { resolveSkin } from "./skins";
@@ -61,6 +62,9 @@ export default function PlatformCommentView({
   //    每次渲染都会得到新引用 → 皮肤 state 每帧被清空，而且悄无声息。改之前先想清楚这条。
   //    （规则报在下面的 JSX 使用处，disable 注释也在那儿。）
   const Skin = resolveSkin(platform);
+
+  // 只译本壳层组件的 UI（空态 / 回复条 / composer），不碰平台皮肤里的仿真中文
+  const { t } = useTranslation();
 
   const [text, setText] = useState("");
 
@@ -125,7 +129,8 @@ export default function PlatformCommentView({
       {/* 平台皮肤：平台头/话题/列表全部由皮肤自己按它那个平台的样子渲染 */}
       {topLevel.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-800 bg-gray-900/40 p-8 text-center text-sm text-gray-500">
-          还没有评论
+          {/* 壳层空态文案，随界面语言切换 */}
+          {t("platformComment.empty")}
         </div>
       ) : (
         // resolveSkin 返回的是 skins/index.ts 的模块级常量组件，引用稳定 —— 理由详见上面
@@ -140,7 +145,8 @@ export default function PlatformCommentView({
           {replyingTo && (
             <div className="mb-2 flex items-center justify-between rounded-lg bg-gray-950/60 px-3 py-1.5 text-xs text-gray-300">
               <span className="min-w-0 truncate">
-                回复 <span className="text-cyan-300">@{replyingTo.authorName}</span>
+                {/* 回复条标签本地化；@作者名保持原样高亮，不译 */}
+                {t("platformComment.reply")} <span className="text-cyan-300">@{replyingTo.authorName}</span>
               </span>
               {onCancelReply && (
                 <button
@@ -148,7 +154,8 @@ export default function PlatformCommentView({
                   onClick={onCancelReply}
                   className="ml-2 flex shrink-0 items-center gap-1 text-gray-400 motion-safe:transition-colors hover:text-gray-200"
                 >
-                  <X size={13} /> 取消
+                  {/* 取消回复按钮文案本地化 */}
+                  <X size={13} /> {t("platformComment.cancel")}
                 </button>
               )}
             </div>
@@ -164,7 +171,14 @@ export default function PlatformCommentView({
                   handleSend();
                 }
               }}
-              placeholder={pending ? "AI 正在回复…" : replyingTo ? `回复 @${replyingTo.authorName}` : "说点什么…"}
+              // placeholder 三态本地化：pending / 回复某人 / 普通发言；@作者名走插值不译
+              placeholder={
+                pending
+                  ? t("platformComment.aiReplying")
+                  : replyingTo
+                    ? t("platformComment.replyPlaceholder", { name: replyingTo.authorName })
+                    : t("platformComment.placeholder")
+              }
               className="min-w-0 flex-1 rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-cyan-500/50 disabled:opacity-60"
             />
             <button
@@ -177,11 +191,13 @@ export default function PlatformCommentView({
                 <span className="flex items-center gap-1.5">
                   {/* prefers-reduced-motion 下不闪 */}
                   <span className="h-2 w-2 rounded-full bg-black/70 motion-safe:animate-pulse" />
-                  AI 正在回复…
+                  {/* 发送按钮 pending 态文案本地化 */}
+                  {t("platformComment.aiReplying")}
                 </span>
               ) : (
                 <>
-                  <Send size={15} /> 发送
+                  {/* 发送按钮默认文案本地化 */}
+                  <Send size={15} /> {t("platformComment.send")}
                 </>
               )}
             </button>

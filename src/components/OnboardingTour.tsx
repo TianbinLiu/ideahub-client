@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 
@@ -268,6 +268,7 @@ export default function OnboardingTour() {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<RectState | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const step = steps[stepIndex];
   const storageKey = tourId ? `ideahub:onboarding:${tourId}:seen` : "";
@@ -316,6 +317,20 @@ export default function OnboardingTour() {
     if (!active) return;
 
     function handleKeyDown(event: KeyboardEvent) {
+      // 引导层监听的是 window 级 keydown。若焦点落在输入类元素或表单内，
+      // 放行原生行为，避免打断叠加在其上层的登录框（AuthDialog，z-index 更高）的回车提交与输入。
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable ||
+          target.closest("form"))
+      ) {
+        return;
+      }
+
       if (event.key === "Escape") {
         event.preventDefault();
         finishTour();
@@ -329,6 +344,13 @@ export default function OnboardingTour() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [active, finishTour, nextStep]);
+
+  useEffect(() => {
+    // 最小 a11y 改进：弹窗打开或切换步骤时把焦点移入引导卡片，方便键盘与读屏用户定位。
+    // preventScroll 避免干扰对高亮目标的 scrollIntoView。
+    if (!active) return;
+    cardRef.current?.focus({ preventScroll: true });
+  }, [active, stepIndex]);
 
   useEffect(() => {
     if (!active || !step) return;
@@ -407,7 +429,9 @@ export default function OnboardingTour() {
         <div className="absolute inset-0 bg-black/70" aria-hidden="true" />
       )}
       <div
-        className="absolute rounded-2xl border border-cyan-500/60 bg-gray-950 p-4 text-gray-100 shadow-2xl"
+        ref={cardRef}
+        tabIndex={-1}
+        className="absolute rounded-2xl border border-cyan-500/60 bg-gray-950 p-4 text-gray-100 shadow-2xl outline-none"
         style={{ top: cardTop, left: cardLeft, width: cardWidth }}
         role="dialog"
         aria-modal="true"

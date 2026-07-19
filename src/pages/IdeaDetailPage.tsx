@@ -163,6 +163,9 @@ export default function IdeaDetailPage() {
       setIdea((prev) =>
         prev ? { ...prev, stats: { ...prev.stats, commentCount: res.commentCount } as any } : prev
       );
+    } catch (e: any) {
+      // 失败要提示，否则用户以为评论已发出（参照 submitReply）
+      toast.error(humanizeError(e));
     } finally {
       setBusy(false);
     }
@@ -397,23 +400,38 @@ export default function IdeaDetailPage() {
   }
 
   async function onToggleLike() {
-    const res = await apiFetch<{ liked: boolean; likeCount: number }>(`/api/ideas/${id}/like`, { method: "POST" });
-    setLiked(res.liked);
-    setIdea((prev) => prev ? { ...prev, stats: { ...prev.stats, likeCount: res.likeCount } as any } : prev);
+    try {
+      const res = await apiFetch<{ liked: boolean; likeCount: number }>(`/api/ideas/${id}/like`, { method: "POST" });
+      setLiked(res.liked);
+      setIdea((prev) => prev ? { ...prev, stats: { ...prev.stats, likeCount: res.likeCount } as any } : prev);
+    } catch (e: any) {
+      // 点赞失败需提示，避免请求出错时静默无反馈（参照 submitReply）
+      toast.error(humanizeError(e));
+    }
   }
 
   async function onToggleBookmark() {
-    const res = await apiFetch<{ bookmarked: boolean; bookmarkCount: number }>(`/api/ideas/${id}/bookmark`, { method: "POST" });
-    setBookmarked(res.bookmarked);
-    setIdea((prev) => prev ? { ...prev, stats: { ...prev.stats, bookmarkCount: res.bookmarkCount } as any } : prev);
+    try {
+      const res = await apiFetch<{ bookmarked: boolean; bookmarkCount: number }>(`/api/ideas/${id}/bookmark`, { method: "POST" });
+      setBookmarked(res.bookmarked);
+      setIdea((prev) => prev ? { ...prev, stats: { ...prev.stats, bookmarkCount: res.bookmarkCount } as any } : prev);
+    } catch (e: any) {
+      // 收藏失败需提示，避免请求出错时静默无反馈
+      toast.error(humanizeError(e));
+    }
   }
 
   async function onToggleInterest() {
-    const res = await apiFetch<{ interested: boolean }>(`/api/ideas/${id}/interest`, {
-      method: "POST",
-      body: JSON.stringify({ message: interestMsg }),
-    });
-    setInterested(res.interested);
+    try {
+      const res = await apiFetch<{ interested: boolean }>(`/api/ideas/${id}/interest`, {
+        method: "POST",
+        body: JSON.stringify({ message: interestMsg }),
+      });
+      setInterested(res.interested);
+    } catch (e: any) {
+      // 表达合作意向失败需提示，避免请求出错时静默无反馈
+      toast.error(humanizeError(e));
+    }
   }
 
 
@@ -748,18 +766,34 @@ export default function IdeaDetailPage() {
                       {t("idea.exitFullscreen")}
                     </button>
                   </div>
+                  {/* 内嵌被 X-Frame-Options/CSP 拒绝时 iframe 会白屏且不触发 onError；固定提示用户点上方链接在新标签打开原站 */}
+                  <p className="px-4 pb-2 bg-gray-900 text-xs text-purple-300/70">{t("idea.linkWidgetFrameHint")}</p>
                   <iframe
                     src={idea.externalSource.url.replace(/^http:\/\//i, 'https://')}
-                    className="w-full h-[calc(100vh-60px)] border-0"
+                    className="w-full h-[calc(100vh-84px)] border-0"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                   />
                 </div>
               ) : (
-                <iframe
-                  src={idea.externalSource.url.replace(/^http:\/\//i, 'https://')}
-                  className="w-full h-96 mt-3 rounded-lg border border-purple-700"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
-                />
+                <>
+                  <iframe
+                    src={idea.externalSource.url.replace(/^http:\/\//i, 'https://')}
+                    className="w-full h-96 mt-3 rounded-lg border border-purple-700"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                  />
+                  {/* X-Frame-Options/CSP 拒绝内嵌时浏览器不触发 onError，iframe 会静默白屏；固定显示一条可点提示引导用户在新标签打开原站 */}
+                  <p className="mt-2 text-xs text-purple-300/70">
+                    {t("idea.linkWidgetFrameHint")}{" "}
+                    <a
+                      href={idea.externalSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      {t("idea.linkWidgetOpenSite")}
+                    </a>
+                  </p>
+                </>
               )}
             </div>
           )}
@@ -961,7 +995,17 @@ export default function IdeaDetailPage() {
                       {user && (
                         <>
                           <button
-                            onClick={() => setReplyingTo(replyingTo === c._id ? null : c._id)}
+                            onClick={() => {
+                              if (replyingTo === c._id) {
+                                setReplyingTo(null);
+                              } else {
+                                // 切到【不同】评论时清空上一条的草稿/配图，避免给 A 写的内容/配图串到 B
+                                setReplyText("");
+                                setReplyImageUrls([]);
+                                setUploadingReplyImages(false);
+                                setReplyingTo(c._id);
+                              }
+                            }}
                             className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-400 hover:text-gray-200"
                           >
                             {t('comment.reply')}
