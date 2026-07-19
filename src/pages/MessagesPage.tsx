@@ -58,6 +58,8 @@ export default function MessagesPage() {
   const [messageContent, setMessageContent] = useState("");
   const [conversationLoading, setConversationLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null); // 消息滚动容器，用于判断用户是否在底部附近
+  const justSwitchedRef = useRef(true); // 刚切换会话 → 下一次 messages 更新强制滚到底
 
   function toId(value: DirectMessage["fromUserId"] | DirectMessage["toUserId"] | undefined) {
     if (!value) return "";
@@ -84,8 +86,18 @@ export default function MessagesPage() {
     }
   }, [currentUser]);
 
+  // 只在【刚切换会话】或【用户已在底部附近】时自动滚到底。
+  // 否则（用户上翻查看历史）不打断——原来每 3s 轮询都无条件滚底，导致根本没法看旧消息。
   useEffect(() => {
-    scrollToBottom();
+    if (justSwitchedRef.current) {
+      justSwitchedRef.current = false;
+      scrollToBottom();
+      return;
+    }
+    const c = messageListRef.current;
+    if (!c) return;
+    const nearBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 120;
+    if (nearBottom) scrollToBottom();
   }, [messages]);
 
   async function loadConversations() {
@@ -136,6 +148,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (selectedConversationId) {
+      justSwitchedRef.current = true; // 切换会话：下一次 messages 更新强制滚到底
       loadMessages(selectedConversationId);
       // Refresh messages every 3 seconds
       const interval = setInterval(() => loadMessages(selectedConversationId), 3000);
@@ -239,7 +252,7 @@ export default function MessagesPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div ref={messageListRef} className="flex-1 overflow-y-auto p-4 space-y-4">
               {conversationLoading && messages.length === 0 ? (
                 <div className="flex justify-center items-center h-full text-gray-400">
                   {t("common.loading")}

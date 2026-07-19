@@ -19,7 +19,7 @@
  * 说明：赏金为平台虚拟点数，审批通过即视为该猎人获得对应点数，不涉及真实支付/转账。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Check, ExternalLink, ImagePlus, Pencil, Send, Trash2, X } from "lucide-react";
@@ -178,10 +178,15 @@ export default function BountyDetailPage() {
   }, [id, user]);
 
   // 待上传的插件截图：拿到登录态后转成 File 上传，得到 screenshotUrl
+  // ★别在 effect 里 setPendingShot(null)——那会改自身依赖，立刻触发【本次 effect 的 cleanup】
+  //   把 mounted 置 false；等上传异步返回时 setScreenshotUrl / 清 uploadingShot 全被 mounted 守卫跳过，
+  //   结果截图静默丢失 + 提交按钮永久卡「上传中」。改用 ref 去重，并把「消费(清 pendingShot)」放到上传之后。
+  const processingShotRef = useRef(false);
   useEffect(() => {
     if (!pendingShot || !user) return;
+    if (processingShotRef.current) return; // 已在上传，别重入（[user] 变化等导致的重跑）
+    processingShotRef.current = true;
     const dataUrl = pendingShot;
-    setPendingShot(null);
     let mounted = true;
     (async () => {
       try {
@@ -196,6 +201,8 @@ export default function BountyDetailPage() {
         if (mounted) toast.error(humanizeError(e));
       } finally {
         if (mounted) setUploadingShot(false);
+        processingShotRef.current = false;
+        if (mounted) setPendingShot(null); // 消费掉——放最后，此时不再触发本次 effect 的过早 cleanup
       }
     })();
     return () => {

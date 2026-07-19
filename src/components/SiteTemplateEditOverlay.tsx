@@ -368,6 +368,10 @@ export default function SiteTemplateEditOverlay() {
   useEffect(() => {
     if (!enabled) return;
     function onKeyDown(event: KeyboardEvent) {
+      // 在输入框/文本域/可编辑区里按 Ctrl+Z 是要撤销刚打的字——放行给浏览器原生撤销，别劫持成
+      // 回退整个站点草稿（否则同屏的 CSS 文本框、AI 提示词框的逐字撤销全被吞、还会误回滚整页）。
+      const el = event.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
       const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z";
       const isRedo = (event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"));
       if (isUndo) {
