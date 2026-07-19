@@ -128,7 +128,11 @@
     "providerGoogle": "Google",
     "providerGitHub": "GitHub",
     "comingSoonOTP": "敬请期待 (OTP). 我们将在后端 Phase B2 后启用此功能。",
-    "phoneLoginDescription": "手机登录"
+    "phoneLoginDescription": "手机登录",
+    "phoneLoginHint": "未注册的手机号将自动创建账号并登录。",
+    "phoneLoginSuccess": "登录成功",
+    "invalidPhone": "请输入有效的手机号",
+    "smsCodeSent": "验证码已发送，请查收短信。"
   },
   "idea": {
     "title": "标题",
