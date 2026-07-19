@@ -415,7 +415,7 @@ export default function HomePage() {
     if (!idea.ideaType) return null;
     const option = getIdeaTypeOption(idea.ideaType);
     return (
-      <span className={`inline-flex w-fit rounded-full border px-2.5 py-1 ${compact ? "text-[10px]" : "text-[11px]"} font-semibold ${option?.activeClass || "border-gray-700 text-gray-200"}`}>
+      <span className={`inline-flex w-fit rounded-full border px-2.5 py-1 ${compact ? "text-[11px]" : "text-xs"} font-semibold ${option?.activeClass || "border-gray-700 text-gray-200"}`}>
         {option?.emoji} {getIdeaTypeTitle(idea.ideaType)}
       </span>
     );
@@ -455,7 +455,7 @@ export default function HomePage() {
           <div>
             <div className="flex items-start justify-between gap-2">
               <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
-              <span className="shrink-0 text-[10px] text-gray-500">{formatDate(idea.createdAt)}</span>
+              <span className="shrink-0 text-[11px] text-gray-500">{formatDate(idea.createdAt)}</span>
             </div>
             {idea.summary ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
           </div>
@@ -481,7 +481,7 @@ export default function HomePage() {
         <div className="p-3">
           <div className="flex items-start justify-between gap-2">
             <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
-            <span className="shrink-0 text-[10px] text-gray-500">{formatDate(idea.createdAt)}</span>
+            <span className="shrink-0 text-[11px] text-gray-500">{formatDate(idea.createdAt)}</span>
           </div>
           {idea.summary ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
           <div className="mt-2 flex items-center justify-between gap-2">
@@ -521,7 +521,7 @@ export default function HomePage() {
 
         <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3" data-tour="home-filters">
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link to="/tag-rank" className="rounded-full border border-indigo-700/70 bg-indigo-950/30 px-3 py-1 text-xs font-semibold text-indigo-200 hover:bg-indigo-900/40">
+            <Link to="/tag-rank" className="rounded-full border border-indigo-700/70 bg-indigo-950/30 px-3 py-1.5 text-xs font-semibold text-indigo-200 hover:bg-indigo-900/40">
               {t("nav.tagRank")}
             </Link>
             {IDEA_TYPE_OPTIONS.map((item) => (
@@ -529,7 +529,7 @@ export default function HomePage() {
                 key={item.key}
                 type="button"
                 onClick={() => toggleIdeaType(item.key)}
-                className={`rounded-full border px-3 py-1 text-xs transition ${selectedIdeaTypes.includes(item.key) ? item.activeClass : item.inactiveClass}`}
+                className={`rounded-full border px-3 py-1.5 text-xs transition ${selectedIdeaTypes.includes(item.key) ? item.activeClass : item.inactiveClass}`}
               >
                 {item.emoji} {getIdeaTypeTitle(item.key)}
               </button>

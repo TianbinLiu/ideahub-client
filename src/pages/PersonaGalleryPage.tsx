@@ -10,11 +10,12 @@
  * 职责:
  * - 公开画廊：scope tab（人格广场 all / 我的收藏 installed / 我发布的 mine）
  * - all 支持 最新(new)/最热(hot) 排序 + 关键词/标签搜索 + 分页
- * - 卡片展示 coverEmoji 大字 + name + 「standName」+ 作者 + 🎭下载数 ❤️点赞数 + tags + 已装备/已收藏 徽标
+ * - 卡片展示 coverEmoji 大字 + name + 作者 + 🎭下载数 ❤️点赞数 + tags + 已装备/已收藏 徽标
  * - “发布人格” -> /arena/persona/new
  */
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Plus } from "lucide-react";
@@ -25,15 +26,15 @@ import { useAuth } from "../authContext";
 type Scope = "all" | "installed" | "mine";
 type Sort = "new" | "hot";
 
-const SCOPE_TABS: { key: Scope; label: string; auth?: boolean }[] = [
-  { key: "all", label: "人格广场" },
-  { key: "installed", label: "我的收藏", auth: true },
-  { key: "mine", label: "我发布的", auth: true },
+const SCOPE_TABS: { key: Scope; labelKey: string; auth?: boolean }[] = [
+  { key: "all", labelKey: "scopeAll" },
+  { key: "installed", labelKey: "scopeInstalled", auth: true },
+  { key: "mine", labelKey: "scopeMine", auth: true },
 ];
 
-const SORT_TABS: { key: Sort; label: string }[] = [
-  { key: "new", label: "最新" },
-  { key: "hot", label: "最热" },
+const SORT_TABS: { key: Sort; labelKey: string }[] = [
+  { key: "new", labelKey: "sortNew" },
+  { key: "hot", labelKey: "sortHot" },
 ];
 
 function authorName(author: Persona["author"]) {
@@ -42,6 +43,7 @@ function authorName(author: Persona["author"]) {
 }
 
 function PersonaGrid({ items }: { items: Persona[] }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {items.map((p) => (
@@ -58,17 +60,16 @@ function PersonaGrid({ items }: { items: Persona[] }) {
                 <div className="flex shrink-0 gap-1">
                   {p.equipped ? (
                     <span className="rounded-full border border-cyan-500/60 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
-                      已装备
+                      {t("arena.persona.equipped")}
                     </span>
                   ) : p.installed ? (
                     <span className="rounded-full border border-gray-700 bg-gray-800/60 px-2 py-0.5 text-[11px] text-gray-300">
-                      已收藏
+                      {t("arena.persona.saved")}
                     </span>
                   ) : null}
                 </div>
               </div>
-              <p className="line-clamp-1 text-sm text-cyan-200">「{p.standName}」</p>
-              <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">作者：{authorName(p.author)}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{t("arena.persona.authorLabel", { name: authorName(p.author) })}</p>
             </div>
           </div>
 
@@ -96,6 +97,7 @@ function PersonaGrid({ items }: { items: Persona[] }) {
 }
 
 export default function PersonaGalleryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -179,11 +181,11 @@ export default function PersonaGalleryPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link to="/arena" className="text-sm text-gray-400 hover:text-white">
-            ← 返回卢本伟广场
+            ← {t("arena.persona.backToArena")}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-white">人格广场</h1>
+          <h1 className="mt-1 text-2xl font-bold text-white">{t("arena.persona.galleryTitle")}</h1>
           <p className="mt-1 text-sm text-gray-400">
-            下载并装备他人分享的发言人格，或把自己的发言风格发布出去，随场合更换你的嘴替。
+            {t("arena.persona.galleryDescription")}
           </p>
         </div>
         <button
@@ -191,23 +193,23 @@ export default function PersonaGalleryPage() {
           onClick={() => navigate("/arena/persona/new")}
           className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
         >
-          <Plus className="h-4 w-4" /> 发布人格
+          <Plus className="h-4 w-4" /> {t("arena.persona.publishPersona")}
         </button>
       </div>
 
       <div className="mt-5 rounded-2xl border border-gray-800 bg-gray-900 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            {visibleTabs.map((t) => (
+            {visibleTabs.map((tab) => (
               <button
-                key={t.key}
+                key={tab.key}
                 type="button"
-                onClick={() => setScope(t.key)}
+                onClick={() => setScope(tab.key)}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${
-                  scope === t.key ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
+                  scope === tab.key ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                {t.label}
+                {t(`arena.persona.${tab.labelKey}`)}
               </button>
             ))}
           </div>
@@ -219,34 +221,34 @@ export default function PersonaGalleryPage() {
                 if (e.key === "Enter") submitSearch();
               }}
               className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="搜索人格名 / 替身名 / 标签"
+              placeholder={t("arena.persona.searchPlaceholder")}
             />
             <button
               type="button"
               onClick={submitSearch}
               className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
             >
-              搜索
+              {t("arena.persona.search")}
             </button>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {SORT_TABS.map((t) => (
+          {SORT_TABS.map((tab) => (
             <button
-              key={t.key}
+              key={tab.key}
               type="button"
-              onClick={() => setSort(t.key)}
+              onClick={() => setSort(tab.key)}
               className={`rounded-lg border px-3 py-1 text-xs ${
-                sort === t.key ? "border-cyan-400 text-cyan-200" : "border-gray-700 text-gray-400 hover:bg-gray-800"
+                sort === tab.key ? "border-cyan-400 text-cyan-200" : "border-gray-700 text-gray-400 hover:bg-gray-800"
               }`}
             >
-              {t.label}
+              {t(`arena.persona.${tab.labelKey}`)}
             </button>
           ))}
           {tag && (
             <div className="ml-1 flex items-center gap-2 text-xs text-gray-400">
-              <span>标签筛选：</span>
+              <span>{t("arena.persona.tagFilter")}</span>
               <button
                 type="button"
                 onClick={clearTag}
@@ -258,15 +260,15 @@ export default function PersonaGalleryPage() {
           )}
         </div>
 
-        {loading && <p className="mt-4 text-sm text-gray-400">加载中…</p>}
+        {loading && <p className="mt-4 text-sm text-gray-400">{t("arena.persona.loading")}</p>}
         {!loading && personas.length === 0 && (
           <div className="mt-6 rounded-xl border border-dashed border-gray-800 bg-gray-950/40 p-8 text-center">
             <p className="text-sm text-gray-400">
               {scope === "mine"
-                ? "你还没有发布人格，点击右上角「发布人格」把你的发言风格分享出去吧。"
+                ? t("arena.persona.emptyMine")
                 : scope === "installed"
-                ? "你还没有收藏任何人格，去人格广场逛逛并下载喜欢的人格。"
-                : "这里还没有人格，来发布第一个吧。"}
+                ? t("arena.persona.emptyInstalled")
+                : t("arena.persona.emptyAll")}
             </p>
           </div>
         )}
@@ -281,10 +283,10 @@ export default function PersonaGalleryPage() {
               onClick={() => goPage(page - 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              上一页
+              {t("arena.persona.previous")}
             </button>
             <span className="text-sm text-gray-400">
-              第 {page} / {totalPages} 页
+              {t("arena.persona.pageInfo", { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -292,7 +294,7 @@ export default function PersonaGalleryPage() {
               onClick={() => goPage(page + 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              下一页
+              {t("arena.persona.next")}
             </button>
           </div>
         )}

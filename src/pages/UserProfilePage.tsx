@@ -526,7 +526,7 @@ export default function UserProfilePage() {
         { key: "bookmarks", label: t('profile.bookmarks') },
         { key: "likes", label: t('profile.likes') },
         { key: "interests", label: t('profile.receivedInterests') },
-        { key: "groupReferrals", label: "圈子邀请" },
+        { key: "groupReferrals", label: t('userProfile.circleInvitations') },
         { key: "followers", label: t('profile.followers') },
         { key: "following", label: t('profile.following') },
       ]
@@ -844,7 +844,7 @@ export default function UserProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex gap-2 border-b border-gray-800 overflow-x-auto">
+      <div className="mt-6 flex gap-2 border-b border-gray-800 overflow-x-auto no-scrollbar">
         {availableTabs.map((tab) => (
           <button
             key={tab.key}
@@ -1013,13 +1013,13 @@ export default function UserProfilePage() {
   function renderGroupReferrals() {
     return (
       <div className="grid gap-3">
-        {groupReferrals.length === 0 ? <p className="text-gray-400">还没有用户通过你的圈子邀请链接加入。</p> : null}
+        {groupReferrals.length === 0 ? <p className="text-gray-400">{t('userProfile.noCircleReferralsYet')}</p> : null}
         {groupReferrals.map((referral) => (
           <div key={referral._id} className="rounded-xl border border-gray-800 bg-gray-900 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="font-semibold text-white">{referral.invitee?.displayName || referral.invitee?.username || "用户"}</div>
-                <div className="mt-1 text-sm text-gray-400">加入圈子 #{referral.groupSlug}</div>
+                <div className="font-semibold text-white">{referral.invitee?.displayName || referral.invitee?.username || t('userProfile.user')}</div>
+                <div className="mt-1 text-sm text-gray-400">{t('userProfile.joinedCircle', { slug: referral.groupSlug })}</div>
               </div>
               <div className="text-xs text-gray-500">{referral.createdAt ? new Date(referral.createdAt).toLocaleString() : ""}</div>
             </div>

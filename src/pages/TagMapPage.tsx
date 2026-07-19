@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { apiFetch } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
@@ -96,56 +97,38 @@ const GENERIC_TAGS = new Set([
 const TOPIC_CATEGORIES = [
   {
     key: "ai-tech",
-    labelEn: "AI / Tech",
-    labelZh: "AI / 科技",
     aliases: ["ai", "人工智能", "machine learning", "机器学习", "ml", "llm", "gpt", "科技", "技术", "programming", "coding", "code", "software", "app", "saas", "automation", "自动化", "工具", "效率"],
   },
   {
     key: "product-business",
-    labelEn: "Product / Business",
-    labelZh: "产品 / 商业",
     aliases: ["product", "产品", "business", "商业", "startup", "创业", "market", "marketing", "增长", "运营", "finance", "投资", "monetize", "商业化", "company"],
   },
   {
     key: "games",
-    labelEn: "Games",
-    labelZh: "游戏",
     aliases: ["game", "games", "gaming", "游戏", "steam", "手游", "roguelike", "rpg", "moba", "fps", "minecraft", "overwatch", "电竞"],
   },
   {
     key: "creative-writing",
-    labelEn: "Writing / Stories",
-    labelZh: "写作 / 故事",
     aliases: ["novel", "story", "writing", "write", "写作", "小说", "文学", "剧情", "script", "剧本", "文案", "worldbuilding", "短篇"],
   },
   {
     key: "design-art",
-    labelEn: "Design / Art",
-    labelZh: "设计 / 艺术",
     aliases: ["design", "ui", "ux", "视觉", "设计", "art", "绘画", "插画", "美术", "aesthetic", "template", "frontend", "前端"],
   },
   {
     key: "media-social",
-    labelEn: "Media / Social",
-    labelZh: "媒体 / 社交",
     aliases: ["video", "media", "bilibili", "youtube", "小红书", "抖音", "tiktok", "twitter", "x", "social", "社区", "内容", "creator", "自媒体", "平台"],
   },
   {
     key: "education-research",
-    labelEn: "Learning / Research",
-    labelZh: "学习 / 研究",
     aliases: ["learn", "learning", "education", "study", "学习", "教育", "研究", "论文", "课程", "知识", "教程", "读书", "academic"],
   },
   {
     key: "life-community",
-    labelEn: "Life / Community",
-    labelZh: "生活 / 社群",
     aliases: ["life", "daily", "生活", "日常", "community", "社群", "圈子", "健康", "旅行", "心理", "habit", "习惯"],
   },
   {
     key: "feedback-bugs",
-    labelEn: "Feedback / Bugs",
-    labelZh: "反馈 / Bug",
     aliases: ["bug", "bugs", "feedback", "反馈", "网站建议", "suggestion", "issue", "问题", "fix", "error", "错误"],
   },
 ];
@@ -190,10 +173,10 @@ function getCategoryByKey(key: string) {
   return TOPIC_CATEGORIES.find((category) => category.key === key) || null;
 }
 
-function getCategoryLabel(key: string, isZh: boolean) {
+function getCategoryLabel(key: string, t: TFunction) {
   const category = getCategoryByKey(key);
   if (!category) return key;
-  return isZh ? category.labelZh : category.labelEn;
+  return t(`tagMapCat.${category.key}`);
 }
 
 function pickRepresentativeTag(tags: string[], countMap: Map<string, number>, excluded = new Set<string>()) {
@@ -248,9 +231,9 @@ function buildExcludedAliases(categoryKey: string) {
   return new Set(category.aliases.map((alias) => alias.toLowerCase()));
 }
 
-function getClusterLabel(key: string, isZh: boolean) {
-  if (key === "other") return isZh ? "其他" : "Other";
-  if (key.startsWith("cat:")) return getCategoryLabel(key.slice(4), isZh);
+function getClusterLabel(key: string, t: TFunction) {
+  if (key === "other") return t("tagMapCat.other");
+  if (key.startsWith("cat:")) return getCategoryLabel(key.slice(4), t);
   if (key.startsWith("tag:")) return `#${key.slice(4)}`;
   return key;
 }
@@ -384,7 +367,7 @@ export default function TagMapPage() {
         const c1 = byCluster.get(a)?.length || 0;
         const c2 = byCluster.get(b)?.length || 0;
         if (c2 !== c1) return c2 - c1;
-        return getClusterLabel(a, isZh).localeCompare(getClusterLabel(b, isZh));
+        return getClusterLabel(a, t).localeCompare(getClusterLabel(b, t));
       });
 
       if (keys.length <= maxVisible) return keys;
@@ -449,7 +432,7 @@ export default function TagMapPage() {
 
         return {
           key,
-          label: getClusterLabel(key, isZh),
+          label: getClusterLabel(key, t),
           cx: center.x,
           cy: center.y,
           r: clamp(4 + Math.sqrt(members.length) * 1.8, 5, 13),
@@ -736,7 +719,7 @@ export default function TagMapPage() {
                 ))}
                 {currentCluster && (
                   <span className="ml-2 text-xs text-gray-400">
-                    ({currentCluster.count} ideas)
+                    ({t("tagMapCat.ideasCount", { count: currentCluster.count })})
                   </span>
                 )}
               </div>

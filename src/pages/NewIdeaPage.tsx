@@ -603,7 +603,7 @@ export default function NewIdeaPage() {
 
         {isFeedbackMode && (
           <div className="rounded-xl border border-blue-800 bg-blue-950/30 p-3 text-sm text-blue-100">
-            {t('idea.feedbackFixedTagLabel')}: <span className="font-semibold">{fixedFeedbackTag}</span>
+            {t('idea.feedbackFixedTagLabel')}: <span className="font-semibold">{t('newIdeaExtra.feedbackFixedTagValue')}</span>
           </div>
         )}
 

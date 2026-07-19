@@ -11,15 +11,24 @@
  * - 显示未读通知徽章
  * - 用户登录状态显示
  * - 登录/注册/登出按钮
+ * - 已登录时的用户小菜单（下拉）：我的主页 /arena/profile、插件设置 /arena/extension
+ *   （点外部关闭 / Esc 关闭 / 换路由关闭；aria-haspopup + aria-expanded + role=menu）
  * - 移动端响应式菜单
+ * - 炸弹入口：普通链接直跳 /arena。★拦截在路由层 ArenaGate（未装插件时它会渲染门禁），
+ *   这里【不做】点击拦截 —— 直接敲 /arena 网址一样会被拦，在这儿再拦一次是多余的，
+ *   还会白白丢掉 Ctrl/中键/右键「新标签页打开」，并让「检测中」那 1.5s 里点击的人看到弹窗闪烁。
+ *
+ * 适用范围:
+ * - ★只用于【非 /arena】页面（由 App.tsx 的 MainLayout 挂载）；/arena/* 用的是 ArenaNavbar。
+ *   改这里【不会】影响广场，改 ArenaNavbar 也不会影响主站。
  * 
  * 依赖文件:
  * @uses ../authContext.tsx - 获取用户状态和登出方法
- * @uses ../api.ts - 获取未读通知数 (getUnreadCount)
+ * @uses ../hooks/useUnreadCount.ts - 未读通知数（与 ArenaNavbar 共用同一份轮询逻辑）
  * @uses ./UserHoverCard.tsx - 用户悬浮卡片
- * 
+ *
  * 被使用于:
- * @used_in App.tsx - 所有页面的头部
+ * @used_in App.tsx - MainLayout（除 /arena/* 外的所有页面头部）
  * 
  * 可复用性: 高 - 全局导航组件，独立自成
  * 
@@ -32,16 +41,18 @@
 
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../authContext";
-import { useEffect, useState, type FormEvent } from "react";
-import { getUnreadCount, listGroups, type Group } from "../api";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { listGroups, type Group } from "../api";
 import { UserHoverCard } from "./UserHoverCard";
 import { useTranslation } from "react-i18next";
 import NotificationsDropdown from "./NotificationsDropdown";
 import AuthDialog from "./AuthDialog";
+import { useUnreadCount } from "../hooks/useUnreadCount";
 import {
   Bomb,
   Bot,
   Building2,
+  ChevronDown,
   CircleHelp,
   CircleUserRound,
   FileText,
@@ -49,9 +60,11 @@ import {
   LogIn,
   LogOut,
   MessageSquareWarning,
+  Puzzle,
   Search,
   Shield,
   UserPlus,
+  UserRoundCog,
   UsersRound,
 } from "lucide-react";
 
@@ -68,13 +81,17 @@ type AuthDialogState = {
 export default function Navbar() {
   const { user, loading: authLoading, logout } = useAuth();
   const { t } = useTranslation();
-  const [unread, setUnread] = useState(0);
+  const unread = useUnreadCount();
   const [navSearch, setNavSearch] = useState("");
   const [navGroup, setNavGroup] = useState("world");
   const [groups, setGroups] = useState<Group[]>([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
   const [guestMenuOpen, setGuestMenuOpen] = useState(false);
   const [autoGuestMenuShown, setAutoGuestMenuShown] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authDialog, setAuthDialog] = useState<AuthDialogState | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const userMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const guestMenuRef = useRef<HTMLDivElement | null>(null);
   const loc = useLocation();
   const nav = useNavigate();
 
@@ -141,7 +158,58 @@ export default function Navbar() {
 
   useEffect(() => {
     setGuestMenuOpen(false);
+    setUserMenuOpen(false);
   }, [loc.key]);
+
+  // 用户小菜单：点外部关闭 + Esc 关闭（关时把焦点还给触发按钮）
+  useEffect(() => {
+    if (!userMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (userMenuRef.current?.contains(target)) return;
+      setUserMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setUserMenuOpen(false);
+      userMenuButtonRef.current?.focus();
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [userMenuOpen]);
+
+  // 未登录「快速登录」小菜单：点外部关闭 + Esc 关闭。
+  // 它会自动弹出一次（见上方 onboarding 清场后的 effect），此时指针从未进入过菜单，
+  // 单靠容器的 onMouseLeave 不会触发 → 点页面别处关不掉。补一个 document 级外部点击兜底。
+  useEffect(() => {
+    if (!guestMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (guestMenuRef.current?.contains(target)) return; // 点在头像/菜单内不关（含 toggle 按钮）
+      setGuestMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setGuestMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [guestMenuOpen]);
 
   useEffect(() => {
     function handleOpenAuth(event: Event) {
@@ -152,38 +220,6 @@ export default function Navbar() {
     window.addEventListener("ideahub:auth:open", handleOpenAuth as EventListener);
     return () => window.removeEventListener("ideahub:auth:open", handleOpenAuth as EventListener);
   }, [next]);
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-
-    async function load() {
-      if (!user) {
-        setUnread(0);
-        return;
-      }
-      try {
-        const r = await getUnreadCount();
-        setUnread(r.count || 0);
-      } catch {
-        // ignore
-      }
-    }
-
-    load();
-    // 简单轮询（MVP）：每 20s 更新一次
-    if (user) timer = setInterval(load, 20000);
-
-    // 监听通知更新事件
-    function handleNotificationsUpdate() {
-      load();
-    }
-    window.addEventListener('notificationsUpdated', handleNotificationsUpdate);
-
-    return () => {
-      if (timer) clearInterval(timer);
-      window.removeEventListener('notificationsUpdated', handleNotificationsUpdate);
-    };
-  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -213,6 +249,12 @@ export default function Navbar() {
           <NavLink to="/" title={t("nav.home")} aria-label={t("nav.home")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
             <Home className="h-5 w-5" />
           </NavLink>
+          {/*
+            炸弹入口保持【真链接】而不是 button：拦截交给路由层的 ArenaGate 就够了
+            （直接敲 /arena 网址也会被拦，所以这里拦是多余的）。
+            改成 button 会白白丢掉 Ctrl/Cmd+点击、中键、右键「在新标签页打开」和状态栏 URL 预览，
+            还会让「检测中」那 1.5s 里点击的人先看到一次弹窗闪烁 —— 哪怕他其实装了插件。
+          */}
           <NavLink to="/arena" title={t("nav.arena")} aria-label={t("nav.arena")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
             <Bomb className="h-5 w-5" />
           </NavLink>
@@ -284,6 +326,7 @@ export default function Navbar() {
 
           {!user ? (
             <div
+              ref={guestMenuRef}
               className="relative"
               onMouseEnter={() => setGuestMenuOpen(true)}
               onMouseLeave={() => setGuestMenuOpen(false)}
@@ -327,6 +370,48 @@ export default function Navbar() {
                   </Link>
                 </UserHoverCard>
               )}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  ref={userMenuButtonRef}
+                  type="button"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  title={t("nav.userMenu")}
+                  aria-label={t("nav.userMenu")}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  aria-controls="navbar-user-menu"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-700 hover:bg-gray-900"
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {userMenuOpen ? (
+                  <div
+                    id="navbar-user-menu"
+                    role="menu"
+                    aria-label={t("nav.userMenu")}
+                    className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 p-1.5 shadow-2xl"
+                  >
+                    <Link
+                      to="/arena/profile"
+                      role="menuitem"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-gray-200 hover:bg-gray-900 hover:text-white"
+                    >
+                      <UserRoundCog className="h-4 w-4 text-cyan-300" />
+                      {t("nav.arenaProfile")}
+                    </Link>
+                    <Link
+                      to="/arena/extension"
+                      role="menuitem"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-gray-200 hover:bg-gray-900 hover:text-white"
+                    >
+                      <Puzzle className="h-4 w-4 text-cyan-300" />
+                      {t("nav.extensionSettings")}
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
               <button
                 onClick={logout}
                 title={t("nav.logout")}

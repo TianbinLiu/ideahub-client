@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* 隐藏滚动条但保留可滚动（横向 tab 条等，避免难看的滚动条占位/箭头） */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+}
+
 :root {
 	--ws-accent: #22d3ee;
 	--ws-text: #f3f4f6;

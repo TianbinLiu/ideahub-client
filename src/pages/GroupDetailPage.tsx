@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import {
   apiFetch,
   createGroupChat,
@@ -21,13 +22,14 @@ import { humanizeError } from "../utils/humanizeError";
 
 type TabKey = "posts" | "chats" | "settings";
 
-function visibilityLabel(value?: string) {
-  if (value === "private") return "私有";
-  if (value === "unlisted") return "非公开";
-  return "公开";
+function visibilityLabelKey(value?: string) {
+  if (value === "private") return "groupDetail.visibilityPrivate";
+  if (value === "unlisted") return "groupDetail.visibilityUnlisted";
+  return "groupDetail.visibilityPublic";
 }
 
 export default function GroupDetailPage() {
+  const { t } = useTranslation();
   const { slug = "" } = useParams();
   const [params] = useSearchParams();
   const joinToken = params.get("joinToken") || "";
@@ -111,7 +113,7 @@ export default function GroupDetailPage() {
     setJoining(true);
     try {
       await joinGroup(slug, payload || { code: joinCode.trim() || undefined });
-      toast.success("已加入圈子");
+      toast.success(t("groupDetail.joinedToast"));
       setJoinCode("");
       await loadAll();
     } catch (e: any) {
@@ -127,7 +129,7 @@ export default function GroupDetailPage() {
       await createGroupChat(slug, { name: chatName.trim(), description: chatDescription.trim() });
       setChatName("");
       setChatDescription("");
-      toast.success("聊天群已创建");
+      toast.success(t("groupDetail.chatCreated"));
       await loadChats("");
     } catch (e: any) {
       toast.error(humanizeError(e));
@@ -139,7 +141,7 @@ export default function GroupDetailPage() {
     try {
       const res = await createGroupInvite(slug);
       setInvite(res.invite);
-      toast.success("邀请链接已生成");
+      toast.success(t("groupDetail.inviteLinkGenerated"));
     } catch (e: any) {
       toast.error(humanizeError(e));
     }
@@ -149,9 +151,9 @@ export default function GroupDetailPage() {
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success("邀请链接已复制");
+      toast.success(t("groupDetail.inviteLinkCopied"));
     } catch {
-      toast.error("复制失败，请手动复制链接");
+      toast.error(t("groupDetail.copyFailed"));
     }
   }
 
@@ -165,7 +167,7 @@ export default function GroupDetailPage() {
   }
 
   async function handleKick(member: GroupMember) {
-    if (!window.confirm(`移出 ${member.username}？`)) return;
+    if (!window.confirm(t("groupDetail.kickConfirm", { name: member.username }))) return;
     try {
       await removeGroupMember(slug, member._id);
       await loadMembers();
@@ -176,11 +178,11 @@ export default function GroupDetailPage() {
   }
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-4 text-gray-400">加载中...</div>;
+    return <div className="max-w-5xl mx-auto p-4 text-gray-400">{t("common.loading")}</div>;
   }
 
   if (!group) {
-    return <div className="max-w-5xl mx-auto p-4 text-red-300">圈子不存在或不可见。</div>;
+    return <div className="max-w-5xl mx-auto p-4 text-red-300">{t("groupDetail.notFound")}</div>;
   }
 
   return (
@@ -191,15 +193,15 @@ export default function GroupDetailPage() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-3xl font-bold text-white">{group.name}</h1>
               <span className="rounded-full border border-gray-700 px-2 py-1 text-xs text-gray-300">#{group.slug}</span>
-              <span className="rounded-full border border-cyan-700/70 bg-cyan-950/30 px-2 py-1 text-xs text-cyan-100">{visibilityLabel(group.visibility)}</span>
-              {group.joined ? <span className="rounded-full border border-emerald-700/70 bg-emerald-950/30 px-2 py-1 text-xs text-emerald-100">已加入</span> : null}
+              <span className="rounded-full border border-cyan-700/70 bg-cyan-950/30 px-2 py-1 text-xs text-cyan-100">{t(visibilityLabelKey(group.visibility))}</span>
+              {group.joined ? <span className="rounded-full border border-emerald-700/70 bg-emerald-950/30 px-2 py-1 text-xs text-emerald-100">{t("groups.joinedBadge")}</span> : null}
             </div>
             {group.description ? <p className="mt-3 text-sm text-gray-300">{group.description}</p> : null}
-            <p className="mt-3 text-xs text-gray-500">成员 {group.memberCount ?? "全部用户"}</p>
+            <p className="mt-3 text-xs text-gray-500">{t("groupDetail.memberLabel")} {group.memberCount ?? t("groupDetail.allUsers")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to={`/ideas/new/dynamic?group=${encodeURIComponent(group.slug)}`} data-tour="group-post-action" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-200">
-              发帖
+              {t("groupDetail.postAction")}
             </Link>
             {!group.joined && !group.isWorld ? (
               <div className="flex gap-2">
@@ -207,12 +209,12 @@ export default function GroupDetailPage() {
                   <input
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value)}
-                    placeholder="口令"
+                    placeholder={t("groupDetail.joinCodePlaceholder")}
                     className="w-32 rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                   />
                 ) : null}
                 <button type="button" disabled={joining} onClick={() => handleJoin()} className="rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-60">
-                  {joining ? "加入中..." : "加入"}
+                  {joining ? t("groupDetail.joining") : t("groups.joinAction")}
                 </button>
               </div>
             ) : null}
@@ -228,14 +230,14 @@ export default function GroupDetailPage() {
             onClick={() => setTab(item)}
             className={`px-4 py-2 text-sm font-semibold ${tab === item ? "border-b-2 border-white text-white" : "text-gray-400 hover:text-gray-200"}`}
           >
-            {item === "posts" ? "帖子" : item === "chats" ? "聊天群" : "设置"}
+            {item === "posts" ? t("groupDetail.tabPosts") : item === "chats" ? t("groupDetail.tabChats") : t("groupDetail.tabSettings")}
           </button>
         ))}
       </div>
 
       {tab === "posts" ? (
         <div className="grid gap-3" data-tour="group-content">
-          {ideas.length === 0 ? <p className="text-gray-400">还没有帖子。</p> : null}
+          {ideas.length === 0 ? <p className="text-gray-400">{t("groupDetail.noPosts")}</p> : null}
           {ideas.map((idea) => (
             <Link key={idea._id} to={`/ideas/${idea._id}`} className="rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:border-gray-700">
               <div className="flex items-center justify-between gap-3">
@@ -256,23 +258,23 @@ export default function GroupDetailPage() {
         <div className="space-y-4" data-tour="group-content">
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <input value={chatName} onChange={(e) => setChatName(e.target.value)} placeholder="聊天群名称" className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2" />
-              <input value={chatDescription} onChange={(e) => setChatDescription(e.target.value)} placeholder="简介" className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2" />
+              <input value={chatName} onChange={(e) => setChatName(e.target.value)} placeholder={t("groupDetail.chatNamePlaceholder")} className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2" />
+              <input value={chatDescription} onChange={(e) => setChatDescription(e.target.value)} placeholder={t("groupDetail.chatDescriptionPlaceholder")} className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2" />
               <button type="button" disabled={!group.joined || !chatName.trim()} onClick={handleCreateChat} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-60">
-                新建
+                {t("groupDetail.createChatAction")}
               </button>
             </div>
           </section>
           <div className="flex gap-2">
-            <input value={chatSearch} onChange={(e) => setChatSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void loadChats(); }} placeholder="搜索聊天群" className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm" />
-            <button type="button" onClick={() => loadChats()} className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">搜索</button>
+            <input value={chatSearch} onChange={(e) => setChatSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void loadChats(); }} placeholder={t("groupDetail.searchChatsPlaceholder")} className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm" />
+            <button type="button" onClick={() => loadChats()} className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">{t("common.search")}</button>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {chats.map((chat) => (
               <div key={chat._id} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
                 <h3 className="font-semibold text-white">{chat.name}</h3>
                 {chat.description ? <p className="mt-1 text-sm text-gray-300">{chat.description}</p> : null}
-                <p className="mt-3 text-xs text-gray-500">成员 {chat.memberCount || 1}</p>
+                <p className="mt-3 text-xs text-gray-500">{t("groupDetail.memberLabel")} {chat.memberCount || 1}</p>
               </div>
             ))}
           </div>
@@ -284,19 +286,19 @@ export default function GroupDetailPage() {
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="font-semibold text-white">邀请</h2>
-                {group.joinCode ? <p className="mt-1 text-sm text-gray-300">圈子口令：{group.joinCode}</p> : null}
+                <h2 className="font-semibold text-white">{t("groupDetail.inviteHeading")}</h2>
+                {group.joinCode ? <p className="mt-1 text-sm text-gray-300">{t("groupDetail.circlePasscode", { code: group.joinCode })}</p> : null}
               </div>
               <button type="button" onClick={handleCreateInvite} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-200">
-                生成我的邀请链接
+                {t("groupDetail.generateInvite")}
               </button>
             </div>
             {invite ? (
               <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/60 p-3 text-sm text-gray-200">
-                <div>口令：{invite.code}</div>
-                <div className="mt-1 break-all">链接：{shareUrl}</div>
+                <div>{t("groupDetail.passcodeLabel", { code: invite.code })}</div>
+                <div className="mt-1 break-all">{t("groupDetail.linkLabel", { url: shareUrl })}</div>
                 <button type="button" onClick={handleCopyInvite} className="mt-3 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">
-                  复制邀请链接
+                  {t("groupDetail.copyInvite")}
                 </button>
               </div>
             ) : null}
@@ -304,24 +306,24 @@ export default function GroupDetailPage() {
 
           <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="font-semibold text-white">成员管理</h2>
-              <button type="button" onClick={loadMembers} className="rounded-xl border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">刷新</button>
+              <h2 className="font-semibold text-white">{t("groupDetail.memberManagement")}</h2>
+              <button type="button" onClick={loadMembers} className="rounded-xl border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">{t("groupDetail.refresh")}</button>
             </div>
-            {settingsLoading ? <p className="text-gray-400">加载中...</p> : null}
+            {settingsLoading ? <p className="text-gray-400">{t("common.loading")}</p> : null}
             <div className="grid gap-2">
               {members.map((member) => (
                 <div key={member._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-950/50 p-3">
                   <div>
                     <div className="font-semibold text-white">{member.displayName || member.username}</div>
-                    <div className="text-xs text-gray-500">{member.groupRole === "creator" ? "创建者" : member.groupRole === "admin" ? "管理员" : "成员"}</div>
+                    <div className="text-xs text-gray-500">{member.groupRole === "creator" ? t("groupDetail.roleCreator") : member.groupRole === "admin" ? t("groupDetail.roleAdmin") : t("groupDetail.roleMember")}</div>
                   </div>
                   {member.groupRole !== "creator" ? (
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => handleRole(member, member.groupRole === "admin" ? "member" : "admin")} className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">
-                        {member.groupRole === "admin" ? "取消管理员" : "设为管理员"}
+                        {member.groupRole === "admin" ? t("groupDetail.demoteAdmin") : t("groupDetail.promoteAdmin")}
                       </button>
                       <button type="button" onClick={() => handleKick(member)} className="rounded-lg border border-rose-700 px-3 py-1.5 text-xs text-rose-200 hover:bg-rose-950/40">
-                        移出
+                        {t("groupDetail.kickAction")}
                       </button>
                     </div>
                   ) : null}

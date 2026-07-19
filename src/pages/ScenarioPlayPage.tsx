@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getScenario, playScenario, type Scenario, type ScenarioComment } from "../api";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 import PlatformCommentView from "../components/PlatformCommentView";
@@ -20,6 +21,7 @@ function newId() {
 }
 
 export default function ScenarioPlayPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const { user } = useAuth();
 
@@ -62,7 +64,7 @@ export default function ScenarioPlayPage() {
     const base = comments;
     const userComment: PlayComment = {
       id: newId(),
-      authorName: user?.username || "我",
+      authorName: user?.username || t("arena.scenarioPlay.me"),
       text: trimmed,
       parentId: parentId ?? null,
       role: "user",
@@ -102,7 +104,7 @@ export default function ScenarioPlayPage() {
     } catch (e: any) {
       if (e?.status === 501) {
         setAiDisabled(true);
-        toast.error("服务器未配置 AI，仅可浏览与本地发言");
+        toast.error(t("arena.scenarioPlay.aiNotConfiguredToast"));
       } else {
         toast.error(humanizeError(e));
       }
@@ -112,16 +114,16 @@ export default function ScenarioPlayPage() {
   }
 
   if (loading) {
-    return <div className="max-w-3xl mx-auto p-4 pb-20 text-gray-400">加载中...</div>;
+    return <div className="max-w-3xl mx-auto p-4 pb-20 text-gray-400">{t("arena.scenarioPlay.loading")}</div>;
   }
 
   if (!scenario) {
     return (
       <div className="max-w-3xl mx-auto p-4 pb-20">
         <Link to="/arena/simulate" className="text-sm text-gray-400 hover:text-white">
-          ← 返回情景模拟
+          ← {t("arena.scenarioPlay.backToScenarioSimulation")}
         </Link>
-        <p className="mt-4 text-gray-400">未找到该情景。</p>
+        <p className="mt-4 text-gray-400">{t("arena.scenarioPlay.scenarioNotFound")}</p>
       </div>
     );
   }
@@ -129,17 +131,17 @@ export default function ScenarioPlayPage() {
   return (
     <div className="max-w-3xl mx-auto p-4 pb-20">
       <Link to={`/arena/simulate/${scenario._id}`} className="text-sm text-gray-400 hover:text-white">
-        ← 返回情景介绍
+        ← {t("arena.scenarioPlay.backToScenarioIntro")}
       </Link>
 
       <div className="mt-2">
         <h1 className="text-2xl font-bold text-white">{scenario.title}</h1>
-        {scenario.topic && <p className="mt-1 text-sm text-gray-400">争论主题：{scenario.topic}</p>}
+        {scenario.topic && <p className="mt-1 text-sm text-gray-400">{t("arena.scenarioPlay.debateTopic", { topic: scenario.topic })}</p>}
       </div>
 
       {aiDisabled && (
         <div className="mt-3 rounded-xl border border-amber-700/60 bg-amber-950/20 px-3 py-2 text-sm text-amber-200">
-          服务器未配置 AI，当前仅可浏览与本地发言，不会有 AI 回复。
+          {t("arena.scenarioPlay.aiNotConfiguredBanner")}
         </div>
       )}
 

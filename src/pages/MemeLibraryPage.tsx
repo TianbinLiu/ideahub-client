@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { ImageOff, Plus, Trash2, X } from "lucide-react";
@@ -34,9 +35,9 @@ import { useAuth } from "../authContext";
 type Scope = "library" | "mine";
 type MemeType = "image" | "text";
 
-const SCOPE_TABS: { key: Scope; label: string; auth?: boolean }[] = [
-  { key: "library", label: "公开素材库" },
-  { key: "mine", label: "我的收藏", auth: true },
+const SCOPE_TABS: { key: Scope; labelKey: string; auth?: boolean }[] = [
+  { key: "library", labelKey: "tabLibrary" },
+  { key: "mine", labelKey: "tabMine", auth: true },
 ];
 
 function authorName(author: Meme["author"]) {
@@ -55,6 +56,7 @@ function MemeCard({
   onDelete: (meme: Meme) => void;
   onTagClick: (tag: string) => void;
 }) {
+  const { t } = useTranslation();
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -64,7 +66,7 @@ function MemeCard({
           imgError || !meme.imageUrl ? (
             <div className="flex flex-col items-center gap-1 text-gray-600">
               <ImageOff className="h-6 w-6" />
-              <span className="text-[11px]">图片无法加载</span>
+              <span className="text-[11px]">{t("arena.meme.imageLoadError")}</span>
             </div>
           ) : (
             <img
@@ -87,7 +89,9 @@ function MemeCard({
         <span className="shrink-0 text-xs text-gray-400">🔖 {meme.stats?.collectCount || 0}</span>
       </div>
 
-      <p className="mt-0.5 line-clamp-1 text-[11px] text-gray-500">作者：{authorName(meme.author)}</p>
+      <p className="mt-0.5 line-clamp-1 text-[11px] text-gray-500">
+        {t("arena.meme.authorLabel", { name: authorName(meme.author) })}
+      </p>
 
       {(meme.tags || []).length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-cyan-200">
@@ -114,14 +118,14 @@ function MemeCard({
               : "border-gray-700 text-gray-200 hover:bg-gray-800"
           }`}
         >
-          {meme.collected ? "已收藏" : "收藏"}
+          {meme.collected ? t("arena.meme.collected") : t("arena.meme.collect")}
         </button>
         {meme.isOwner && (
           <button
             type="button"
             onClick={() => onDelete(meme)}
             className="rounded-lg border border-gray-700 p-1.5 text-gray-400 hover:bg-gray-800 hover:text-rose-300"
-            title="删除"
+            title={t("arena.meme.delete")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -132,6 +136,7 @@ function MemeCard({
 }
 
 export default function MemeLibraryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -220,7 +225,7 @@ export default function MemeLibraryPage() {
 
   async function handleToggleCollect(meme: Meme) {
     if (!user) {
-      toast.error("请先登录再收藏");
+      toast.error(t("arena.meme.loginToCollect"));
       navigate("/login?next=/arena/memes");
       return;
     }
@@ -270,11 +275,11 @@ export default function MemeLibraryPage() {
   }
 
   async function handleDelete(meme: Meme) {
-    if (!window.confirm(`确定删除「${meme.title}」？此操作不可撤销。`)) return;
+    if (!window.confirm(t("arena.meme.confirmDelete", { title: meme.title }))) return;
     try {
       await deleteMeme(meme._id);
       setMemes((prev) => prev.filter((m) => m._id !== meme._id));
-      toast.success("已删除");
+      toast.success(t("arena.meme.deleted"));
     } catch (e) {
       toast.error(humanizeError(e));
     }
@@ -286,7 +291,7 @@ export default function MemeLibraryPage() {
       setUploading(true);
       const res = await apiUploadImage(file, "comment");
       setImageUrl(res.imageUrl);
-      toast.success("图片已上传");
+      toast.success(t("arena.meme.imageUploaded"));
     } catch (e) {
       toast.error(humanizeError(e));
     } finally {
@@ -305,20 +310,20 @@ export default function MemeLibraryPage() {
 
   async function handleSubmit() {
     if (!user) {
-      toast.error("请先登录再上传");
+      toast.error(t("arena.meme.loginToUpload"));
       navigate("/login?next=/arena/memes");
       return;
     }
     if (!title.trim()) {
-      toast.error("请填写标题");
+      toast.error(t("arena.meme.titleRequired"));
       return;
     }
     if (formType === "image" && !imageUrl.trim()) {
-      toast.error("请上传图片或填写图片链接");
+      toast.error(t("arena.meme.imageRequired"));
       return;
     }
     if (formType === "text" && !text.trim()) {
-      toast.error("请输入梗文本");
+      toast.error(t("arena.meme.textRequired"));
       return;
     }
     const tags = tagsInput
@@ -337,7 +342,7 @@ export default function MemeLibraryPage() {
       });
       // 创建即自动收藏给作者，并入列表顶部
       setMemes((prev) => [res.meme, ...prev]);
-      toast.success("已上传到素材库");
+      toast.success(t("arena.meme.uploadedToLibrary"));
       resetForm();
       setShowForm(false);
     } catch (e) {
@@ -347,25 +352,23 @@ export default function MemeLibraryPage() {
     }
   }
 
-  const visibleTabs = SCOPE_TABS.filter((t) => !t.auth || user);
+  const visibleTabs = SCOPE_TABS.filter((tab) => !tab.auth || user);
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-20">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link to="/arena" className="text-sm text-gray-400 hover:text-white">
-            ← 返回卢本伟广场
+            ← {t("arena.meme.backToArena")}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-white">表情 / 梗图库</h1>
-          <p className="mt-1 text-sm text-gray-400">
-            浏览公开素材库、收藏你喜欢的表情梗图，或在创意工坊上传贡献。装了浏览器插件后即可在任意评论框旁一键搜索插入。
-          </p>
+          <h1 className="mt-1 text-2xl font-bold text-white">{t("arena.meme.pageTitle")}</h1>
+          <p className="mt-1 text-sm text-gray-400">{t("arena.meme.pageSubtitle")}</p>
         </div>
         <button
           type="button"
           onClick={() => {
             if (!user) {
-              toast.error("请先登录再上传");
+              toast.error(t("arena.meme.loginToUpload"));
               navigate("/login?next=/arena/memes");
               return;
             }
@@ -373,19 +376,19 @@ export default function MemeLibraryPage() {
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200"
         >
-          <Plus className="h-4 w-4" /> 上传梗图/表情
+          <Plus className="h-4 w-4" /> {t("arena.meme.uploadMeme")}
         </button>
       </div>
 
       {showForm && (
         <div className="mt-5 rounded-2xl border border-gray-800 bg-gray-900 p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white">创意工坊 · 上传素材</h2>
+            <h2 className="text-base font-semibold text-white">{t("arena.meme.workshopTitle")}</h2>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               className="rounded-lg p-1 text-gray-400 hover:bg-gray-800 hover:text-white"
-              title="关闭"
+              title={t("arena.meme.close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -401,7 +404,7 @@ export default function MemeLibraryPage() {
                   formType === tp ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                {tp === "image" ? "图片表情" : "文字梗"}
+                {tp === "image" ? t("arena.meme.typeImage") : t("arena.meme.typeText")}
               </button>
             ))}
           </div>
@@ -410,7 +413,7 @@ export default function MemeLibraryPage() {
             <div className="mt-4 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <label className="cursor-pointer rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">
-                  {uploading ? "上传中…" : "上传图片"}
+                  {uploading ? t("arena.meme.uploading") : t("arena.meme.uploadImage")}
                   <input
                     type="file"
                     accept="image/*"
@@ -419,18 +422,18 @@ export default function MemeLibraryPage() {
                     onChange={(e) => handleUpload(e.target.files?.[0] || null)}
                   />
                 </label>
-                <span className="text-xs text-gray-500">或直接粘贴图片链接</span>
+                <span className="text-xs text-gray-500">{t("arena.meme.orPasteUrl")}</span>
               </div>
               <input
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-                placeholder="图片 URL，如 https://…"
+                placeholder={t("arena.meme.imageUrlPlaceholder")}
               />
               {imageUrl && (
                 <img
                   src={imageUrl}
-                  alt="预览"
+                  alt={t("arena.meme.previewAlt")}
                   className="max-h-40 rounded-xl border border-gray-800 object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
@@ -445,7 +448,7 @@ export default function MemeLibraryPage() {
                 onChange={(e) => setText(e.target.value)}
                 rows={3}
                 className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-                placeholder="输入梗 / 短语，如：这就是你不对了啊朋友"
+                placeholder={t("arena.meme.textPlaceholder")}
               />
             </div>
           )}
@@ -455,20 +458,20 @@ export default function MemeLibraryPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="标题（必填）"
+              placeholder={t("arena.meme.titlePlaceholder")}
             />
             <input
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="标签，用逗号分隔，如：搞笑,狗头"
+              placeholder={t("arena.meme.tagsPlaceholder")}
             />
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-300">
               <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-              发布到公开素材库（其他人可搜索/收藏）
+              {t("arena.meme.shareToLibrary")}
             </label>
             <button
               type="button"
@@ -476,7 +479,7 @@ export default function MemeLibraryPage() {
               disabled={saving || uploading}
               className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
             >
-              {saving ? "上传中…" : "上传到素材库"}
+              {saving ? t("arena.meme.uploading") : t("arena.meme.uploadToLibrary")}
             </button>
           </div>
         </div>
@@ -485,16 +488,16 @@ export default function MemeLibraryPage() {
       <div className="mt-5 rounded-2xl border border-gray-800 bg-gray-900 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            {visibleTabs.map((t) => (
+            {visibleTabs.map((tab) => (
               <button
-                key={t.key}
+                key={tab.key}
                 type="button"
-                onClick={() => setScope(t.key)}
+                onClick={() => setScope(tab.key)}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${
-                  scope === t.key ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
+                  scope === tab.key ? "border-white text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                {t.label}
+                {t(`arena.meme.${tab.labelKey}`)}
               </button>
             ))}
           </div>
@@ -506,21 +509,21 @@ export default function MemeLibraryPage() {
                 if (e.key === "Enter") submitSearch();
               }}
               className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
-              placeholder="搜索标题 / 梗文本 / 标签"
+              placeholder={t("arena.meme.searchPlaceholder")}
             />
             <button
               type="button"
               onClick={submitSearch}
               className="rounded-xl border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
             >
-              搜索
+              {t("arena.meme.search")}
             </button>
           </div>
         </div>
 
         {tag && (
           <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
-            <span>标签筛选：</span>
+            <span>{t("arena.meme.tagFilter")}</span>
             <button
               type="button"
               onClick={clearTag}
@@ -531,13 +534,11 @@ export default function MemeLibraryPage() {
           </div>
         )}
 
-        {loading && <p className="mt-4 text-sm text-gray-400">加载中…</p>}
+        {loading && <p className="mt-4 text-sm text-gray-400">{t("arena.meme.loading")}</p>}
         {!loading && memes.length === 0 && (
           <div className="mt-6 rounded-xl border border-dashed border-gray-800 bg-gray-950/40 p-8 text-center">
             <p className="text-sm text-gray-400">
-              {scope === "mine"
-                ? "你还没有收藏任何素材，去公开素材库逛逛并收藏喜欢的表情梗图。"
-                : "这里还没有素材，点击右上角「上传梗图/表情」来贡献第一个吧。"}
+              {scope === "mine" ? t("arena.meme.emptyMine") : t("arena.meme.emptyLibrary")}
             </p>
           </div>
         )}
@@ -564,10 +565,10 @@ export default function MemeLibraryPage() {
               onClick={() => goPage(page - 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              上一页
+              {t("arena.meme.previous")}
             </button>
             <span className="text-sm text-gray-400">
-              第 {page} / {totalPages} 页
+              {t("arena.meme.pageInfo", { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -575,7 +576,7 @@ export default function MemeLibraryPage() {
               onClick={() => goPage(page + 1)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              下一页
+              {t("arena.meme.next")}
             </button>
           </div>
         )}

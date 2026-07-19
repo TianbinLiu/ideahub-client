@@ -324,14 +324,6 @@ export type ArenaScheme = {
   styleLabel: string;
   text: string;
   note?: string;
-  ratings: {
-    /** 破防等级 0-100 */
-    breakdown: number;
-    /** 叠甲等级 0-100 */
-    armor: number;
-    /** 被举报吞评风险 0-100 */
-    banRisk: number;
-  };
 };
 
 export function suggestArenaReplies(payload: {
@@ -476,6 +468,19 @@ export function deleteAccount(userId: string) {
   });
 }
 
+/**
+ * 注销（停用）当前账号 —— 【软删除】，不是永久删除：
+ * 账号被停用后无法再登录，但已发布的内容（想法/情景/悬赏/人格/评论）不会被删除。
+ * 必须传入与当前用户名完全一致的 confirmUsername 作为二次确认，否则后端拒绝。
+ * 成功后调用方必须清掉本地登录态（clearToken / authContext.logout）。
+ */
+export function deactivateAccount(confirmUsername: string) {
+  return apiFetch<{ ok: true }>("/api/me/deactivate", {
+    method: "POST",
+    body: JSON.stringify({ confirmUsername }),
+  });
+}
+
 // Ideas and groups API - Type definitions
 export type ExternalSource = {
   platform?: string;
@@ -579,10 +584,22 @@ export type Idea = {
   recommendationFeedbackReason?: "not_interested" | "already_recommended" | null;
 };
 
+type ListGroupsResp = { ok: true; groups: Group[]; joinedGroupSlugs: string[] };
+// 并发去重：同一查询在「飞行中」时，多个近乎同时的调用方（首页里 Navbar + HomePage 同时挂载，
+// 加上 effect 复跑）共享同一请求，避免 /api/groups 被重复拉 2~3 次。请求 settle 即清除，
+// 【不做跨时缓存】—— 加入/退出圈子后 GroupsPage 的刷新仍拿到最新加入状态，不会读到旧数据。
+const _listGroupsInflight = new Map<string, Promise<ListGroupsResp>>();
 export function listGroups(params?: { q?: string }) {
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q);
-  return apiFetch<{ ok: true; groups: Group[]; joinedGroupSlugs: string[] }>(`/api/groups${qs.toString() ? `?${qs.toString()}` : ""}`);
+  const key = qs.toString();
+  const inflight = _listGroupsInflight.get(key);
+  if (inflight) return inflight;
+  const p = apiFetch<ListGroupsResp>(`/api/groups${key ? `?${key}` : ""}`).finally(() => {
+    _listGroupsInflight.delete(key);
+  });
+  _listGroupsInflight.set(key, p);
+  return p;
 }
 
 export function createGroup(payload: { name: string; slug?: string; description?: string; visibility?: "public" | "private" | "unlisted"; joinCode?: string }) {
@@ -917,7 +934,9 @@ export function getWorkshopTagInsights(limit = 240) {
 }
 
 // ===== 情景模拟（Scenario Simulation）=====
-// 平台标识：'bilibili' | 'weibo' | 'tieba' | 'zhihu' | 'instagram' | 'generic'（未知一律 generic）
+// 平台标识：'bilibili' | 'weibo' | 'tieba' | 'zhihu' | 'instagram' | 'douyin' | 'xiaohongshu' | 'generic'
+// 真源是 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS，枚举外的值会被后端【静默降级为 generic】。
+// 每个平台的评论区皮肤见 components/skins/（一个平台一个独立组件，没有别名复用）。
 
 /** Scenario.comments 的子文档 / 前端共享评论类型 */
 export type ScenarioComment = {
@@ -1077,7 +1096,20 @@ export function captureScenario(url: string) {
   });
 }
 
-export function generateScenarioComments(body: { topic: string; platform?: string; intensity?: string; count?: number }) {
+/**
+ * 生成种子评论区。topic 与 sourceText 至少给一个（都缺后端回 400「请提供话题或素材」）。
+ *
+ * ⚠️ sourceText = 真实评论素材（插件抓取 / 用户上传的文本），是【一次性入参】：
+ * 只送给 AI 当输入，让它【重新生成】一套评论区。真实评论绝不入库、绝不发布，
+ * 也绝不能进 ScenarioInput（createScenario / updateScenario 的提交结构里没有这个字段）。
+ */
+export function generateScenarioComments(body: {
+  topic?: string;
+  sourceText?: string;
+  platform?: string;
+  intensity?: string;
+  count?: number;
+}) {
   return apiFetch<{ ok: true; comments: ScenarioComment[]; model?: string }>("/api/scenarios/generate", {
     method: "POST",
     body: JSON.stringify(body),
@@ -1129,6 +1161,8 @@ export type StandpointEvent = {
   reply: { text: string; style: string; model?: string; heuristic?: boolean } | null;
   status: "pending" | "drafted" | "sent" | "dismissed";
   autoSent: boolean;
+  /** 原帖 / 私信链接（可空），供“去原帖”外链使用 */
+  threadUrl?: string;
   createdAt: string;
 };
 
@@ -1185,6 +1219,23 @@ export function simulateStandpointEvent(body: { kind: string; platform: string; 
   });
 }
 
+/**
+ * 真实到消息 → AI 即时草稿（人在环内）：
+ * 无论 autoSendEnabled 与否，后端一律只出草稿（status='drafted'、autoSent=false），绝不自动发送。
+ */
+export function ingestStandpointEvent(body: {
+  kind: string;
+  platform: string;
+  fromHandle: string;
+  incomingText: string;
+  threadUrl?: string;
+}) {
+  return apiFetch<{ ok: true; event: StandpointEvent }>("/api/standpoint/ingest", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function regenerateStandpointReply(eventId: string) {
   return apiFetch<{ ok: true; event: StandpointEvent }>(`/api/standpoint/events/${encodeURIComponent(eventId)}/regenerate`, {
     method: "POST",
@@ -1207,12 +1258,13 @@ export function dismissStandpointEvent(eventId: string) {
 // 赏金 = 平台虚拟点数（reward:number），不是真钱，不做任何真实支付/转账。
 // 平台标识：'weibo' | 'bilibili' | 'tieba' | 'zhihu' | 'douyin' | 'xiaohongshu' | 'instagram' | 'other'。
 
-/** 任务介绍页讨论评论区的一条评论（可带图） */
+/** 任务介绍页讨论评论区的一条评论（可带图、支持一层楼中楼；parentId=null 表示顶楼） */
 export type BountyComment = {
   _id: string;
   author: { _id: string; username: string } | string;
   text: string;
   imageUrl?: string;
+  parentId?: string | null;
   createdAt: string;
 };
 
@@ -1225,6 +1277,12 @@ export type BountySubmission = {
   screenshotUrl?: string;
   note?: string;
   status: "pending" | "approved" | "rejected";
+  /**
+   * 审批通过时【实际入账】的虚拟点数（账本真值，审批那一刻写死）。
+   * ★渲染「已入账 N 点」只能用它，不能用 bounty.reward —— reward 事后可被发布者改，
+   *   用 reward 就会对猎人显示一个和他账本不符的数。
+   */
+  awardedPoints: number;
   createdAt: string;
 };
 
@@ -1245,6 +1303,10 @@ export type Bounty = {
   approvedCount: number;
   isOwner?: boolean;
   mySubmission?: BountySubmission | null;
+  /** 还锁在这个悬赏里、尚未发放的托管点数。★只有发布者拿得到（后端对他人不返回） */
+  escrowPoints?: number;
+  /** 有值 = 托管已退还发布者，悬赏进入终态（不能再审批 / 重开 / 改赏金） */
+  refundedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1361,6 +1423,45 @@ export function reviewBountySubmission(id: string, sid: string, status: "approve
   });
 }
 
+// ===== 虚拟点数（Points）=====
+// ★这是平台【虚拟点数】，不是真钱：无现金价值，不可提现、不可兑换，不涉及任何真实支付。
+//   UI 上必须写明这一点，不得出现任何暗示真实收益的文案。
+
+/** 一条点数流水（记账分录）。delta 正 = 入账，负 = 出账 */
+export type PointsLedgerEntry = {
+  _id: string;
+  delta: number;
+  /** signup=注册赠送 / bounty_hold=发布悬赏托管 / bounty_reward=赏金入账 / bounty_refund=托管退回 */
+  reason: "signup" | "bounty_hold" | "bounty_reward" | "bounty_refund";
+  /** 这笔之后的余额快照（便于对账）；后端可能为 null */
+  balanceAfter: number | null;
+  bounty: string | null;
+  memo: string;
+  createdAt: string;
+};
+
+type PointsLedgerResponse = {
+  ok: true;
+  entries: PointsLedgerEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+/** 我的虚拟点数余额 */
+export function getMyPoints() {
+  return apiFetch<{ ok: true; points: number }>("/api/me/points");
+}
+
+/** 我的虚拟点数流水（分页；只返回自己的，悬赏托管账户的分录不会出现在这里） */
+export function listMyPointsLedger(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<PointsLedgerResponse>(`/api/me/points/ledger${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
 type BountyCommentListResponse = {
   ok: true;
   comments: BountyComment[];
@@ -1370,26 +1471,119 @@ type BountyCommentListResponse = {
   totalPages: number;
 };
 
-export function listBountyComments(id: string, params?: { page?: number; limit?: number }) {
+// 注：赏金讨论区的 list/add 不再单独导出 —— 三处讨论区统一走下面的
+// listArenaComments / createArenaComment（内部按 targetType 适配 text<->content）。
+// 留着一份平行的 addBountyComment 只会让人绕过适配层、漏掉 parentId 归一化。
+
+// ===== 三处讨论区（Arena Comments：情景 / 人格 / 赏金）=====
+// 三处详情页共用 components/CommentThread.tsx，但后端是【两套形状】：
+//   - 情景 / 人格：通用模型 ArenaComment，字段名 content
+//   - 赏金：既有的 BountyComment，字段名 text（已上线、刻意不迁移，
+//           理由见 server/src/models/ArenaComment.js 文件头）
+// 差异在这一层抹平，组件只认统一的 ArenaComment 形状，不写 if (targetType === 'bounty')。
+
+export type ArenaCommentTarget = "scenario" | "persona" | "bounty";
+
+/** 讨论区的一条评论（可带图、支持一层楼中楼；parentId=null 表示顶楼） */
+export type ArenaComment = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  content: string;
+  imageUrl?: string;
+  parentId?: string | null;
+  createdAt: string;
+};
+
+type ArenaCommentListResponse = {
+  ok: true;
+  comments: ArenaComment[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+const ARENA_COMMENT_BASE: Record<ArenaCommentTarget, string> = {
+  scenario: "/api/scenarios",
+  persona: "/api/personas",
+  bounty: "/api/bounties",
+};
+
+function arenaCommentsPath(targetType: ArenaCommentTarget, targetId: string) {
+  return `${ARENA_COMMENT_BASE[targetType]}/${encodeURIComponent(targetId)}/comments`;
+}
+
+/** 赏金评论（text）-> 统一形状（content） */
+function fromBountyComment(c: BountyComment): ArenaComment {
+  return {
+    _id: c._id,
+    author: c.author,
+    content: c.text || "",
+    imageUrl: c.imageUrl,
+    parentId: c.parentId ?? null,
+    createdAt: c.createdAt,
+  };
+}
+
+export async function listArenaComments(
+  targetType: ArenaCommentTarget,
+  targetId: string,
+  params?: { page?: number; limit?: number }
+): Promise<ArenaCommentListResponse> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set("page", String(params.page));
   if (params?.limit) qs.set("limit", String(params.limit));
-  return apiFetch<BountyCommentListResponse>(
-    `/api/bounties/${id}/comments${qs.toString() ? `?${qs.toString()}` : ""}`
-  );
+  const path = `${arenaCommentsPath(targetType, targetId)}${qs.toString() ? `?${qs.toString()}` : ""}`;
+
+  if (targetType === "bounty") {
+    const res = await apiFetch<BountyCommentListResponse>(path);
+    return { ...res, comments: (res.comments || []).map(fromBountyComment) };
+  }
+  return apiFetch<ArenaCommentListResponse>(path);
 }
 
-export function addBountyComment(id: string, body: { text: string; imageUrl?: string }) {
-  return apiFetch<{ ok: true; comment: BountyComment }>(`/api/bounties/${id}/comments`, {
+export async function createArenaComment(
+  targetType: ArenaCommentTarget,
+  targetId: string,
+  body: { content: string; imageUrl?: string; parentId?: string | null }
+): Promise<{ ok: true; comment: ArenaComment }> {
+  const path = arenaCommentsPath(targetType, targetId);
+
+  if (targetType === "bounty") {
+    const res = await apiFetch<{ ok: true; comment: BountyComment }>(path, {
+      method: "POST",
+      body: JSON.stringify({
+        text: body.content,
+        imageUrl: body.imageUrl,
+        parentId: body.parentId ?? null,
+      }),
+    });
+    return { ok: true, comment: fromBountyComment(res.comment) };
+  }
+
+  return apiFetch<{ ok: true; comment: ArenaComment }>(path, {
     method: "POST",
     body: JSON.stringify(body),
   });
 }
 
+/**
+ * 删除评论。
+ * deleted = 后端实际删除的总条数（含删顶楼时级联删掉的楼中楼）。
+ * 前端【不能】自己按「已加载的回复数」推算：分页下未加载的楼中楼会被漏掉，
+ * total 少减 → 计数偏高 + 冒出「幽灵加载更多」。
+ */
+export function deleteArenaComment(targetType: ArenaCommentTarget, targetId: string, commentId: string) {
+  return apiFetch<{ ok: true; deleted: number }>(
+    `${arenaCommentsPath(targetType, targetId)}/${encodeURIComponent(commentId)}`,
+    { method: "DELETE" }
+  );
+}
+
 // ===== 发言风格面板（Speaking Style Panel）=====
 // 平台聚合当前用户自己的发言文本（情景模拟发言 + 赏金提交发言 + 评论区评论），
-// 由 AI（或无 key 时的启发式）总结出一张“像 JOJO 替身那样”的能力面板：
-// 固定 6 项能力（attack/venom/logic/armor/resilience/humor）+ 中二替身名 + 点评 + 口头禅。
+// 由 AI（或无 key 时的启发式）总结出一张能力面板：
+// 固定 6 项能力（attack/venom/logic/armor/resilience/humor）+ 点评 + 口头禅。
 // 数据仅用于生成个人风格分析；纯展示，不做任何真实发帖。
 
 /** 单项能力：中文标签 + 0-100 数值 + 由数值派生的字母评级（S/A/B/C/D/E） */
@@ -1400,9 +1594,8 @@ export type StyleStat = {
   grade: string;
 };
 
-/** 一份发言风格档案（替身面板） */
+/** 一份发言风格档案（能力面板） */
 export type SpeakingProfile = {
-  standName: string;
   summary: string;
   catchphrases: string[];
   stats: StyleStat[];
@@ -1431,11 +1624,70 @@ export function generateStyleProfile(styleTally?: Record<string, number>) {
   );
 }
 
+/**
+ * 删除当前用户的风格档案（只删这份 AI 生成的档案本身）。
+ * deleted=false 表示本来就没有档案（不是错误）。
+ * ⚠️ 不会动风格记忆样本 —— 样本要用 clearStyleSamples / deleteStyleSample 单独删。
+ */
+export function deleteMyStyleProfile() {
+  return apiFetch<{ ok: true; deleted: boolean }>("/api/speaking-style", {
+    method: "DELETE",
+  });
+}
+
 /** 公开查看某用户的风格档案（供后续人格分享），未生成过则 profile 为 null */
 export function getUserStyleProfile(userId: string) {
   return apiFetch<{ ok: true; profile: SpeakingProfile | null }>(
     `/api/speaking-style/user/${encodeURIComponent(userId)}`
   );
+}
+
+// ===== 风格记忆：用户自己的发言样本（Style Samples）=====
+// 只收录用户自己提供的样本：手动粘贴（source='paste'），或用浏览器插件在自己的主页/评论页
+// 主动点 🧠 就地收集（source='capture'）。绝不自动爬取平台账号历史。
+// 样本可累积/查看/删除；生成风格档案时后端会把这些样本排在聚合文本最前面（最能代表本人口吻）。
+
+/** 一条用户自己的发言样本 */
+export type StyleSample = { _id: string; text: string; source: string; platform: string; createdAt: string };
+
+/** 批量加入风格记忆；后端按 hash 去重，重复的计入 skipped 而非失败 */
+export function addStyleSamples(body: { texts: string[]; source?: string; platform?: string }) {
+  return apiFetch<{ ok: boolean; added: number; skipped: number; total: number }>(
+    "/api/speaking-style/samples",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+/** 分页查看自己的发言样本（按创建时间倒序） */
+export function listStyleSamples(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<{
+    ok: boolean;
+    samples: StyleSample[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/api/speaking-style/samples${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+/** 删除单条发言样本 */
+export function deleteStyleSample(id: string) {
+  return apiFetch<{ ok: boolean }>(`/api/speaking-style/samples/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/** 清空自己的全部发言样本 */
+export function clearStyleSamples() {
+  return apiFetch<{ ok: boolean; deleted: number }>("/api/speaking-style/samples", {
+    method: "DELETE",
+  });
 }
 
 // ===== 人格下载（Persona）=====
@@ -1457,7 +1709,6 @@ export type Persona = {
   author: { _id: string; username: string } | string;
   name: string;
   description: string;
-  standName: string;
   coverEmoji: string;
   tags: string[];
   style: PersonaStyle;
@@ -1477,7 +1728,6 @@ export type Persona = {
 export type PersonaInput = {
   name: string;
   description: string;
-  standName: string;
   coverEmoji: string;
   tags: string[] | string;
   style: PersonaStyle;
