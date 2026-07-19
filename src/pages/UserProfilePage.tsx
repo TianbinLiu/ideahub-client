@@ -127,13 +127,27 @@ export default function UserProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  // 竞态守卫：每次 effect 重跑（含鉴权异步就绪或切换用户）自增，加载完成时比对，丢弃陈旧响应
+  const loadSeqRef = useRef(0);
+  // 记录已用于初始化 tab 的 (用户id + URL tab 参数)，避免鉴权就绪时误重置用户已选 tab
+  const tabInitRef = useRef<string | null>(null);
 
   const userId = (currentUser as any)?._id || (currentUser as any)?.id;
   const isOwnProfile = userId === id;
   const FREE_PUBLIC_LIMIT = Number((import.meta as any).env?.VITE_FREE_PUBLIC_IDEA_LIMIT) || 5;
 
   useEffect(() => {
-    setActiveTab(resolveInitialTab(searchParams.get("tab"), isOwnProfile));
+    // 本次运行的请求序号；后续各 loader 以此做竞态守卫
+    loadSeqRef.current += 1;
+
+    // 仅在切换用户或 URL tab 参数变化时重置已选 tab；
+    // 鉴权异步就绪(isOwnProfile undefined→true)导致 effect 重跑时不再重置，保留用户手动选择
+    const tabParam = searchParams.get("tab");
+    const tabKey = `${id ?? ""}::${tabParam ?? ""}`;
+    if (tabInitRef.current !== tabKey) {
+      tabInitRef.current = tabKey;
+      setActiveTab(resolveInitialTab(tabParam, isOwnProfile));
+    }
 
     loadProfile();
     loadBookmarks();
@@ -169,15 +183,17 @@ export default function UserProfilePage() {
 
   async function loadProfile() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 记录本次请求序号，用于竞态守卫
     setLoading(true);
     try {
       const [profileRes, reputationRes] = await Promise.all([
         apiFetch<{ ok: true; user: UserProfile }>(`/api/users/${id}`),
-        getUserReputation(id).catch(() => ({ 
-          stats: { likes: 0, dislikes: 0, badge: null }, 
-          myVote: null 
+        getUserReputation(id).catch(() => ({
+          stats: { likes: 0, dislikes: 0, badge: null },
+          myVote: null
         })),
       ]);
+      if (seq !== loadSeqRef.current) return; // 陈旧响应，丢弃避免覆盖新数据
       setProfile(profileRes.user);
       setFollowing(profileRes.user.isFollowing);
       setDisplayName(profileRes.user.displayName || "");
@@ -187,9 +203,11 @@ export default function UserProfilePage() {
 
       if (!isOwnProfile && currentUser && id) {
         const blockRes = await getDmBlockStatus(id).catch(() => ({ blocked: false } as any));
+        if (seq !== loadSeqRef.current) return; // 陈旧响应，丢弃
         setDmBlocked(!!(blockRes as any).blocked);
       }
     } catch (e: any) {
+      if (seq !== loadSeqRef.current) return; // 陈旧的失败响应不应清掉新用户的 profile
       // Set profile to null to show the "user not found" message
       setProfile(null);
       // Show error toast for better feedback
@@ -199,16 +217,18 @@ export default function UserProfilePage() {
         toast.error(humanizeError(e));
       }
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false); // 仅最新请求可结束 loading，避免陈旧响应提前清除
     }
   }
 
   async function loadBookmarks() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ok: true; ideas: Idea[]; leaderboards: Leaderboard[] }>(
         `/api/users/${id}/bookmarks`
       );
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setBookmarkedIdeas(res.ideas || []);
       setBookmarkedLeaderboards(res.leaderboards || []);
     } catch (e) {
@@ -218,10 +238,12 @@ export default function UserProfilePage() {
 
   async function loadUserLeaderboards() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ok: true; items: UserLeaderboard[] }>(
         `/api/users/${id}/leaderboards?limit=50`
       );
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setUserLeaderboards(res.items || []);
     } catch (e) {
       console.error("Failed to load user leaderboards", e);
@@ -230,8 +252,10 @@ export default function UserProfilePage() {
 
   async function loadFollowers() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ok: true; followers: any[] }>(`/api/users/${id}/followers`);
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setFollowers(res.followers || []);
     } catch (e) {
       console.error("Failed to load followers", e);
@@ -240,8 +264,10 @@ export default function UserProfilePage() {
 
   async function loadFollowing() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ok: true; following: any[] }>(`/api/users/${id}/following`);
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setFollowingUsers(res.following || []);
     } catch (e) {
       console.error("Failed to load following", e);
@@ -250,8 +276,10 @@ export default function UserProfilePage() {
 
   async function loadCurrentUserFollowing() {
     if (!userId) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ok: true; following: any[] }>(`/api/users/${userId}/following`);
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setCurrentUserFollowing(res.following || []);
     } catch (e) {
       console.error("Failed to load current user following", e);
@@ -278,8 +306,10 @@ export default function UserProfilePage() {
   }
 
   async function loadMyIdeas() {
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ideas: Idea[] }>("/api/ideas/mine");
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setMyIdeas(res.ideas || []);
       const used = (res.ideas || []).filter((i) => i.visibility === "public").length;
       setPublicUsed(used);
@@ -290,18 +320,23 @@ export default function UserProfilePage() {
 
   async function loadProfileIdeas() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ideas: Idea[] }>(`/api/users/${id}/ideas`);
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setProfileIdeas(res.ideas || []);
     } catch (e) {
       console.error("Failed to load profile ideas", e);
+      if (seq !== loadSeqRef.current) return; // 陈旧失败不应清掉新用户的数据
       setProfileIdeas([]);
     }
   }
 
   async function loadLikes() {
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ ideas: Idea[] }>("/api/me/likes");
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setLikedIdeas(res.ideas || []);
     } catch (e) {
       console.error("Failed to load likes", e);
@@ -309,8 +344,10 @@ export default function UserProfilePage() {
   }
 
   async function loadReceivedInterests() {
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await apiFetch<{ interests: Interest[] }>("/api/me/received-interests");
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setReceivedInterests(res.interests || []);
     } catch (e) {
       console.error("Failed to load interests", e);
@@ -319,8 +356,10 @@ export default function UserProfilePage() {
 
   async function loadGroupReferrals() {
     if (!id) return;
+    const seq = loadSeqRef.current; // 竞态守卫
     try {
       const res = await listUserGroupReferrals(id);
+      if (seq !== loadSeqRef.current) return; // 丢弃陈旧响应
       setGroupReferrals(res.referrals || []);
     } catch (e) {
       console.error("Failed to load group referrals", e);

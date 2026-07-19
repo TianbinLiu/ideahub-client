@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -47,6 +47,8 @@ export default function GroupDetailPage() {
   const [chatName, setChatName] = useState("");
   const [chatDescription, setChatDescription] = useState("");
   const [settingsLoading, setSettingsLoading] = useState(false);
+  // 记录已自动加入过的邀请，避免 group?.joined 从 undefined→false 变化触发重复自动加入
+  const autoJoinKey = useRef<string | null>(null);
 
   const shareUrl = useMemo(() => {
     if (!invite) return "";
@@ -105,6 +107,10 @@ export default function GroupDetailPage() {
 
   useEffect(() => {
     if (!slug || (!joinToken && !inviteCode) || group?.joined) return;
+    // 同一邀请只自动加入一次：group 载入使 group?.joined 由 undefined→false 会重跑本 effect，去重防止重复请求
+    const key = `${slug}:${joinToken}:${inviteCode}`;
+    if (autoJoinKey.current === key) return;
+    autoJoinKey.current = key;
     void handleJoin({ inviteToken: joinToken || undefined, inviteCode: inviteCode || undefined });
   }, [slug, joinToken, inviteCode, group?.joined]);
 

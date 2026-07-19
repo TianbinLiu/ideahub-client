@@ -440,7 +440,8 @@
     "likePost": "{{actor}} 点赞了你的提名 \"{{title}}\"",
     "messageRequestAccepted": "{{actor}} 接受了你的私信申请",
     "messageRequestRejected": "{{actor}} 拒绝了你的私信申请",
-    "typeFallback": "{{actor}}：{{type}}"
+    "typeFallback": "{{actor}}：{{type}}",
+    "categoryTruncatedHint": "仅加载最近 {{limit}} 条通知，此分类可能未包含更早的记录。"
   },
   "me": {
     "pageTitle": "我的",
@@ -1051,7 +1052,9 @@
       "emptyGallery": "这里还没有情景，来创建第一个吧。",
       "previous": "上一页",
       "next": "下一页",
-      "pageInfo": "第 {{page}} / {{total}} 页"
+      "pageInfo": "第 {{page}} / {{total}} 页",
+      "platformDouyin": "抖音",
+      "platformXiaohongshu": "小红书"
     },
     "meme": {
       "tabLibrary": "公开素材库",
@@ -1886,5 +1889,14 @@
     "worldMemberHint": "所有用户默认在全部圈子",
     "processing": "处理中...",
     "enterGroup": "进入圈子"
+  },
+  "platformComment": {
+    "empty": "还没有评论",
+    "reply": "回复",
+    "cancel": "取消",
+    "placeholder": "说点什么…",
+    "replyPlaceholder": "回复 @{{name}}",
+    "aiReplying": "AI 正在回复…",
+    "send": "发送"
   }
 }

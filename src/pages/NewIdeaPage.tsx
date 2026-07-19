@@ -113,6 +113,7 @@ export default function NewIdeaPage() {
     }
   }, [creationMode, isBusinessMode, isDailyMode, isDynamicMode, isExternalMode, isFeedbackMode, nav]);
 
+  // 仅在挂载时拉取一次全量分组：切换分组会 setGroupSlug，若把它作为依赖会导致每次换组都重拉全量分组
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -121,9 +122,8 @@ export default function NewIdeaPage() {
         if (!mounted) return;
         const joinedGroups = (res.groups || []).filter((group) => group.isWorld || group.joined);
         setAvailableGroups(joinedGroups);
-        if (!joinedGroups.some((group) => group.slug === groupSlug)) {
-          setGroupSlug("world");
-        }
+        // 用函数式更新读取当前选中值，将“校验回退”与“拉取”解耦，无需把 groupSlug 放进依赖
+        setGroupSlug((current) => (joinedGroups.some((group) => group.slug === current) ? current : "world"));
       } catch {
         if (!mounted) return;
         setAvailableGroups([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
@@ -134,7 +134,7 @@ export default function NewIdeaPage() {
     return () => {
       mounted = false;
     };
-  }, [groupSlug]);
+  }, []);
 
   function isValidUrl(url: string): boolean {
     try {

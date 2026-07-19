@@ -270,6 +270,12 @@ export default function TagMapPage() {
     }
   }
 
+  function updateTimeWindow(nextWindow: TimeWindowKey) {
+    setTimeWindow(nextWindow);
+    // 时间窗变化会重算聚类，旧的下钻路径可能失效，复位 zoomPath 避免面包屑与地图脱节（与 updateIdeaType 一致）
+    setZoomPath([]);
+  }
+
   useEffect(() => {
     if (isIdeaTypeKey(rawIdeaType)) return;
     try {
@@ -666,7 +672,7 @@ export default function TagMapPage() {
           value={TIME_WINDOWS.findIndex((w) => w.key === timeWindow)}
           onChange={(e) => {
             const idx = clamp(parseInt(e.target.value, 10) || 0, 0, TIME_WINDOWS.length - 1);
-            setTimeWindow(TIME_WINDOWS[idx].key);
+            updateTimeWindow(TIME_WINDOWS[idx].key);
           }}
           className="mt-3 w-full accent-cyan-400"
           aria-label={t("tagMap.timeWindowLabel")}
@@ -675,7 +681,7 @@ export default function TagMapPage() {
           {TIME_WINDOWS.map((w) => (
             <button
               key={w.key}
-              onClick={() => setTimeWindow(w.key)}
+              onClick={() => updateTimeWindow(w.key)}
               className={`rounded-md px-1.5 py-1 text-[11px] md:text-xs border ${
                 timeWindow === w.key
                   ? "border-cyan-500 text-cyan-200 bg-cyan-900/30"
@@ -713,7 +719,8 @@ export default function TagMapPage() {
                       onClick={() => navigateToBreadcrumb(index + 1)}
                       className="text-cyan-300 hover:text-cyan-200 hover:underline"
                     >
-                      #{key}
+                      {/* 面包屑显示友好标签而非原始 key（如 cat:product-business），复用同页 getClusterLabel */}
+                      {getClusterLabel(key, t)}
                     </button>
                   </span>
                 ))}
