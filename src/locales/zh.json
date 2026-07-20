@@ -1058,7 +1058,9 @@
       "next": "下一页",
       "pageInfo": "第 {{page}} / {{total}} 页",
       "platformDouyin": "抖音",
-      "platformXiaohongshu": "小红书"
+      "platformXiaohongshu": "小红书",
+      "platformWechat": "微信",
+      "platformQq": "QQ"
     },
     "meme": {
       "tabLibrary": "公开素材库",
