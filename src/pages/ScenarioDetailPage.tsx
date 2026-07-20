@@ -26,6 +26,7 @@ import { Bookmark, Eye, Heart, Pencil, Play } from "lucide-react";
 import {
   getScenario,
   installPersona,
+  purchasePersona,
   toggleScenarioBookmark,
   toggleScenarioLike,
   uninstallPersona,
@@ -101,6 +102,26 @@ export default function ScenarioDetailPage() {
       mounted = false;
     };
   }, [id]);
+
+  /** 购买情景里的付费人格（永久解锁选用权；收藏本身仍免费） */
+  async function handleBuyPersona(card: ScenarioPersonaCard) {
+    if (!user) return requireLogin();
+    if (installingId) return;
+    setInstallingId(card._id);
+    try {
+      const res = await purchasePersona(card._id, card.price);
+      setPersonas((prev) => prev.map((p) => (p._id === card._id ? { ...p, purchased: true } : p)));
+      toast.success(
+        res.alreadyOwned
+          ? t("arena.scenarioDetail.personaAlreadyOwned", { name: card.name })
+          : t("arena.scenarioDetail.personaPurchasedToast", { name: card.name, price: res.price })
+      );
+    } catch (e) {
+      toast.error(humanizeError(e));
+    } finally {
+      setInstallingId(null);
+    }
+  }
 
   /** 收藏/取消收藏情景里的人格（PersonaInstall）。收藏后在人格选择器里置顶并标「收藏」。 */
   async function handleTogglePersonaInstall(card: ScenarioPersonaCard) {
@@ -328,6 +349,17 @@ export default function ScenarioDetailPage() {
                             {t("arena.scenarioDetail.personaPrivate")}
                           </span>
                         )}
+                        {p.price > 0 && (
+                          <span
+                            className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+                              p.purchased || p.isOwner
+                                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
+                                : "border-amber-600/60 bg-amber-950/30 text-amber-300"
+                            }`}
+                          >
+                            {p.purchased ? t("arena.scenarioDetail.personaOwned") : `💰 ${p.price}`}
+                          </span>
+                        )}
                         <span className="text-[11px] text-gray-500">
                           🎭 {p.stats.downloadCount} · ❤️ {p.stats.likeCount}
                         </span>
@@ -344,20 +376,33 @@ export default function ScenarioDetailPage() {
                         {t("arena.scenarioDetail.personaMine")}
                       </span>
                     ) : p.shared ? (
-                      <button
-                        type="button"
-                        disabled={installingId === p._id}
-                        onClick={() => handleTogglePersonaInstall(p)}
-                        className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${
-                          p.installed
-                            ? "border-amber-500/60 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
-                            : "border-gray-700 text-gray-200 hover:bg-gray-800"
-                        }`}
-                      >
-                        {p.installed
-                          ? t("arena.scenarioDetail.personaCollected")
-                          : t("arena.scenarioDetail.personaCollect")}
-                      </button>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        {/* 付费未购：先给购买入口（解锁选用权）；收藏本身始终免费 */}
+                        {p.price > 0 && !p.purchased && (
+                          <button
+                            type="button"
+                            disabled={installingId === p._id}
+                            onClick={() => handleBuyPersona(p)}
+                            className="rounded-lg border border-amber-600/60 bg-amber-950/30 px-2.5 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-900/40 disabled:opacity-50"
+                          >
+                            {t("arena.scenarioDetail.personaBuy", { price: p.price })}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={installingId === p._id}
+                          onClick={() => handleTogglePersonaInstall(p)}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${
+                            p.installed
+                              ? "border-amber-500/60 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+                              : "border-gray-700 text-gray-200 hover:bg-gray-800"
+                          }`}
+                        >
+                          {p.installed
+                            ? t("arena.scenarioDetail.personaCollected")
+                            : t("arena.scenarioDetail.personaCollect")}
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 ))}

@@ -26,6 +26,7 @@ import {
   equipPersona,
   getPersona,
   installPersona,
+  purchasePersona,
   togglePersonaLike,
   uninstallPersona,
   type Persona,
@@ -68,6 +69,7 @@ export default function PersonaDetailPage() {
   const [loading, setLoading] = useState(true);
   const [persona, setPersona] = useState<Persona | null>(null);
   const [equipping, setEquipping] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -91,6 +93,26 @@ export default function PersonaDetailPage() {
   function requireLogin() {
     toast.error(t("arena.personaDetail.loginRequired"));
     navigate(`/login?next=/arena/persona/${id}`);
+  }
+
+  /** 购买付费人格（永久解锁选用权：装备/绑进情景） */
+  async function handlePurchase() {
+    if (!id || !persona) return;
+    if (!user) return requireLogin();
+    try {
+      setPurchasing(true);
+      const res = await purchasePersona(id, persona.price || 0);
+      setPersona((p) => (p ? { ...p, purchased: true } : p));
+      toast.success(
+        res.alreadyOwned
+          ? t("arena.personaDetail.alreadyOwned")
+          : t("arena.personaDetail.purchased", { price: res.price })
+      );
+    } catch (e) {
+      toast.error(humanizeError(e));
+    } finally {
+      setPurchasing(false);
+    }
   }
 
   async function handleInstall() {
@@ -256,10 +278,38 @@ export default function PersonaDetailPage() {
             <span className="inline-flex items-center gap-1">👀 {persona.stats.viewCount}</span>
             <span className="inline-flex items-center gap-1">🎭 {persona.stats.downloadCount}</span>
             <span className="inline-flex items-center gap-1">❤️ {persona.stats.likeCount}</span>
+            {(persona.price || 0) > 0 && (
+              <span
+                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                  persona.purchased || persona.isOwner
+                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
+                    : "border-amber-600/60 bg-amber-950/30 text-amber-300"
+                }`}
+              >
+                {persona.purchased
+                  ? t("arena.personaDetail.priceOwned")
+                  : persona.isOwner
+                    ? t("arena.personaDetail.priceMine", { price: persona.price })
+                    : t("arena.personaDetail.priceTag", { price: persona.price })}
+              </span>
+            )}
           </div>
 
           {/* ===== 操作按钮 ===== */}
           <div className="mt-5 flex flex-wrap gap-2">
+            {/* 付费未购（非作者）：装备会被后端挡（需先购买），把购买入口放最前 */}
+            {(persona.price || 0) > 0 && !persona.purchased && !persona.isOwner && (
+              <button
+                type="button"
+                disabled={purchasing}
+                onClick={handlePurchase}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+              >
+                💰 {purchasing
+                  ? t("arena.personaDetail.purchasing")
+                  : t("arena.personaDetail.purchaseButton", { price: persona.price })}
+              </button>
+            )}
             {persona.equipped ? (
               <button
                 type="button"

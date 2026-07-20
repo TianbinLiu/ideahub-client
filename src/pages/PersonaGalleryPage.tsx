@@ -103,8 +103,19 @@ function PersonaGrid({ items, onTagClick }: { items: Persona[]; onTagClick?: (ta
             </div>
           )}
 
-          <div className="mt-3 text-xs text-gray-400">
-            🎭 {p.stats?.downloadCount || 0} · ❤️ {p.stats?.likeCount || 0}
+          <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
+            <span>🎭 {p.stats?.downloadCount || 0} · ❤️ {p.stats?.likeCount || 0}</span>
+            {(p.price || 0) > 0 && (
+              <span
+                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+                  p.purchased || p.isOwner
+                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
+                    : "border-amber-600/60 bg-amber-950/30 text-amber-300"
+                }`}
+              >
+                {p.purchased ? t("arena.persona.priceOwned") : `💰 ${p.price}`}
+              </span>
+            )}
           </div>
         </Link>
       ))}
