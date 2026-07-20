@@ -64,6 +64,8 @@ export default function PersonaEditorPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [shared, setShared] = useState(true);
+  // 售价（赏金点数字符串态，提交时归一为整数；仅公开时展示）
+  const [priceText, setPriceText] = useState("0");
   const [summary, setSummary] = useState("");
   const [catchphrasesText, setCatchphrasesText] = useState("");
   const [stanceHint, setStanceHint] = useState("");
@@ -88,6 +90,7 @@ export default function PersonaEditorPage() {
         setCoverEmoji(p.coverEmoji || "🎭");
         setTags((p.tags || []).slice(0, 12));
         setShared(!!p.shared);
+        setPriceText(String(p.price || 0));
         setSummary(p.style?.summary || "");
         setCatchphrasesText((p.style?.catchphrases || []).join("，"));
         setStanceHint(p.style?.stanceHint || "");
@@ -168,6 +171,9 @@ export default function PersonaEditorPage() {
       stanceHint: stanceHint.trim() || undefined,
     };
 
+    // 价格归一：非法/负数→0；上限与后端 schema 一致
+    const price = Math.min(Math.max(Math.floor(Number(priceText) || 0), 0), 100000);
+
     const body = {
       name: name.trim(),
       description: description.trim(),
@@ -175,6 +181,7 @@ export default function PersonaEditorPage() {
       tags,
       style,
       shared,
+      price,
     };
 
     try {
@@ -350,6 +357,29 @@ export default function PersonaEditorPage() {
           <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
           {t("arena.personaEditor.sharedLabel")}
         </label>
+
+        {/* 付费发布：仅公开人格可定价。0=免费；调价不影响已购用户（永久解锁） */}
+        {shared && (
+          <div className="rounded-xl border border-amber-700/40 bg-amber-950/10 p-3">
+            <label className="block text-sm text-gray-300">
+              {t("arena.personaEditor.priceLabel")}
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-amber-300">💰</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100000}
+                  step={1}
+                  value={priceText}
+                  onChange={(e) => setPriceText(e.target.value)}
+                  className="w-32 rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
+                />
+                <span className="text-xs text-gray-500">{t("arena.personaEditor.priceUnit")}</span>
+              </div>
+            </label>
+            <p className="mt-1.5 text-xs text-gray-500">{t("arena.personaEditor.priceHint")}</p>
+          </div>
+        )}
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">

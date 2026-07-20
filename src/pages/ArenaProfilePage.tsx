@@ -98,6 +98,10 @@ const LEDGER_REASON_LABELS: Record<PointsLedgerEntry["reason"], string> = {
   bounty_hold: "reasonBountyHold",
   bounty_reward: "reasonBountyReward",
   bounty_refund: "reasonBountyRefund",
+  persona_buy: "reasonPersonaBuy",
+  persona_income: "reasonPersonaIncome",
+  // 平台内部分录，不会出现在个人流水里；类型上兜一个键防御后端异常
+  persona_fee: "reasonPersonaFee",
 };
 
 type TabKey = "scenario" | "bounty" | "persona";

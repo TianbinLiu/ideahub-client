@@ -1109,8 +1109,12 @@ export type ScenarioPersonaCard = {
   tags: string[];
   shared: boolean;
   authorName: string;
+  /** 售价（赏金点数，0=免费） */
+  price: number;
   /** 观看者是否已收藏（PersonaInstall） */
   installed: boolean;
+  /** 观看者是否已购买（付费人格的永久解锁） */
+  purchased: boolean;
   isOwner: boolean;
   stats: { downloadCount: number; likeCount: number };
   /** 该人格绑在本情景哪些角色上 */
@@ -1559,11 +1563,15 @@ export function reviewBountySubmission(id: string, sid: string, status: "approve
 export type PointsLedgerEntry = {
   _id: string;
   delta: number;
-  /** signup=注册赠送 / bounty_hold=发布悬赏托管 / bounty_reward=赏金入账 / bounty_refund=托管退回 */
-  reason: "signup" | "bounty_hold" | "bounty_reward" | "bounty_refund";
+  /**
+   * signup=注册赠送 / bounty_hold=发布悬赏托管 / bounty_reward=赏金入账 / bounty_refund=托管退回
+   * persona_buy=购买人格 / persona_income=人格售出入账（persona_fee 是平台内部分录，不会出现在个人流水里）
+   */
+  reason: "signup" | "bounty_hold" | "bounty_reward" | "bounty_refund" | "persona_buy" | "persona_income" | "persona_fee";
   /** 这笔之后的余额快照（便于对账）；后端可能为 null */
   balanceAfter: number | null;
   bounty: string | null;
+  persona?: string | null;
   memo: string;
   createdAt: string;
 };
@@ -1843,11 +1851,15 @@ export type Persona = {
   /** 后端从 name+style 计算的一段文本，供插件当作 personaText 用（截断到 ~600 字） */
   styleDescriptor: string;
   shared: boolean;
+  /** 售价（赏金点数，0=免费）。>0 时非作者需购买后才能选用（绑定/装备）；收藏免费 */
+  price: number;
   stats: { viewCount: number; downloadCount: number; likeCount: number };
   installed?: boolean;
   liked?: boolean;
   equipped?: boolean;
   isOwner?: boolean;
+  /** 当前用户是否已购买（永久解锁）；作者本人恒 false，gate 一律先判 isOwner */
+  purchased?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -1860,6 +1872,8 @@ export type PersonaInput = {
   tags: string[] | string;
   style: PersonaStyle;
   shared: boolean;
+  /** 售价（赏金点数，0=免费；仅公开人格有意义） */
+  price?: number;
 };
 
 type PersonaListResponse = {
@@ -1911,6 +1925,18 @@ export function deletePersona(id: string) {
   return apiFetch<{ ok: true }>(`/api/personas/${id}`, {
     method: "DELETE",
   });
+}
+
+/**
+ * 购买付费人格（永久解锁选用权；幂等——已购返回 alreadyOwned）。
+ * expectedPrice：把用户【确认时看到的价格】钉给后端——作者并发调价时后端会拒绝，
+ * 绝不按用户没见过的价格扣款。
+ */
+export function purchasePersona(id: string, expectedPrice: number) {
+  return apiFetch<{ ok: true; purchased: true; alreadyOwned: boolean; price: number; balance?: number }>(
+    `/api/personas/${id}/purchase`,
+    { method: "POST", body: JSON.stringify({ expectedPrice }) }
+  );
 }
 
 export function installPersona(id: string) {

@@ -19,7 +19,9 @@ import toast from "react-hot-toast";
 import {
   createPersona,
   generatePersonaDraft,
+  getMyPoints,
   listPersonas,
+  purchasePersona,
   type Persona,
   type PersonaDraft,
 } from "../api";
@@ -53,15 +55,30 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
   // 请求竞态防护：只认最后一次请求的结果（快速连续输入时旧响应可能后到）
   const reqSeq = useRef(0);
 
+  // ── 购买确认（付费人格点选后先经这里）──
+  const [buyTarget, setBuyTarget] = useState<Persona | null>(null);
+  const [buying, setBuying] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+
   // ── 生成 tab ──
   const [chatText, setChatText] = useState("");
   const [hint, setHint] = useState("");
+  // 生成人格的售价（仅勾选公开时展示/生效）
+  const [genPriceText, setGenPriceText] = useState("0");
   // 默认【不公开】（评审实锤）：素材是私人聊天记录，生成物含原话引文——
   // 公开必须是用户看过预览后的主动选择，而不是默认顺手带出去
   const [genShared, setGenShared] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<PersonaDraft | null>(null);
+
+  // 购买确认面板随上下文失效（评审实锤）：弹窗关闭、或搜索/scope 切换换了列表，
+  // 陈旧的 buyTarget 都必须清掉 —— 否则残留面板会把上一个角色挑的付费人格
+  // 绑到下一个角色上（弹窗常驻挂载，state 跨开合存活）。
+  useEffect(() => {
+    setBuyTarget(null);
+    setBalance(null);
+  }, [open, q, scope]);
 
   useEffect(() => {
     if (!open || mode !== "pick") return;
@@ -99,6 +116,41 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
     return () => window.clearTimeout(timer);
   }, [open, mode, q, scope]);
 
+  /** 点选人格：免费/已购/自己的直接绑定；付费未购的先进购买确认 */
+  function handlePick(p: Persona) {
+    if ((p.price || 0) > 0 && !p.purchased && !p.isOwner) {
+      setBuyTarget(p);
+      setBalance(null);
+      getMyPoints()
+        .then((res) => setBalance(res.points))
+        .catch(() => setBalance(null));
+      return;
+    }
+    setBuyTarget(null);
+    onSelect(p);
+  }
+
+  async function handleBuyAndBind() {
+    if (!buyTarget) return;
+    try {
+      setBuying(true);
+      const res = await purchasePersona(buyTarget._id, buyTarget.price);
+      const owned = { ...buyTarget, purchased: true };
+      setPersonas((prev) => prev.map((x) => (x._id === owned._id ? owned : x)));
+      toast.success(
+        res.alreadyOwned
+          ? t("arena.personaPicker.alreadyOwned", { name: owned.name })
+          : t("arena.personaPicker.purchaseDone", { name: owned.name, price: res.price })
+      );
+      setBuyTarget(null);
+      onSelect(owned);
+    } catch (e) {
+      toast.error(humanizeError(e));
+    } finally {
+      setBuying(false);
+    }
+  }
+
   async function handleGenerate() {
     try {
       setGenerating(true);
@@ -115,7 +167,8 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
     if (!draft) return;
     try {
       setCreating(true);
-      const res = await createPersona({ ...draft, shared: genShared });
+      const price = genShared ? Math.min(Math.max(Math.floor(Number(genPriceText) || 0), 0), 100000) : 0;
+      const res = await createPersona({ ...draft, shared: genShared, price });
       toast.success(t("arena.personaPicker.generatedCreated", { name: res.persona.name }));
       setDraft(null);
       setChatText("");
@@ -215,7 +268,7 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
                   <button
                     key={p._id}
                     type="button"
-                    onClick={() => onSelect(p)}
+                    onClick={() => handlePick(p)}
                     className="flex w-full items-start gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 text-left hover:border-cyan-700/60 hover:bg-cyan-950/20"
                   >
                     <span className="text-3xl leading-none">{p.coverEmoji || "🎭"}</span>
@@ -225,6 +278,21 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
                         {p.installed && (
                           <span className="shrink-0 rounded-full border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
                             {t("arena.personaPicker.installedBadge")}
+                          </span>
+                        )}
+                        {(p.price || 0) > 0 && (
+                          <span
+                            className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+                              p.purchased || p.isOwner
+                                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
+                                : "border-amber-600/60 bg-amber-950/30 text-amber-300"
+                            }`}
+                          >
+                            {p.purchased
+                              ? t("arena.personaPicker.pricePurchased")
+                              : p.isOwner
+                                ? t("arena.personaPicker.priceOwn")
+                                : `💰 ${p.price}`}
                           </span>
                         )}
                         <span className="shrink-0 text-[11px] text-gray-500">
@@ -248,6 +316,45 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
                 ))
               )}
             </div>
+
+            {/* 购买确认：付费人格点选后先确认支付（显示价格/抽成/余额），确认即购买并绑定 */}
+            {buyTarget && (
+              <div className="mt-3 rounded-xl border border-amber-600/50 bg-amber-950/20 p-3">
+                <p className="text-sm text-amber-100">
+                  {t("arena.personaPicker.buyConfirm", { name: buyTarget.name, price: buyTarget.price })}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {t("arena.personaPicker.buyDetail", {
+                    creator: Math.ceil(buyTarget.price * 0.95),
+                  })}
+                  {balance != null && (
+                    <span className="ml-2 text-gray-500">{t("arena.personaPicker.balance", { balance })}</span>
+                  )}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={buying}
+                    onClick={() => setBuyTarget(null)}
+                    className="flex-1 rounded-xl border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    {t("arena.personaPicker.buyCancel")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={buying || (balance != null && balance < buyTarget.price)}
+                    onClick={handleBuyAndBind}
+                    className="flex-1 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {buying
+                      ? t("arena.personaPicker.buying")
+                      : balance != null && balance < buyTarget.price
+                        ? t("arena.personaPicker.insufficientBalance")
+                        : t("arena.personaPicker.buyAndBind")}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="mt-2 min-h-0 flex-1 space-y-3 overflow-y-auto">
@@ -284,6 +391,21 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
                     <span className="block text-[11px] text-gray-500">{t("arena.personaPicker.sharedHint")}</span>
                   </span>
                 </label>
+                {genShared && (
+                  <div className="flex items-center gap-2 text-xs text-gray-300">
+                    <span className="text-amber-300">💰</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100000}
+                      step={1}
+                      value={genPriceText}
+                      onChange={(e) => setGenPriceText(e.target.value)}
+                      className="w-24 rounded-lg border border-gray-800 bg-gray-950/50 px-2 py-1.5"
+                    />
+                    <span className="text-[11px] text-gray-500">{t("arena.personaPicker.genPriceHint")}</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   disabled={chatText.trim().length < 20 || generating}
@@ -347,6 +469,21 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
                     <span className="block text-[11px] text-gray-500">{t("arena.personaPicker.sharedHint")}</span>
                   </span>
                 </label>
+                {genShared && (
+                  <div className="flex items-center gap-2 text-xs text-gray-300">
+                    <span className="text-amber-300">💰</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100000}
+                      step={1}
+                      value={genPriceText}
+                      onChange={(e) => setGenPriceText(e.target.value)}
+                      className="w-24 rounded-lg border border-gray-800 bg-gray-950/50 px-2 py-1.5"
+                    />
+                    <span className="text-[11px] text-gray-500">{t("arena.personaPicker.genPriceHint")}</span>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="button"
