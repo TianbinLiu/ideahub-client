@@ -1100,8 +1100,25 @@ export function listMyScenarios(params?: { page?: number; limit?: number }) {
   return apiFetch<ScenarioListResponse>(`/api/scenarios/mine${qs.toString() ? `?${qs.toString()}` : ""}`);
 }
 
+/** 情景详情页「本情景中的人格」卡片（server 只返回观看者可见的：公开的 / 自己发布的） */
+export type ScenarioPersonaCard = {
+  _id: string;
+  name: string;
+  coverEmoji: string;
+  description: string;
+  tags: string[];
+  shared: boolean;
+  authorName: string;
+  /** 观看者是否已收藏（PersonaInstall） */
+  installed: boolean;
+  isOwner: boolean;
+  stats: { downloadCount: number; likeCount: number };
+  /** 该人格绑在本情景哪些角色上 */
+  roles: string[];
+};
+
 export function getScenario(id: string) {
-  return apiFetch<{ ok: true; scenario: Scenario }>(`/api/scenarios/${id}`);
+  return apiFetch<{ ok: true; scenario: Scenario; personas?: ScenarioPersonaCard[] }>(`/api/scenarios/${id}`);
 }
 
 export function createScenario(body: ScenarioInput) {
@@ -1911,6 +1928,23 @@ export function uninstallPersona(id: string) {
 export function togglePersonaLike(id: string) {
   return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(`/api/personas/${id}/like`, {
     method: "POST",
+  });
+}
+
+/** AI 从聊天文本提炼的人格草稿（未落库；确认后走 createPersona 创建） */
+export type PersonaDraft = {
+  name: string;
+  description: string;
+  coverEmoji: string;
+  tags: string[];
+  style: PersonaStyle;
+};
+
+/** POST /api/personas/generate —— 从聊天记录提炼人格草稿（情景编辑器「✨从聊天记录生成」） */
+export function generatePersonaDraft(body: { chatText: string; hint?: string }) {
+  return apiFetch<{ ok: true; draft: PersonaDraft; model: string }>("/api/personas/generate", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 

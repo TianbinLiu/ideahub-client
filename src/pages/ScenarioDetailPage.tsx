@@ -25,9 +25,12 @@ import { useTranslation } from "react-i18next";
 import { Bookmark, Eye, Heart, Pencil, Play } from "lucide-react";
 import {
   getScenario,
+  installPersona,
   toggleScenarioBookmark,
   toggleScenarioLike,
+  uninstallPersona,
   type Scenario,
+  type ScenarioPersonaCard,
 } from "../api";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
@@ -72,6 +75,10 @@ export default function ScenarioDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState<Scenario | null>(null);
+  // 本情景中的人格（chat 场景绑定的，server 只给观看者可见的）
+  const [personas, setPersonas] = useState<ScenarioPersonaCard[]>([]);
+  // 正在收藏/取消收藏的人格 id（防连点）
+  const [installingId, setInstallingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -80,7 +87,10 @@ export default function ScenarioDetailPage() {
       try {
         setLoading(true);
         const res = await getScenario(id);
-        if (mounted) setScenario(res.scenario);
+        if (mounted) {
+          setScenario(res.scenario);
+          setPersonas(res.personas || []);
+        }
       } catch (e) {
         if (mounted) toast.error(humanizeError(e));
       } finally {
@@ -91,6 +101,32 @@ export default function ScenarioDetailPage() {
       mounted = false;
     };
   }, [id]);
+
+  /** 收藏/取消收藏情景里的人格（PersonaInstall）。收藏后在人格选择器里置顶并标「收藏」。 */
+  async function handleTogglePersonaInstall(card: ScenarioPersonaCard) {
+    if (!user) return requireLogin();
+    if (installingId) return;
+    setInstallingId(card._id);
+    try {
+      const res = card.installed ? await uninstallPersona(card._id) : await installPersona(card._id);
+      setPersonas((prev) =>
+        prev.map((p) =>
+          p._id === card._id
+            ? { ...p, installed: res.installed, stats: { ...p.stats, downloadCount: res.downloadCount } }
+            : p
+        )
+      );
+      toast.success(
+        res.installed
+          ? t("arena.scenarioDetail.personaInstalled", { name: card.name })
+          : t("arena.scenarioDetail.personaUninstalled", { name: card.name })
+      );
+    } catch (e) {
+      toast.error(humanizeError(e));
+    } finally {
+      setInstallingId(null);
+    }
+  }
 
   function requireLogin() {
     toast.error(t("arena.scenarioDetail.loginRequired"));
@@ -266,6 +302,69 @@ export default function ScenarioDetailPage() {
         </div>
 
         <div className="space-y-4">
+          {/* 本情景中的人格：chat 场景角色绑定的人格，可收藏（PersonaInstall）。
+              收藏后在所有「选择人格」入口置顶并标「收藏」。未公开的只有人格作者自己能看到。 */}
+          {personas.length > 0 && (
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+              <h2 className="text-base font-semibold text-white">{t("arena.scenarioDetail.personasTitle")}</h2>
+              <p className="mt-0.5 text-xs text-gray-500">{t("arena.scenarioDetail.personasHint")}</p>
+              <div className="mt-3 space-y-2">
+                {personas.map((p) => (
+                  <div
+                    key={p._id}
+                    className="flex items-start gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3"
+                  >
+                    <span className="text-3xl leading-none">{p.coverEmoji || "🎭"}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`/arena/persona/${p._id}`}
+                          className="truncate text-sm font-semibold text-white hover:text-cyan-200"
+                        >
+                          {p.name}
+                        </Link>
+                        {!p.shared && (
+                          <span className="rounded-full border border-gray-600 px-1.5 py-0.5 text-[10px] text-gray-400">
+                            {t("arena.scenarioDetail.personaPrivate")}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-gray-500">
+                          🎭 {p.stats.downloadCount} · ❤️ {p.stats.likeCount}
+                        </span>
+                      </div>
+                      {p.roles.length > 0 && (
+                        <p className="mt-0.5 text-xs text-purple-200/70">
+                          {t("arena.scenarioDetail.personaPlays", { roles: p.roles.join("、") })}
+                        </p>
+                      )}
+                      {p.description && <p className="mt-0.5 line-clamp-2 text-xs text-gray-400">{p.description}</p>}
+                    </div>
+                    {p.isOwner ? (
+                      <span className="shrink-0 rounded-full border border-cyan-700/50 px-2 py-1 text-[11px] text-cyan-300">
+                        {t("arena.scenarioDetail.personaMine")}
+                      </span>
+                    ) : p.shared ? (
+                      <button
+                        type="button"
+                        disabled={installingId === p._id}
+                        onClick={() => handleTogglePersonaInstall(p)}
+                        className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${
+                          p.installed
+                            ? "border-amber-500/60 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+                            : "border-gray-700 text-gray-200 hover:bg-gray-800"
+                        }`}
+                      >
+                        {p.installed
+                          ? t("arena.scenarioDetail.personaCollected")
+                          : t("arena.scenarioDetail.personaCollect")}
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-base font-semibold text-white">
