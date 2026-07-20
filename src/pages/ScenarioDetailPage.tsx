@@ -10,7 +10,7 @@
  * 职责:
  * - 公开介绍页：封面/标题/简介/作者/平台/tags，浏览/点赞/收藏统计与按钮（乐观更新）
  * - “进入模拟” -> /arena/simulate/:id/play；作者可见“编辑”
- * - 用 PlatformCommentView 只读预览前几条 seed 评论
+ * - 用 ScenarioSceneView 只读预览（comment→前几条 seed 评论；chat→前几条种子消息）
  * - 页面下方 <CommentThread targetType="scenario">：给大家讨论这个情景用的评论区
  *
  * ⚠️ 两个「评论」别混：
@@ -31,7 +31,7 @@ import {
 } from "../api";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
-import PlatformCommentView from "../components/PlatformCommentView";
+import ScenarioSceneView from "../components/ScenarioSceneView";
 import CommentThread from "../components/CommentThread";
 
 // 页面自己的平台小徽标（与评论区皮肤无关：皮肤在 components/skins/ 里各自实现）。
@@ -45,6 +45,9 @@ const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
   xiaohongshu: { labelKey: "platformXiaohongshu", className: "border-red-600/60 bg-red-950/30 text-red-200" },
   instagram: { labelKey: "platformInstagram", className: "border-fuchsia-600/60 bg-fuchsia-950/30 text-fuchsia-200" },
   generic: { labelKey: "platformGeneric", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+  // 聊天类平台（sceneKind==='chat'），皮肤在 components/chatSkins/
+  wechat: { labelKey: "platformWechat", className: "border-green-600/60 bg-green-950/30 text-green-200" },
+  qq: { labelKey: "platformQq", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
 };
 
 function platformMeta(platform: string) {
@@ -155,7 +158,10 @@ export default function ScenarioDetailPage() {
   const meta = platformMeta(scenario.platform);
   const platformLabel = t(`arena.scenarioDetail.${meta.labelKey}`);
   const isOwner = Boolean(scenario.isOwner || (user && authorId(scenario.author) === user._id));
+  const isChat = scenario.sceneKind === "chat";
   const previewComments = (scenario.comments || []).slice(0, 6);
+  const previewMessages = (scenario.messages || []).slice(0, 8);
+  const hasPreview = isChat ? previewMessages.length > 0 : previewComments.length > 0;
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-20">
@@ -183,7 +189,9 @@ export default function ScenarioDetailPage() {
               <p className="mt-2 text-gray-300">{scenario.summary || t("arena.scenarioDetail.noSummary")}</p>
               {scenario.topic && (
                 <p className="mt-2 rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm text-gray-300">
-                  <span className="text-gray-500">{t("arena.scenarioDetail.debateTopic")}</span>{" "}
+                  <span className="text-gray-500">
+                    {t(isChat ? "arena.scenarioDetail.sceneBackground" : "arena.scenarioDetail.debateTopic")}
+                  </span>{" "}
                   {scenario.topic}
                 </p>
               )}
@@ -260,17 +268,23 @@ export default function ScenarioDetailPage() {
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">{t("arena.scenarioDetail.commentPreview")}</h2>
+              <h2 className="text-base font-semibold text-white">
+                {t(isChat ? "arena.scenarioDetail.chatPreview" : "arena.scenarioDetail.commentPreview")}
+              </h2>
               <span className="text-xs text-gray-500">{t("arena.scenarioDetail.skinPreview", { platform: platformLabel })}</span>
             </div>
-            {previewComments.length === 0 ? (
-              <p className="text-sm text-gray-400">{t("arena.scenarioDetail.noComments")}</p>
+            {!hasPreview ? (
+              <p className="text-sm text-gray-400">
+                {t(isChat ? "arena.scenarioDetail.noMessages" : "arena.scenarioDetail.noComments")}
+              </p>
             ) : (
-              <PlatformCommentView
+              <ScenarioSceneView
+                sceneKind={scenario.sceneKind}
                 platform={scenario.platform}
                 comments={previewComments}
                 topic={scenario.topic}
-                composer={false}
+                participants={scenario.participants || []}
+                messages={previewMessages}
               />
             )}
             <button
@@ -278,7 +292,7 @@ export default function ScenarioDetailPage() {
               onClick={() => navigate(`/arena/simulate/${scenario._id}/play`)}
               className="mt-4 w-full rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800"
             >
-              {t("arena.scenarioDetail.enterFullSimulation")} →
+              {t(isChat ? "arena.scenarioDetail.enterFullSimulationChat" : "arena.scenarioDetail.enterFullSimulation")} →
             </button>
           </div>
         </div>
