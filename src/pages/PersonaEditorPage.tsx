@@ -34,6 +34,19 @@ import { humanizeError } from "../utils/humanizeError";
 
 const EMOJI_PRESETS = ["🎭", "🔥", "🧠", "😈", "🛡️", "💧", "🎯", "⚔️", "🌟", "🤡", "👑", "🐍"];
 
+// 预设 tag：点选即加入。覆盖两类检索意图 —— 「这个人格演什么身份」（情景编辑器给
+// 上司/HR 等角色挑人格时按身份搜）+「说话什么风格」。自定义 tag 走下方输入框，
+// 上限 12 个与后端 toTags 的截断一致（后端还会统一小写去重）。
+const PRESET_PERSONA_TAGS = [
+  "职场", "上司", "hr", "同事", "面试官", "客服", "甲方", "长辈", "朋友",
+  "杠精", "毒舌", "阴阳怪气", "暖心", "高冷", "幽默", "戏精",
+];
+
+/** 与后端 toTags 同款归一（小写去重），本地先做一遍让 chips 立即去重不闪 */
+function normalizeTag(raw: string) {
+  return raw.trim().toLowerCase().replace(/^#+/, "");
+}
+
 export default function PersonaEditorPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -47,17 +60,14 @@ export default function PersonaEditorPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [coverEmoji, setCoverEmoji] = useState("🎭");
-  const [tagsText, setTagsText] = useState("");
+  // tags 是 chips 数组（预设点选 + 自定义输入），不再是逗号分隔文本
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [shared, setShared] = useState(true);
   const [summary, setSummary] = useState("");
   const [catchphrasesText, setCatchphrasesText] = useState("");
   const [stanceHint, setStanceHint] = useState("");
   const [stats, setStats] = useState<StyleStat[]>([]);
-
-  const parsedTags = useMemo(
-    () => tagsText.split(/[#,，,\s]+/).map((x) => x.trim()).filter(Boolean).slice(0, 12),
-    [tagsText]
-  );
 
   const parsedCatchphrases = useMemo(
     () => catchphrasesText.split(/[,，、\n]+/).map((x) => x.trim()).filter(Boolean).slice(0, 12),
@@ -76,7 +86,7 @@ export default function PersonaEditorPage() {
         setName(p.name || "");
         setDescription(p.description || "");
         setCoverEmoji(p.coverEmoji || "🎭");
-        setTagsText((p.tags || []).join(", "));
+        setTags((p.tags || []).slice(0, 12));
         setShared(!!p.shared);
         setSummary(p.style?.summary || "");
         setCatchphrasesText((p.style?.catchphrases || []).join("，"));
@@ -113,6 +123,38 @@ export default function PersonaEditorPage() {
     }
   }
 
+  // ── tag chips：预设点选 / 自定义输入（回车、逗号、失焦提交），上限 12 ──
+
+  function addTag(raw: string) {
+    const tag = normalizeTag(raw);
+    if (!tag) return;
+    setTags((prev) => {
+      if (prev.includes(tag)) return prev;
+      if (prev.length >= 12) {
+        toast.error(t("arena.personaEditor.tagsLimit"));
+        return prev;
+      }
+      return [...prev, tag];
+    });
+  }
+
+  function removeTag(tag: string) {
+    setTags((prev) => prev.filter((x) => x !== tag));
+  }
+
+  function togglePresetTag(raw: string) {
+    const tag = normalizeTag(raw);
+    if (tags.includes(tag)) removeTag(tag);
+    else addTag(tag);
+  }
+
+  /** 自定义输入提交：支持一次粘贴多个（#、逗号、空格分隔） */
+  function commitTagInput() {
+    const parts = tagInput.split(/[#,，,\s]+/).map(normalizeTag).filter(Boolean);
+    parts.forEach(addTag);
+    setTagInput("");
+  }
+
   async function handleSave() {
     if (!name.trim()) {
       toast.error(t("arena.personaEditor.nameRequired"));
@@ -130,7 +172,7 @@ export default function PersonaEditorPage() {
       name: name.trim(),
       description: description.trim(),
       coverEmoji: coverEmoji.trim() || "🎭",
-      tags: parsedTags,
+      tags,
       style,
       shared,
     };
@@ -241,25 +283,68 @@ export default function PersonaEditorPage() {
           </div>
         </div>
 
-        <label className="block text-sm text-gray-300">
+        <div className="block text-sm text-gray-300">
           {t("arena.personaEditor.tagsLabel")}
-          <input
-            value={tagsText}
-            onChange={(e) => setTagsText(e.target.value)}
-            placeholder={t("arena.personaEditor.tagsPlaceholder")}
-            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
-          />
-        </label>
+          <p className="mt-0.5 text-xs text-gray-500">{t("arena.personaEditor.tagsHint")}</p>
 
-        {parsedTags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {parsedTags.map((tag) => (
-              <span key={tag} className="rounded-full border border-cyan-700/60 px-2 py-0.5 text-xs text-cyan-200">
-                #{tag}
-              </span>
-            ))}
+          {/* 预设 tag：点选切换（已选高亮） */}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {PRESET_PERSONA_TAGS.map((preset) => {
+              const active = tags.includes(normalizeTag(preset));
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => togglePresetTag(preset)}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    active
+                      ? "border-cyan-400 bg-cyan-500/15 font-medium text-cyan-100"
+                      : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                  }`}
+                >
+                  #{preset}
+                </button>
+              );
+            })}
           </div>
-        )}
+
+          {/* 已选 tags（含自定义），可删 */}
+          {tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="flex items-center gap-1 rounded-full border border-cyan-700/60 bg-cyan-950/30 px-2 py-0.5 text-xs text-cyan-200"
+                >
+                  #{tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    title={t("arena.personaEditor.removeTag")}
+                    className="text-cyan-300/60 hover:text-cyan-100"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 自定义 tag 输入：回车/逗号/失焦添加 */}
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === ",") && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                commitTagInput();
+              }
+            }}
+            onBlur={commitTagInput}
+            placeholder={t("arena.personaEditor.customTagPlaceholder")}
+            className="mt-2 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
+          />
+        </div>
 
         <label className="flex items-center gap-2 text-sm text-gray-300">
           <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />

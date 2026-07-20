@@ -42,7 +42,7 @@ function authorName(author: Persona["author"]) {
   return typeof author === "string" ? author : author.username || "-";
 }
 
-function PersonaGrid({ items }: { items: Persona[] }) {
+function PersonaGrid({ items, onTagClick }: { items: Persona[]; onTagClick?: (tag: string) => void }) {
   const { t } = useTranslation();
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -79,11 +79,27 @@ function PersonaGrid({ items }: { items: Persona[] }) {
 
           {(p.tags || []).length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-cyan-200">
-              {(p.tags || []).slice(0, 4).map((tag) => (
-                <span key={tag} className="rounded-full border border-cyan-700/60 px-2 py-0.5">
-                  #{tag}
-                </span>
-              ))}
+              {(p.tags || []).slice(0, 4).map((tag) =>
+                onTagClick ? (
+                  // 卡片整体是 <Link>，tag 点击要拦下冒泡/默认跳转，改为设置画廊的 tag 过滤
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onTagClick(tag);
+                    }}
+                    className="rounded-full border border-cyan-700/60 px-2 py-0.5 hover:border-cyan-400 hover:bg-cyan-500/10"
+                  >
+                    #{tag}
+                  </button>
+                ) : (
+                  <span key={tag} className="rounded-full border border-cyan-700/60 px-2 py-0.5">
+                    #{tag}
+                  </span>
+                )
+              )}
             </div>
           )}
 
@@ -164,6 +180,14 @@ export default function PersonaGalleryPage() {
   function clearTag() {
     const next = new URLSearchParams(params);
     next.delete("tag");
+    next.set("page", "1");
+    setParams(next);
+  }
+
+  // 卡片上的 tag 点击 → 按该 tag 过滤（与 ?tag= 深链一致）
+  function applyTag(nextTag: string) {
+    const next = new URLSearchParams(params);
+    next.set("tag", nextTag);
     next.set("page", "1");
     setParams(next);
   }
@@ -273,7 +297,7 @@ export default function PersonaGalleryPage() {
           </div>
         )}
 
-        {!loading && personas.length > 0 && <PersonaGrid items={personas} />}
+        {!loading && personas.length > 0 && <PersonaGrid items={personas} onTagClick={applyTag} />}
 
         {!loading && personas.length > 0 && (
           <div className="mt-4 flex items-center justify-between">
