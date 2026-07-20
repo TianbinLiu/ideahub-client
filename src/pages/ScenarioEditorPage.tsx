@@ -6,14 +6,17 @@ import {
   captureScenario,
   createScenario,
   generateScenarioComments,
+  generateScene,
   getScenario,
   updateScenario,
+  type ScenarioChatMessage,
   type ScenarioComment,
+  type ScenarioParticipant,
 } from "../api";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { humanizeError } from "../utils/humanizeError";
-import PlatformCommentView from "../components/PlatformCommentView";
+import ScenarioSceneView from "../components/ScenarioSceneView";
 
 // ⚠️ 必须与 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS 保持一致：
 // 这里多出的值会被后端 normalizePlatform【静默降级为 generic】（用户选了却不生效）；
@@ -28,6 +31,30 @@ const PLATFORM_OPTIONS: { value: string; labelKey: string }[] = [
   { value: "instagram", labelKey: "platformInstagram" },
   { value: "generic", labelKey: "platformGeneric" },
 ];
+
+// chat 场景（sceneKind==='chat'）的平台选项。同步约束与上面一致，但对应的注册表是
+// components/chatSkins/index.ts 的 CHAT_SKIN_COMPONENTS（聊天皮肤，不是评论皮肤）；
+// platformFromHost 对聊天平台 N/A —— 聊天场景不走「贴 URL 抓评论」。
+const CHAT_PLATFORM_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "wechat", labelKey: "platformWechat" },
+  { value: "qq", labelKey: "platformQq" },
+  { value: "generic", labelKey: "platformGeneric" },
+];
+
+// 分类（话题领域，与 sceneKind 正交）。必须与 server/src/models/Scenario.js 的
+// SCENARIO_CATEGORIES 保持一致：这里多出的值会被后端【静默归一为 other】。
+const CATEGORY_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: "debate", labelKey: "categoryDebate" },
+  { value: "workplace", labelKey: "categoryWorkplace" },
+  { value: "jobhunt", labelKey: "categoryJobhunt" },
+  { value: "social", labelKey: "categorySocial" },
+  { value: "service", labelKey: "categoryService" },
+  { value: "fun", labelKey: "categoryFun" },
+  { value: "other", labelKey: "categoryOther" },
+];
+
+/** 场景类型：与 server/src/models/Scenario.js 的 SCENARIO_SCENE_KINDS 一致。 */
+type SceneKind = "comment" | "chat";
 
 type Intensity = "mild" | "heated" | "flame";
 
@@ -104,6 +131,15 @@ export default function ScenarioEditorPage() {
   const [intensity, setIntensity] = useState<Intensity>("heated");
   const [comments, setComments] = useState<ScenarioComment[]>([]);
 
+  // ── 场景类型（决定第二步编辑器与预览用哪个壳）+ chat 场景数据 ──
+  const [sceneKind, setSceneKind] = useState<SceneKind>("comment");
+  const [category, setCategory] = useState("other");
+  const [participants, setParticipants] = useState<ScenarioParticipant[]>([]);
+  const [chatMessages, setChatMessages] = useState<ScenarioChatMessage[]>([]);
+  // 第一步✨卡片（聊天对话）：场景的一句话描述。只作为 generateScene 的 AI 入参；
+  // 生成成功后兼作 topic 的预填（topic 是 play 时 AI 扮演读的「场景背景」）。
+  const [sceneDesc, setSceneDesc] = useState("");
+
   // ★★ 真实评论素材（插件抓取 / 上传的文本）只活在这两个 state 里，【只用于喂 AI 生成】。
   // 它们绝不进 comments / topic，也绝不进 handleSave 的 body —— 提交出去的永远只有
   // AI 重新生成的评论。理由：PIPL 第25条对「已合法公开的个人信息」没有豁免口；
@@ -140,6 +176,10 @@ export default function ScenarioEditorPage() {
       setTopic(s.topic || "");
       setSourceUrl(s.sourceUrl || "");
       setComments((s.comments || []).map((c) => ({ ...c, id: c.id || newId() })));
+      setSceneKind(s.sceneKind === "chat" ? "chat" : "comment");
+      setCategory(s.category || "other");
+      setParticipants((s.participants || []).map((p) => ({ ...p, id: p.id || newId() })));
+      setChatMessages((s.messages || []).map((m) => ({ ...m, id: m.id || newId() })));
     } catch (e: any) {
       toast.error(humanizeError(e));
     } finally {
@@ -178,6 +218,7 @@ export default function ScenarioEditorPage() {
         return;
       }
       setComments(generated);
+      setSceneKind("comment"); // 素材生成的是评论区 —— 若此前切过「聊天对话」，跟着回评论场景
       setStep(2); // 生成成功即进入评论编辑步骤
       toast.success(successMessage);
     } catch (e: any) {
@@ -324,6 +365,102 @@ export default function ScenarioEditorPage() {
     ]);
   }
 
+  // ── chat 场景：角色卡 / 种子对话的增删改 ─────────────────────────
+
+  function updateParticipant(pid: string, patch: Partial<ScenarioParticipant>) {
+    setParticipants((prev) => prev.map((p) => (p.id === pid ? { ...p, ...patch } : p)));
+  }
+
+  /** 「我」全场至多一个：单选语义，选中谁其余全部取消 */
+  function setSelfParticipant(pid: string) {
+    setParticipants((prev) => prev.map((p) => ({ ...p, isSelf: p.id === pid })));
+  }
+
+  function removeParticipant(pid: string) {
+    setParticipants((prev) => prev.filter((p) => p.id !== pid));
+    // 该角色的消息不删（内容还在），发送者置空成「未指定」，由用户改派
+    setChatMessages((prev) => prev.map((m) => (m.senderId === pid ? { ...m, senderId: "" } : m)));
+  }
+
+  function addParticipant() {
+    setParticipants((prev) => [...prev, { id: newId(), name: "", avatar: "", role: "", isSelf: false, goal: "" }]);
+  }
+
+  function updateChatMessage(mid: string, patch: Partial<ScenarioChatMessage>) {
+    setChatMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, ...patch } : m)));
+  }
+
+  function removeChatMessage(mid: string) {
+    setChatMessages((prev) => prev.filter((m) => m.id !== mid));
+  }
+
+  function moveChatMessage(mid: string, dir: -1 | 1) {
+    setChatMessages((prev) => {
+      const i = prev.findIndex((m) => m.id === mid);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+
+  function addChatMessage() {
+    setChatMessages((prev) => [...prev, { id: newId(), senderId: participants[0]?.id || "", text: "" }]);
+  }
+
+  /**
+   * 第一步✨卡片的「生成类型」切换：直接切 sceneKind ——
+   * 想手建聊天场景的用户切到「聊天对话」后直接点下一步即可（第二步会给空的角色/消息编辑器）。
+   * 平台跟着场景类型走：当前平台不在目标列表里就重置为该类型的默认平台。
+   */
+  function switchGenKind(kind: SceneKind) {
+    setSceneKind(kind);
+    const options = kind === "chat" ? CHAT_PLATFORM_OPTIONS : PLATFORM_OPTIONS;
+    if (!options.some((o) => o.value === platform)) {
+      setPlatform(kind === "chat" ? "wechat" : "generic");
+    }
+  }
+
+  // 第一步✨卡片（聊天对话）：按场景描述让 AI 生成 角色卡+种子对话，成功即切到 chat 场景进第二步
+  async function handleGenerateScene() {
+    if (!sceneDesc.trim()) {
+      toast.error(t("arena.scenarioEditor.fillSceneDescFirst"));
+      return;
+    }
+    try {
+      setAiBusy(true);
+      const res = await generateScene({ sceneDesc: sceneDesc.trim(), platform, category });
+      const ps = (res.participants || []).map((p) => ({ ...p, id: p.id || newId() }));
+      const pIds = new Set(ps.map((p) => p.id));
+      const ms = (res.messages || []).map((m) => ({
+        ...m,
+        id: m.id || newId(),
+        senderId: m.senderId && pIds.has(m.senderId) ? m.senderId : "",
+      }));
+      if (ps.length === 0 || ms.length === 0) {
+        toast.error(t("arena.scenarioEditor.sceneGenerateEmpty"));
+        return;
+      }
+      setParticipants(ps);
+      setChatMessages(ms);
+      setSceneKind("chat");
+      if (res.title) setTitle((prev) => (prev.trim() ? prev : res.title));
+      // 场景描述兼作 topic 预填（play 时 AI 扮演读它当「场景背景」）；用户已填过则不覆盖
+      setTopic((prev) => (prev.trim() ? prev : sceneDesc.trim()));
+      setStep(2);
+      toast.success(t("arena.scenarioEditor.sceneGenerated", { roles: ps.length, count: ms.length }));
+    } catch (e: any) {
+      if (e?.status === 501) {
+        toast.error(t("arena.scenarioEditor.aiNotConfiguredScene"));
+      } else {
+        toast.error(humanizeError(e));
+      }
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   async function handleGenerate() {
     if (!topic.trim()) {
       toast.error(t("arena.scenarioEditor.fillTopicFirst"));
@@ -338,6 +475,7 @@ export default function ScenarioEditorPage() {
         return;
       }
       setComments((prev) => [...prev, ...generated]);
+      setSceneKind("comment"); // 话题生成的是评论区
       setStep(2); // 生成成功即进入评论编辑步骤
       toast.success(t("arena.scenarioEditor.generatedCount", { count: generated.length }));
     } catch (e: any) {
@@ -366,6 +504,7 @@ export default function ScenarioEditorPage() {
       const captured = (draft.comments || []).map((c) => ({ ...c, id: c.id || newId() }));
       if (captured.length > 0) {
         setComments((prev) => [...prev, ...captured]);
+        setSceneKind("comment"); // 链接抓取的是评论区
         setStep(2); // 抓到评论才进入编辑步骤；抓不到则留在第一步让用户改用其它方式
         toast.success(t("arena.scenarioEditor.capturedFromLink", { count: captured.length }));
       } else {
@@ -419,16 +558,41 @@ export default function ScenarioEditorPage() {
       .map((c) => ({ ...c, id: c.id || newId(), authorName: c.authorName.trim(), text: c.text.trim() }))
       .filter((c) => c.authorName || c.text);
 
+    // chat 场景数据：全空的角色卡/空消息不提交；发送者指向已被删的角色时置空（后端也会归一，双保险）
+    const cleanParticipants = participants
+      .map((p) => ({
+        ...p,
+        id: p.id || newId(),
+        name: (p.name || "").trim(),
+        avatar: (p.avatar || "").trim(),
+        role: (p.role || "").trim(),
+        goal: (p.goal || "").trim(),
+      }))
+      .filter((p) => p.name || p.role || p.goal);
+    const keptIds = new Set(cleanParticipants.map((p) => p.id));
+    const cleanMessages = chatMessages
+      .map((m) => ({
+        ...m,
+        id: m.id || newId(),
+        text: (m.text || "").trim(),
+        senderId: m.senderId && keptIds.has(m.senderId) ? m.senderId : "",
+      }))
+      .filter((m) => m.text);
+
     const body = {
       title: title.trim(),
       summary: summary.trim(),
       coverImageUrl,
       platform,
+      sceneKind,
+      category,
       tags: parsedTags,
       shared,
       sourceUrl: sourceUrl.trim(),
       topic: topic.trim(),
       comments: cleanComments,
+      participants: cleanParticipants,
+      messages: cleanMessages,
     };
 
     try {
@@ -451,13 +615,15 @@ export default function ScenarioEditorPage() {
   }
 
   const platformLabel = (() => {
-    const p = PLATFORM_OPTIONS.find((p) => p.value === platform);
+    const p =
+      PLATFORM_OPTIONS.find((p) => p.value === platform) ||
+      CHAT_PLATFORM_OPTIONS.find((p) => p.value === platform);
     return p ? t(`arena.scenarioEditor.${p.labelKey}`) : platform;
   })();
 
   const STEP_META: { n: Step; shortKey: string }[] = [
     { n: 1, shortKey: "step1Short" },
-    { n: 2, shortKey: "step2Short" },
+    { n: 2, shortKey: sceneKind === "chat" ? "step2ShortChat" : "step2Short" },
     { n: 3, shortKey: "step3Short" },
   ];
 
@@ -465,7 +631,9 @@ export default function ScenarioEditorPage() {
     return <div className="max-w-6xl mx-auto p-4 pb-20 text-gray-400">{t("arena.scenarioEditor.loading")}</div>;
   }
 
-  // 右侧实时预览（第二、三步共用）
+  // 右侧实时预览（第二、三步共用）：按 sceneKind 分派到评论壳/聊天壳
+  const hasPreviewContent =
+    sceneKind === "chat" ? participants.length > 0 || chatMessages.length > 0 : comments.length > 0;
   const previewPanel = (
     <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
       <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
@@ -475,10 +643,19 @@ export default function ScenarioEditorPage() {
             {platformLabel}
           </span>
         </div>
-        {comments.length === 0 ? (
-          <p className="text-sm text-gray-400">{t("arena.scenarioEditor.previewHint")}</p>
+        {!hasPreviewContent ? (
+          <p className="text-sm text-gray-400">
+            {t(sceneKind === "chat" ? "arena.scenarioEditor.chatPreviewHint" : "arena.scenarioEditor.previewHint")}
+          </p>
         ) : (
-          <PlatformCommentView platform={platform} comments={comments} topic={topic} />
+          <ScenarioSceneView
+            sceneKind={sceneKind}
+            platform={platform}
+            comments={comments}
+            topic={topic}
+            participants={participants}
+            messages={chatMessages}
+          />
         )}
       </section>
     </div>
@@ -624,6 +801,66 @@ export default function ScenarioEditorPage() {
 
               {sourceMode === "generate" && (
                 <div className="mt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+                  {/* 生成类型切换：评论区（历史行为）｜聊天对话（sceneKind='chat'，走 generateScene） */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-gray-300">{t("arena.scenarioEditor.genKindLabel")}</span>
+                    <div className="flex overflow-hidden rounded-xl border border-gray-800">
+                      {(["comment", "chat"] as const).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => switchGenKind(k)}
+                          className={`px-3 py-1.5 text-sm transition-colors ${
+                            sceneKind === k
+                              ? "bg-cyan-500/20 font-semibold text-cyan-100"
+                              : "bg-gray-950/50 text-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          {t(`arena.scenarioEditor.${k === "comment" ? "genKindComment" : "genKindChat"}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {sceneKind === "chat" ? (
+                    /* 聊天对话：描述场景 → AI 生成 角色卡 + 种子对话 */
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-gray-300">{t("arena.scenarioEditor.chatPlatformLabel")}</span>
+                        <select
+                          value={platform}
+                          onChange={(e) => setPlatform(e.target.value)}
+                          className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                        >
+                          {CHAT_PLATFORM_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {t(`arena.scenarioEditor.${o.labelKey}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <label className="block text-sm font-medium text-gray-200">
+                        {t("arena.scenarioEditor.sceneDescLabel")}
+                      </label>
+                      <textarea
+                        value={sceneDesc}
+                        onChange={(e) => setSceneDesc(e.target.value)}
+                        placeholder={t("arena.scenarioEditor.sceneDescPlaceholder")}
+                        rows={3}
+                        className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        disabled={aiBusy}
+                        onClick={handleGenerateScene}
+                        className="rounded-xl border border-cyan-600 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
+                      >
+                        {aiBusy ? t("arena.scenarioEditor.generating") : t("arena.scenarioEditor.generateSceneButton")}
+                      </button>
+                      <p className="text-xs text-gray-500">{t("arena.scenarioEditor.optionGenerateChatDesc")}</p>
+                    </div>
+                  ) : (
+                  <>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm text-gray-300">{t("arena.scenarioEditor.intensityLabel")}</span>
                     <select
@@ -710,6 +947,8 @@ export default function ScenarioEditorPage() {
                       <p className="text-xs text-cyan-200/70">{t("arena.scenarioEditor.captureMaterialHint")}</p>
                     </div>
                   )}
+                  </>
+                  )}
                 </div>
               )}
             </div>
@@ -728,7 +967,7 @@ export default function ScenarioEditorPage() {
               onClick={() => setStep(2)}
               className="rounded-xl bg-white px-5 py-2 font-semibold text-black hover:bg-gray-200"
             >
-              {t("arena.scenarioEditor.nextStepToComments")} →
+              {t(sceneKind === "chat" ? "arena.scenarioEditor.nextStepToChat" : "arena.scenarioEditor.nextStepToComments")} →
             </button>
           </div>
         </div>
@@ -740,10 +979,183 @@ export default function ScenarioEditorPage() {
           <div className="grid gap-4 lg:grid-cols-[1.3fr,0.9fr]">
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">{t("arena.scenarioEditor.step2Title")}</h2>
-                <p className="mt-1 text-sm text-gray-400">{t("arena.scenarioEditor.stepIntro2")}</p>
+                <h2 className="text-lg font-semibold text-white">
+                  {t(sceneKind === "chat" ? "arena.scenarioEditor.step2TitleChat" : "arena.scenarioEditor.step2Title")}
+                </h2>
+                <p className="mt-1 text-sm text-gray-400">
+                  {t(sceneKind === "chat" ? "arena.scenarioEditor.stepIntro2Chat" : "arena.scenarioEditor.stepIntro2")}
+                </p>
               </div>
 
+              {sceneKind === "chat" ? (
+                <>
+                  {/* ── 角色卡编辑（chat）── */}
+                  <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-base font-semibold text-white">
+                        {t("arena.scenarioEditor.rolesEditor")}
+                        <span className="ml-2 rounded-full border border-gray-700 px-2 py-0.5 text-[11px] font-normal text-gray-400">
+                          {t("arena.scenarioEditor.participantCountBadge", { count: participants.length })}
+                        </span>
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={addParticipant}
+                        className="rounded-lg border border-cyan-700 px-3 py-1.5 text-xs text-cyan-200 hover:bg-cyan-950/30"
+                      >
+                        + {t("arena.scenarioEditor.addParticipant")}
+                      </button>
+                    </div>
+
+                    {participants.length === 0 ? (
+                      <p className="text-sm text-gray-400">{t("arena.scenarioEditor.noParticipantsYet")}</p>
+                    ) : (
+                      <>
+                        {!participants.some((p) => p.isSelf) && (
+                          <p className="text-xs text-amber-300/80">{t("arena.scenarioEditor.noSelfHint")}</p>
+                        )}
+                        <div className="space-y-3">
+                          {participants.map((p, index) => (
+                            <div key={p.id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs text-gray-500">#{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeParticipant(p.id)}
+                                  className="text-xs text-rose-300 hover:text-rose-200"
+                                >
+                                  {t("arena.scenarioEditor.delete")}
+                                </button>
+                              </div>
+
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                <input
+                                  value={p.avatar || ""}
+                                  onChange={(e) => updateParticipant(p.id, { avatar: e.target.value })}
+                                  placeholder={t("arena.scenarioEditor.participantAvatarPlaceholder")}
+                                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                                />
+                                <input
+                                  value={p.name}
+                                  onChange={(e) => updateParticipant(p.id, { name: e.target.value })}
+                                  placeholder={t("arena.scenarioEditor.participantNamePlaceholder")}
+                                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                                />
+                                <input
+                                  value={p.role || ""}
+                                  onChange={(e) => updateParticipant(p.id, { role: e.target.value })}
+                                  placeholder={t("arena.scenarioEditor.participantRolePlaceholder")}
+                                  className="rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                                />
+                              </div>
+
+                              <textarea
+                                value={p.goal || ""}
+                                onChange={(e) => updateParticipant(p.id, { goal: e.target.value })}
+                                placeholder={t("arena.scenarioEditor.participantGoalPlaceholder")}
+                                rows={2}
+                                className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                              />
+
+                              <label className="flex items-center gap-2 text-xs text-gray-300">
+                                <input
+                                  type="radio"
+                                  name="scenario-self"
+                                  checked={!!p.isSelf}
+                                  onChange={() => setSelfParticipant(p.id)}
+                                />
+                                {t("arena.scenarioEditor.setAsSelf")}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </section>
+
+                  {/* ── 种子对话编辑（chat）── */}
+                  <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-base font-semibold text-white">
+                        {t("arena.scenarioEditor.messagesEditor")}
+                        <span className="ml-2 rounded-full border border-gray-700 px-2 py-0.5 text-[11px] font-normal text-gray-400">
+                          {t("arena.scenarioEditor.messageCountBadge", { count: chatMessages.length })}
+                        </span>
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={addChatMessage}
+                        className="rounded-lg border border-cyan-700 px-3 py-1.5 text-xs text-cyan-200 hover:bg-cyan-950/30"
+                      >
+                        + {t("arena.scenarioEditor.addMessage")}
+                      </button>
+                    </div>
+
+                    {chatMessages.length === 0 ? (
+                      <p className="text-sm text-gray-400">{t("arena.scenarioEditor.noMessagesYet")}</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {chatMessages.map((m, index) => (
+                          <div key={m.id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-3 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="text-xs text-gray-500">#{index + 1}</span>
+                                <select
+                                  value={m.senderId || ""}
+                                  onChange={(e) => updateChatMessage(m.id, { senderId: e.target.value })}
+                                  aria-label={t("arena.scenarioEditor.senderLabel")}
+                                  className="rounded-lg bg-gray-950/50 border border-gray-800 px-2 py-1.5 text-xs"
+                                >
+                                  <option value="">{t("arena.scenarioEditor.unknownSenderOption")}</option>
+                                  {participants.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {(p.name || t("arena.scenarioEditor.unnamed")) +
+                                        (p.isSelf ? ` · ${t("arena.scenarioPlay.me")}` : "")}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => moveChatMessage(m.id, -1)}
+                                  disabled={index === 0}
+                                  className="text-xs text-gray-300 hover:text-white disabled:opacity-40"
+                                >
+                                  ↑ {t("arena.scenarioEditor.moveUp")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveChatMessage(m.id, 1)}
+                                  disabled={index === chatMessages.length - 1}
+                                  className="text-xs text-gray-300 hover:text-white disabled:opacity-40"
+                                >
+                                  ↓ {t("arena.scenarioEditor.moveDown")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeChatMessage(m.id)}
+                                  className="text-xs text-rose-300 hover:text-rose-200"
+                                >
+                                  {t("arena.scenarioEditor.delete")}
+                                </button>
+                              </div>
+                            </div>
+
+                            <textarea
+                              value={m.text}
+                              onChange={(e) => updateChatMessage(m.id, { text: e.target.value })}
+                              placeholder={t("arena.scenarioEditor.messageTextPlaceholder")}
+                              rows={2}
+                              className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </>
+              ) : (
               <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-base font-semibold text-white">
@@ -841,6 +1253,7 @@ export default function ScenarioEditorPage() {
                   </div>
                 )}
               </section>
+              )}
 
               <div className="flex items-center justify-between gap-3">
                 <button
@@ -922,12 +1335,13 @@ export default function ScenarioEditorPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block text-sm text-gray-300">
                     {t("arena.scenarioEditor.platformSkin")}
+                    {/* 平台选项按 sceneKind 分列表：chat 对应聊天皮肤注册表、comment 对应评论皮肤注册表 */}
                     <select
                       value={platform}
                       onChange={(e) => setPlatform(e.target.value)}
                       className="mt-1 w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
                     >
-                      {PLATFORM_OPTIONS.map((p) => (
+                      {(sceneKind === "chat" ? CHAT_PLATFORM_OPTIONS : PLATFORM_OPTIONS).map((p) => (
                         <option key={p.value} value={p.value}>
                           {t(`arena.scenarioEditor.${p.labelKey}`)}
                         </option>
@@ -935,6 +1349,20 @@ export default function ScenarioEditorPage() {
                     </select>
                   </label>
                   <label className="block text-sm text-gray-300">
+                    {t("arena.scenarioEditor.categoryLabel")}
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="mt-1 w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2"
+                    >
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {t(`arena.scenarioEditor.${c.labelKey}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm text-gray-300 sm:col-span-2">
                     {t("arena.scenarioEditor.tagsLabel")}
                     <input
                       value={tagsText}

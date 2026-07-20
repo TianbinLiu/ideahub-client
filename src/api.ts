@@ -952,8 +952,9 @@ export function getWorkshopTagInsights(limit = 240) {
 
 // ===== 情景模拟（Scenario Simulation）=====
 // 平台标识：'bilibili' | 'weibo' | 'tieba' | 'zhihu' | 'instagram' | 'douyin' | 'xiaohongshu' | 'generic'
+//          + 聊天类（sceneKind==='chat' 用）：'wechat' | 'qq'
 // 真源是 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS，枚举外的值会被后端【静默降级为 generic】。
-// 每个平台的评论区皮肤见 components/skins/（一个平台一个独立组件，没有别名复用）。
+// 每个平台的评论区皮肤见 components/skins/、聊天皮肤见 components/chatSkins/（都是一个平台一个独立组件，没有别名复用）。
 
 /** Scenario.comments 的子文档 / 前端共享评论类型 */
 export type ScenarioComment = {
@@ -974,6 +975,35 @@ export type ScenarioComment = {
   stance?: string;
 };
 
+/**
+ * chat 场景的参与者（一等公民「花名册」；comment 场景恒为空数组）。
+ * 真源：server/src/models/Scenario.js 的 scenarioParticipantSchema。
+ */
+export type ScenarioParticipant = {
+  /** scenario 内稳定 id（messages.senderId 指向它） */
+  id: string;
+  /** 显示名 */
+  name: string;
+  /** 头像：emoji 或图片 url */
+  avatar?: string;
+  /** 身份/关系：上司/HR/同事/我… */
+  role?: string;
+  /** 是否代表「用户本人」（聊天壳里我方气泡靠右；全场至多一个） */
+  isSelf?: boolean;
+  /** 该角色的目标/立场（供 AI 扮演），可空 */
+  goal?: string;
+};
+
+/**
+ * chat 场景的种子对话消息（线性时间线，相当于 comment 场景的 comments[]）。
+ * senderId 指向 participants[].id；后端已把悬空 senderId 置空。
+ */
+export type ScenarioChatMessage = {
+  id: string;
+  senderId?: string;
+  text: string;
+};
+
 /** 详情返回的完整情景 */
 export type Scenario = {
   _id: string;
@@ -982,12 +1012,19 @@ export type Scenario = {
   summary: string;
   coverImageUrl: string;
   platform: string;
+  /** 场景类型 = 用哪个渲染壳：'comment'=评论区（默认/历史行为）、'chat'=聊天/私信/群聊 */
+  sceneKind?: "comment" | "chat";
+  /** 分类（话题领域，与 sceneKind 正交）；枚举外的值后端归 'other' */
+  category?: string;
   tags: string[];
   shared: boolean;
   sourceUrl?: string;
   /** 争论主题/背景 */
   topic?: string;
   comments: ScenarioComment[];
+  /** chat 场景用（comment 场景为空数组） */
+  participants?: ScenarioParticipant[];
+  messages?: ScenarioChatMessage[];
   stats: { viewCount: number; likeCount: number; bookmarkCount: number; playCount: number };
   /** 当前用户是否已赞 */
   liked?: boolean;
@@ -998,8 +1035,8 @@ export type Scenario = {
   updatedAt: string;
 };
 
-/** 列表用：去掉 comments 的 Scenario */
-export type ScenarioCard = Omit<Scenario, "comments">;
+/** 列表用：去掉重数组（comments/participants/messages）的 Scenario；轻量的 sceneKind/category 保留 */
+export type ScenarioCard = Omit<Scenario, "comments" | "participants" | "messages">;
 
 /** play 端点返回的 AI 回复 */
 export type ScenarioPlayReply = {
@@ -1017,11 +1054,17 @@ export type ScenarioInput = {
   summary?: string;
   coverImageUrl?: string;
   platform?: string;
+  /** 越界值后端归一：sceneKind→'comment'、category→'other' */
+  sceneKind?: "comment" | "chat";
+  category?: string;
   tags?: string[] | string;
   shared?: boolean;
   sourceUrl?: string;
   topic?: string;
   comments?: ScenarioComment[];
+  /** chat 场景用 */
+  participants?: ScenarioParticipant[];
+  messages?: ScenarioChatMessage[];
 };
 
 type ScenarioListResponse = {
@@ -1128,6 +1171,32 @@ export function generateScenarioComments(body: {
   count?: number;
 }) {
   return apiFetch<{ ok: true; comments: ScenarioComment[]; model?: string }>("/api/scenarios/generate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * 生成【聊天/IM 场景】模板：按用户的「场景描述」产出 标题 + 参与者花名册 + 种子对话。
+ * 与 /generate 一样【不落库】：采用与否由前端决定，用户在向导里编辑后才随 create 持久化。
+ *
+ * 后端保证：participants 都有 id 且恰好一个 isSelf；messages.senderId 已指向 participants[].id
+ * （悬空的被置空）。无 AI key 时回 501。
+ */
+export function generateScene(body: {
+  sceneDesc: string;
+  platform?: string;
+  category?: string;
+  count?: number;
+}) {
+  return apiFetch<{
+    ok: true;
+    title: string;
+    sceneKind: "chat";
+    participants: ScenarioParticipant[];
+    messages: ScenarioChatMessage[];
+    model?: string;
+  }>("/api/scenarios/generate-scene", {
     method: "POST",
     body: JSON.stringify(body),
   });
