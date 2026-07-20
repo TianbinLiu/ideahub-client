@@ -1176,6 +1176,16 @@
       "sampleDesc": "粘贴录入、查看、删除单条、清空全部，都已移到「我的主页」的「个人记录」区，和其它个人数据放在一起管理。",
       "manageRecords": "去管理个人记录"
     },
+    "personaPicker": {
+      "title": "选择人格",
+      "intro": "给这个角色挑一个人格：AI 扮演时会按该人格的最新风格说话（人格更新会跟着生效）。",
+      "searchPlaceholder": "搜索名字 / 简介 / 标签…",
+      "scopeAll": "全部",
+      "scopeInstalled": "我收藏的",
+      "scopeMine": "我发布的",
+      "loading": "加载中…",
+      "empty": "没有找到人格。换个关键词，或先去人格广场发布一个。"
+    },
     "personaEditor": {
       "noStyleProfile": "你还没有发言风格面板，请先到「我的发言风格面板」生成",
       "importedFromStyleProfile": "已从发言风格面板导入",
@@ -1196,8 +1206,12 @@
       "namePlaceholder": "人格名称",
       "descriptionPlaceholder": "人格简介：适合什么场合、什么风格",
       "coverEmoji": "封面 Emoji",
-      "tagsLabel": "标签（逗号分隔）",
+      "tagsLabel": "标签",
       "tagsPlaceholder": "如：理性, 对线, 嘴替",
+      "tagsHint": "点选预设标签，或在下方输入自定义标签（回车添加）。标签帮助其他用户在人格广场和情景编辑器里搜到你的人格。",
+      "tagsLimit": "最多 12 个标签",
+      "removeTag": "移除该标签",
+      "customTagPlaceholder": "自定义标签，回车添加（可一次粘贴多个，逗号分隔）",
       "sharedLabel": "发布到人格广场（公开，其他用户可下载装备）",
       "styleSettings": "风格设定",
       "summaryLabel": "风格点评（summary）",
@@ -1696,7 +1710,11 @@
       "categoryFun": "娱乐整活",
       "categoryOther": "其它",
       "platformWechat": "微信",
-      "platformQq": "QQ"
+      "platformQq": "QQ",
+      "bindPersona": "绑定人格",
+      "unbindPersona": "解绑人格",
+      "personaBound": "已绑定人格「{{name}}」",
+      "personaBoundHint": "AI 将按该人格的最新风格扮演此角色（人格更新会跟着生效；人格被删或取消分享则回退到角色目标）。"
     },
     "standpoint": {
       "platformWeibo": "微博",

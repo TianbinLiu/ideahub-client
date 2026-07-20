@@ -9,6 +9,7 @@ import {
   generateScene,
   getScenario,
   updateScenario,
+  type Persona,
   type ScenarioChatMessage,
   type ScenarioComment,
   type ScenarioParticipant,
@@ -17,6 +18,7 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { humanizeError } from "../utils/humanizeError";
 import ScenarioSceneView from "../components/ScenarioSceneView";
+import PersonaPickerModal from "../components/PersonaPickerModal";
 
 // ⚠️ 必须与 server/src/models/Scenario.js 的 SCENARIO_PLATFORMS 保持一致：
 // 这里多出的值会被后端 normalizePlatform【静默降级为 generic】（用户选了却不生效）；
@@ -139,6 +141,8 @@ export default function ScenarioEditorPage() {
   // 第一步✨卡片（聊天对话）：场景的一句话描述。只作为 generateScene 的 AI 入参；
   // 生成成功后兼作 topic 的预填（topic 是 play 时 AI 扮演读的「场景背景」）。
   const [sceneDesc, setSceneDesc] = useState("");
+  // 人格选择器：正在为哪个角色（participant id）挑人格；null=关闭
+  const [personaPickerFor, setPersonaPickerFor] = useState<string | null>(null);
 
   // ★★ 真实评论素材（插件抓取 / 上传的文本）只活在这两个 state 里，【只用于喂 AI 生成】。
   // 它们绝不进 comments / topic，也绝不进 handleSave 的 body —— 提交出去的永远只有
@@ -371,9 +375,18 @@ export default function ScenarioEditorPage() {
     setParticipants((prev) => prev.map((p) => (p.id === pid ? { ...p, ...patch } : p)));
   }
 
-  /** 「我」全场至多一个：单选语义，选中谁其余全部取消 */
+  /**
+   * 「我」全场至多一个：单选语义，选中谁其余全部取消。
+   * 切成「我」时同时清掉该角色的人格绑定：「我」由真实用户发言、不吃人设，
+   * 而绑定控件都渲染在 !isSelf 后面 —— 不清的话绑定会【隐身】：看不见、
+   * 解不掉，却仍随保存进库、在 play 时进 AI prompt（评审实锤的坑，别回退）。
+   */
   function setSelfParticipant(pid: string) {
-    setParticipants((prev) => prev.map((p) => ({ ...p, isSelf: p.id === pid })));
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.id === pid ? { ...p, isSelf: true, personaId: "", personaName: "" } : { ...p, isSelf: false }
+      )
+    );
   }
 
   function removeParticipant(pid: string) {
@@ -384,6 +397,33 @@ export default function ScenarioEditorPage() {
 
   function addParticipant() {
     setParticipants((prev) => [...prev, { id: newId(), name: "", avatar: "", role: "", isSelf: false, goal: "" }]);
+  }
+
+  /**
+   * 给角色绑定人格广场的人格（引用语义：play 时后端实时取该人格最新风格喂 AI）。
+   * 名字/头像只在角色卡还空着时用人格的预填 —— 用户已填的不覆盖（角色名和人格名
+   * 本就允许不同：角色叫「王经理」、说话风格是「阴阳怪气大师」完全合理）。
+   */
+  function bindPersona(pid: string, persona: Persona) {
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.id === pid
+          ? {
+              ...p,
+              personaId: persona._id,
+              personaName: persona.name,
+              name: p.name.trim() ? p.name : persona.name.slice(0, 80),
+              avatar: (p.avatar || "").trim() ? p.avatar : persona.coverEmoji || "🎭",
+            }
+          : p
+      )
+    );
+    setPersonaPickerFor(null);
+    toast.success(t("arena.scenarioEditor.personaBound", { name: persona.name }));
+  }
+
+  function unbindPersona(pid: string) {
+    updateParticipant(pid, { personaId: "", personaName: "" });
   }
 
   function updateChatMessage(mid: string, patch: Partial<ScenarioChatMessage>) {
@@ -1057,15 +1097,46 @@ export default function ScenarioEditorPage() {
                                 className="w-full rounded-xl bg-gray-950/50 border border-gray-800 px-3 py-2 text-sm"
                               />
 
-                              <label className="flex items-center gap-2 text-xs text-gray-300">
-                                <input
-                                  type="radio"
-                                  name="scenario-self"
-                                  checked={!!p.isSelf}
-                                  onChange={() => setSelfParticipant(p.id)}
-                                />
-                                {t("arena.scenarioEditor.setAsSelf")}
-                              </label>
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <label className="flex items-center gap-2 text-xs text-gray-300">
+                                  <input
+                                    type="radio"
+                                    name="scenario-self"
+                                    checked={!!p.isSelf}
+                                    onChange={() => setSelfParticipant(p.id)}
+                                  />
+                                  {t("arena.scenarioEditor.setAsSelf")}
+                                </label>
+
+                                {/* 人格绑定：只对 AI 扮演的角色（非「我」）有意义 */}
+                                {!p.isSelf &&
+                                  (p.personaId ? (
+                                    <span className="flex min-w-0 items-center gap-1 rounded-full border border-purple-500/40 bg-purple-500/10 px-2 py-1 text-xs text-purple-200">
+                                      <span className="truncate">🎭 {p.personaName || t("arena.scenarioEditor.unnamed")}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => unbindPersona(p.id)}
+                                        title={t("arena.scenarioEditor.unbindPersona")}
+                                        className="shrink-0 text-purple-300/70 hover:text-purple-100"
+                                      >
+                                        ✕
+                                      </button>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPersonaPickerFor(p.id)}
+                                      className="rounded-lg border border-purple-700/60 px-2.5 py-1 text-xs text-purple-200 hover:bg-purple-950/30"
+                                    >
+                                      🎭 {t("arena.scenarioEditor.bindPersona")}
+                                    </button>
+                                  ))}
+                              </div>
+                              {!p.isSelf && p.personaId && (
+                                <p className="text-[11px] text-purple-200/50">
+                                  {t("arena.scenarioEditor.personaBoundHint")}
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1428,6 +1499,15 @@ export default function ScenarioEditorPage() {
           </div>
         </div>
       )}
+
+      {/* 人格选择器（chat 角色卡「绑定人格」打开；引用语义见 bindPersona 注释） */}
+      <PersonaPickerModal
+        open={!!personaPickerFor}
+        onClose={() => setPersonaPickerFor(null)}
+        onSelect={(persona) => {
+          if (personaPickerFor) bindPersona(personaPickerFor, persona);
+        }}
+      />
     </div>
   );
 }

@@ -992,6 +992,13 @@ export type ScenarioParticipant = {
   isSelf?: boolean;
   /** 该角色的目标/立场（供 AI 扮演），可空 */
   goal?: string;
+  /**
+   * 绑定的人格广场人格（【引用语义】：play 时后端实时取该人格最新的 styleDescriptor
+   * 喂 AI —— 人格更新全网生效；人格被删/取消分享则回退到 goal）。
+   * personaName 是绑定时的名字快照，仅供展示。
+   */
+  personaId?: string;
+  personaName?: string;
 };
 
 /**

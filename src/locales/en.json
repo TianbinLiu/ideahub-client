@@ -1176,6 +1176,16 @@
       "sampleDesc": "Pasting in entries, viewing, deleting individual items, and clearing everything have all moved to the \"Personal Records\" area of \"My Homepage\", managed together with your other personal data.",
       "manageRecords": "Manage personal records"
     },
+    "personaPicker": {
+      "title": "Choose a persona",
+      "intro": "Pick a persona for this role: the AI will speak in that persona's latest style (updates propagate automatically).",
+      "searchPlaceholder": "Search name / description / tags…",
+      "scopeAll": "All",
+      "scopeInstalled": "Saved",
+      "scopeMine": "Mine",
+      "loading": "Loading…",
+      "empty": "No personas found. Try another keyword, or publish one in the persona hub first."
+    },
     "personaEditor": {
       "noStyleProfile": "You don't have a speaking style panel yet. Please generate one in \"My Speaking Style Panel\" first.",
       "importedFromStyleProfile": "Imported from your speaking style panel",
@@ -1196,8 +1206,12 @@
       "namePlaceholder": "Persona name",
       "descriptionPlaceholder": "Persona description: what occasions and styles it suits",
       "coverEmoji": "Cover emoji",
-      "tagsLabel": "Tags (comma-separated)",
+      "tagsLabel": "Tags",
       "tagsPlaceholder": "e.g. rational, debating, mouthpiece",
+      "tagsHint": "Toggle preset tags, or type custom ones below (Enter to add). Tags help other users find your persona in the hub and the scenario editor.",
+      "tagsLimit": "Up to 12 tags",
+      "removeTag": "Remove this tag",
+      "customTagPlaceholder": "Custom tag, press Enter to add (paste several separated by commas)",
       "sharedLabel": "Publish to the persona hub (public; other users can download and equip it)",
       "styleSettings": "Style settings",
       "summaryLabel": "Style review (summary)",
@@ -1696,7 +1710,11 @@
       "categoryFun": "Fun",
       "categoryOther": "Other",
       "platformWechat": "WeChat",
-      "platformQq": "QQ"
+      "platformQq": "QQ",
+      "bindPersona": "Bind persona",
+      "unbindPersona": "Unbind persona",
+      "personaBound": "Bound persona \"{{name}}\"",
+      "personaBoundHint": "The AI will play this role in that persona's latest style (updates propagate; if the persona is deleted or unshared, it falls back to the role's goal)."
     },
     "standpoint": {
       "platformWeibo": "Weibo",
