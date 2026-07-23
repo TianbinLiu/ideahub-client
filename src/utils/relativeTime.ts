@@ -6,6 +6,8 @@
  */
 import i18n from "../i18n";
 
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function isZh() {
   return (i18n.language || "zh").toLowerCase().startsWith("zh");
 }
@@ -37,8 +39,13 @@ export function formatRelativeTime(iso?: string | null): string {
     return zh ? `昨天 ${hm}` : `Yesterday ${hm}`;
   }
 
+  // 日期分支写明确（用户反馈「07-06」易被看成时间）：中文「7月6日」、英文「Jul 6」，跨年带年份
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
   if (date.getFullYear() === nowDate.getFullYear()) {
-    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    return zh ? `${month}月${day}日` : `${MONTHS_EN[date.getMonth()]} ${day}`;
   }
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return zh
+    ? `${date.getFullYear()}年${month}月${day}日`
+    : `${MONTHS_EN[date.getMonth()]} ${day}, ${date.getFullYear()}`;
 }
