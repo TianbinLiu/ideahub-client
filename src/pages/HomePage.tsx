@@ -471,18 +471,31 @@ export default function HomePage() {
         <Link
           key={idea._id}
           to={`/ideas/${idea._id}`}
-          className="group flex min-h-0 flex-col justify-between rounded-xl border border-gray-800 bg-gray-900/80 p-3 transition hover:border-cyan-700/70 hover:bg-gray-900"
+          className="group flex min-h-0 flex-col justify-between overflow-hidden rounded-xl border border-gray-800 bg-gray-900/80 transition hover:border-cyan-700/70 hover:bg-gray-900"
         >
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
-              <span className="shrink-0 text-[11px] text-gray-500">{formatDate(idea.createdAt)}</span>
+          {/* 推荐格子的封面：有图才占位（引用外站/带图帖子都有 coverImageUrl），
+              无图保持纯文字卡不虚占空间 */}
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="h-20 w-full shrink-0 object-cover transition duration-300 group-hover:scale-105"
+            />
+          )}
+          <div className="flex flex-1 flex-col justify-between p-3">
+            <div>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
+                <span className="shrink-0 text-[11px] text-gray-500">{formatDate(idea.createdAt)}</span>
+              </div>
+              {idea.summary ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
             </div>
-            {idea.summary ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            {renderIdeaTypeBadge(idea, true)}
-            <span className="text-xs text-gray-400">❤️ {idea.stats?.likeCount ?? 0}</span>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {renderIdeaTypeBadge(idea, true)}
+              <span className="text-xs text-gray-400">❤️ {idea.stats?.likeCount ?? 0}</span>
+            </div>
           </div>
         </Link>
       );
