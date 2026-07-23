@@ -1590,6 +1590,38 @@ type PointsLedgerResponse = {
 };
 
 /** 我的虚拟点数余额 */
+// ===== 搜索历史 / 联想（服务端账号维度存储）=====
+
+/** 我的一条搜索历史 */
+export type SearchHistoryEntry = {
+  _id: string;
+  query: string;
+  count: number;
+  lastSearchedAt: string;
+};
+
+/** 全站热词（按 query 聚合） */
+export type GlobalSearchSuggest = {
+  query: string;
+  totalCount: number;
+};
+
+/** 联想：personal=我的历史（未登录为空），global=全站热词（已剔除与 personal 重复项） */
+export function getSearchSuggest(prefix?: string) {
+  const qs = prefix ? `?prefix=${encodeURIComponent(prefix)}` : "";
+  return apiFetch<{ ok: true; personal: SearchHistoryEntry[]; global: GlobalSearchSuggest[] }>(
+    `/api/search/suggest${qs}`
+  );
+}
+
+export function deleteSearchHistory(id: string) {
+  return apiFetch<{ ok: true }>(`/api/me/search-history/${id}`, { method: "DELETE" });
+}
+
+export function clearSearchHistory() {
+  return apiFetch<{ ok: true }>("/api/me/search-history", { method: "DELETE" });
+}
+
 export function getMyPoints() {
   return apiFetch<{ ok: true; points: number }>("/api/me/points");
 }
