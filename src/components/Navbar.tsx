@@ -99,6 +99,12 @@ export default function Navbar() {
   const [globalSug, setGlobalSug] = useState<GlobalSearchSuggest[]>([]);
   // 请求竞态防护：快速输入时旧响应可能后到，只认最后一次
   const suggestSeq = useRef(0);
+  // ── 🔥 热点面板（全站热搜榜）──
+  // 热点 ≠ Tag Rank：热搜/热门是全站公共功能（未登录可看），Tag Rank 是带组件开关的
+  // 标签投票排行实验页 —— 面板底部才给它留一个可选入口，门禁归它自己管。
+  const [hotOpen, setHotOpen] = useState(false);
+  const [hotList, setHotList] = useState<GlobalSearchSuggest[]>([]);
+  const hotWrapRef = useRef<HTMLDivElement | null>(null);
   const [groups, setGroups] = useState<Group[]>([{ _id: "world", slug: "world", name: "World", joined: true, isWorld: true }]);
   const [guestMenuOpen, setGuestMenuOpen] = useState(false);
   const [autoGuestMenuShown, setAutoGuestMenuShown] = useState(false);
@@ -187,6 +193,38 @@ export default function Navbar() {
       // 同上
     }
   }
+
+  /** 🔥 热点面板开关：打开时拉全站热搜榜（服务端 60s 缓存，未登录可看） */
+  async function toggleHotPanel() {
+    const next = !hotOpen;
+    setHotOpen(next);
+    if (next) {
+      setSuggestOpen(false);
+      try {
+        const res = await getSearchSuggest();
+        setHotList(res.global || []);
+      } catch {
+        setHotList([]);
+      }
+    }
+  }
+
+  // 热点面板：点外部 / Esc 关闭
+  useEffect(() => {
+    if (!hotOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (hotWrapRef.current && !hotWrapRef.current.contains(e.target as Node)) setHotOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setHotOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [hotOpen]);
 
   function updateNavGroup(nextGroup: string) {
     setNavGroup(nextGroup);
@@ -333,7 +371,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="relative mx-auto w-full max-w-xl">
+        <div ref={hotWrapRef} className="relative mx-auto w-full max-w-xl">
           <form onSubmit={submitNavSearch} className="flex w-full items-center overflow-hidden rounded-full border border-gray-800 bg-gray-900/80 focus-within:border-cyan-500">
             <select
               value={navGroup}
@@ -354,15 +392,17 @@ export default function Navbar() {
               placeholder={t("home.searchPlaceholder")}
               className="min-w-0 flex-1 bg-transparent px-4 py-2 text-sm text-gray-100 outline-none placeholder:text-gray-500"
             />
-            {/* 热点入口：全站搜索热词与标签排行（用户点名要把热点功能加回前端） */}
-            <Link
-              to="/tag-rank"
+            {/* 热点入口：点击弹全站热搜榜面板（热点是公共功能，不挂 Tag Rank 的组件门禁） */}
+            <button
+              type="button"
+              onClick={toggleHotPanel}
               title={t("nav.hotSpot")}
               aria-label={t("nav.hotSpot")}
-              className="flex h-9 w-10 items-center justify-center text-orange-300 hover:bg-gray-800 hover:text-orange-200"
+              aria-expanded={hotOpen}
+              className={`flex h-9 w-10 items-center justify-center hover:bg-gray-800 ${hotOpen ? "text-orange-200" : "text-orange-300 hover:text-orange-200"}`}
             >
               <Flame className="h-4 w-4" />
-            </Link>
+            </button>
             <button type="submit" className="flex h-9 w-11 items-center justify-center text-gray-300 hover:bg-gray-800 hover:text-white" aria-label={t("common.search")}>
               <Search className="h-4 w-4" />
             </button>
@@ -410,6 +450,7 @@ export default function Navbar() {
                   ))}
                 </div>
               )}
+              {/* 联想里的「大家都在搜」小段（热点面板是它的完整版） */}
               {globalSug.length > 0 && (
                 <div className="py-1">
                   <div className="px-4 py-1 text-[11px] text-gray-500">{t("nav.searchTrendingTitle")}</div>
@@ -431,6 +472,50 @@ export default function Navbar() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 🔥 热点面板：全站热搜榜（编号点词即搜）+ 热门内容入口。
+              与 Tag Rank 解耦 —— 那是带组件开关的实验页，只在底部留可选链接。 */}
+          {hotOpen && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-xl">
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-200">
+                  <Flame className="h-4 w-4" /> {t("nav.hotBoardTitle")}
+                </span>
+                <Link
+                  to="/hot"
+                  onClick={() => setHotOpen(false)}
+                  className="text-xs text-rose-300 hover:text-rose-200"
+                >
+                  {t("nav.hotBoardContentLink")} →
+                </Link>
+              </div>
+              {hotList.length === 0 ? (
+                <p className="px-4 pb-3 text-xs text-gray-500">{t("nav.hotBoardEmpty")}</p>
+              ) : (
+                <div className="pb-1">
+                  {hotList.map((g, i) => (
+                    <button
+                      key={g.query}
+                      type="button"
+                      onClick={() => { setHotOpen(false); setNavSearch(g.query); submitSearchWith(g.query); }}
+                      className="flex w-full items-center gap-2.5 px-4 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-800/60"
+                    >
+                      <span className={`w-4 shrink-0 text-center text-xs font-semibold ${i < 3 ? "text-orange-300" : "text-gray-500"}`}>
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{g.query}</span>
+                      <span className="shrink-0 text-[11px] text-gray-600">{t("nav.searchTrendingCount", { count: g.totalCount })}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="border-t border-gray-800/60 px-4 py-2">
+                <Link to="/tag-rank" onClick={() => setHotOpen(false)} className="text-[11px] text-gray-500 hover:text-gray-300">
+                  {t("nav.hotBoardTagRankLink")} →
+                </Link>
+              </div>
             </div>
           )}
         </div>
