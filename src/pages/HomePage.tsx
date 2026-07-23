@@ -149,6 +149,9 @@ export default function HomePage() {
       });
 
       if (selectedIdeaTypes.length > 0) qs.set("ideaTypes", selectedIdeaTypes.join(","));
+      // 无类型筛选时让后端做类型分层混合：推荐板块能刷出全部类型（商业/反馈/引用），
+      // 而不是被数量占优的日常/动态淹没
+      else qs.set("mixIdeaTypes", "1");
       if (groupSlug === "world" && preferredGroupSlugs.length > 0) qs.set("preferredGroups", preferredGroupSlugs.join(","));
 
       const res = await apiFetch<{ ideas: Idea[]; totalPages: number; total: number }>(`/api/ideas?${qs.toString()}`);
