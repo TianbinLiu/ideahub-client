@@ -34,6 +34,7 @@ import {
 } from "../api";
 import StyleStandCard from "../components/StyleStandCard";
 import CommentThread from "../components/CommentThread";
+import PersonaCover from "../components/PersonaCover";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 
@@ -238,7 +239,7 @@ export default function PersonaDetailPage() {
         {/* ===== 头部信息卡 ===== */}
         <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
           <div className="flex items-start gap-4">
-            <span className="text-6xl leading-none">{persona.coverEmoji || "🎭"}</span>
+            <PersonaCover emoji={persona.coverEmoji} imageUrl={persona.coverImageUrl} sizeClass="h-20 w-20" emojiClass="text-6xl" alt={persona.name} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold text-white">{persona.name}</h1>

@@ -37,6 +37,7 @@ import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 import ScenarioSceneView from "../components/ScenarioSceneView";
 import CommentThread from "../components/CommentThread";
+import PersonaCover from "../components/PersonaCover";
 
 // 页面自己的平台小徽标（与评论区皮肤无关：皮肤在 components/skins/ 里各自实现）。
 // 新增平台时要跟着补一行，否则会 fallback 成「通用」徽标。
@@ -335,7 +336,7 @@ export default function ScenarioDetailPage() {
                     key={p._id}
                     className="flex items-start gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3"
                   >
-                    <span className="text-3xl leading-none">{p.coverEmoji || "🎭"}</span>
+                    <PersonaCover emoji={p.coverEmoji} imageUrl={p.coverImageUrl} sizeClass="h-10 w-10" emojiClass="text-3xl" alt={p.name} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Link

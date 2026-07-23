@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { createBounty, getBounty, getMyPoints, updateBounty } from "../api";
+import { apiUploadImage, createBounty, getBounty, getMyPoints, updateBounty } from "../api";
 import { humanizeError } from "../utils/humanizeError";
 
 const PLATFORM_OPTIONS: { value: string; labelKey: string }[] = [
@@ -60,6 +60,9 @@ export default function BountyEditorPage() {
   const [tagsText, setTagsText] = useState("");
   const [slots, setSlots] = useState("1");
   const [deadline, setDeadline] = useState("");
+  // 可选封面图（Cloudinary URL；空串 = 无封面）
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverUploading, setCoverUploading] = useState(false);
 
   // 当前虚拟点数余额（null = 还没拿到）。用于「够不够托管」的前置提示。
   const [points, setPoints] = useState<number | null>(null);
@@ -106,6 +109,7 @@ export default function BountyEditorPage() {
         setTagsText((b.tags || []).join(", "));
         setSlots(String(b.slots ?? 1));
         setDeadline(isoToDateInput(b.deadline));
+        setCoverImageUrl(b.coverImageUrl || "");
         setEscrowPoints(b.escrowPoints ?? 0);
         setApprovedCount(b.approvedCount ?? 0);
       } catch (e) {
@@ -136,6 +140,22 @@ export default function BountyEditorPage() {
     };
   }, []);
 
+  /** 可选封面：选文件 → 传 Cloudinary 拿 URL（真正入库的是 URL 字符串） */
+  async function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      setCoverUploading(true);
+      const res = await apiUploadImage(file, "idea");
+      setCoverImageUrl(res.imageUrl);
+    } catch (err) {
+      toast.error(humanizeError(err));
+    } finally {
+      setCoverUploading(false);
+    }
+  }
+
   async function handleSave() {
     if (!title.trim()) {
       toast.error(t("arena.bountyEditor.errTitleRequired"));
@@ -160,6 +180,7 @@ export default function BountyEditorPage() {
       reward: rewardNum,
       platform,
       targetUrl: targetUrl.trim(),
+      coverImageUrl,
       tags: parsedTags,
       slots: slotsNum,
       deadline: deadline ? new Date(deadline).toISOString() : null,
@@ -326,6 +347,32 @@ export default function BountyEditorPage() {
             className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2"
           />
         </label>
+
+        {/* 可选封面：帮悬赏在大厅里更醒目 */}
+        <div className="block text-sm text-gray-300">
+          {t("arena.bountyEditor.coverLabel")}
+          <div className="mt-1 flex items-center gap-3">
+            {coverImageUrl ? (
+              <div className="relative">
+                <img src={coverImageUrl} alt="" className="h-20 w-32 rounded-xl border border-gray-800 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setCoverImageUrl("")}
+                  title={t("arena.bountyEditor.coverRemove")}
+                  className="absolute -right-2 -top-2 rounded-full border border-gray-700 bg-gray-900 px-1.5 text-xs text-gray-300 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label className="flex h-20 w-32 cursor-pointer items-center justify-center rounded-xl border border-dashed border-gray-700 text-xs text-gray-500 hover:border-gray-500 hover:text-gray-300">
+                {coverUploading ? t("arena.bountyEditor.coverUploading") : t("arena.bountyEditor.coverUpload")}
+                <input type="file" accept="image/*" className="hidden" onChange={handleCoverChange} disabled={coverUploading} />
+              </label>
+            )}
+            <span className="text-xs text-gray-500">{t("arena.bountyEditor.coverHint")}</span>
+          </div>
+        </div>
 
         <label className="block text-sm text-gray-300">
           {t("arena.bountyEditor.tagsLabel")}

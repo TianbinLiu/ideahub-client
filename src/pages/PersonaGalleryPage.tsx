@@ -22,6 +22,7 @@ import { Plus } from "lucide-react";
 import { listPersonas, type Persona } from "../api";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
+import PersonaCover from "../components/PersonaCover";
 
 type Scope = "all" | "installed" | "mine";
 type Sort = "new" | "hot";
@@ -53,7 +54,7 @@ function PersonaGrid({ items, onTagClick }: { items: Persona[]; onTagClick?: (ta
           className="flex flex-col rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
         >
           <div className="flex items-start gap-3">
-            <span className="text-4xl leading-none">{p.coverEmoji || "🎭"}</span>
+            <PersonaCover emoji={p.coverEmoji} imageUrl={p.coverImageUrl} sizeClass="h-12 w-12" emojiClass="text-4xl" alt={p.name} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="line-clamp-1 font-semibold text-white">{p.name}</h3>

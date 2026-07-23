@@ -19,9 +19,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Download } from "lucide-react";
+import { Download, Sparkles } from "lucide-react";
 import {
+  apiUploadImage,
   createPersona,
+  generatePersonaDraft,
   getMyStyleProfile,
   getPersona,
   updatePersona,
@@ -31,6 +33,7 @@ import {
 } from "../api";
 import StyleStandCard from "../components/StyleStandCard";
 import { humanizeError } from "../utils/humanizeError";
+import { ocrImageToText } from "../utils/ocrImage";
 
 const EMOJI_PRESETS = ["🎭", "🔥", "🧠", "😈", "🛡️", "💧", "🎯", "⚔️", "🌟", "🤡", "👑", "🐍"];
 
@@ -60,6 +63,14 @@ export default function PersonaEditorPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [coverEmoji, setCoverEmoji] = useState("🎭");
+  // 图片封面（Cloudinary URL；有值时展示端优先于 emoji）
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverUploading, setCoverUploading] = useState(false);
+  // 「从文本/截图生成」面板
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importBusy, setImportBusy] = useState<"" | "ocr" | "generate">("");
+  const [ocrProgress, setOcrProgress] = useState(0);
   // tags 是 chips 数组（预设点选 + 自定义输入），不再是逗号分隔文本
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -88,6 +99,7 @@ export default function PersonaEditorPage() {
         setName(p.name || "");
         setDescription(p.description || "");
         setCoverEmoji(p.coverEmoji || "🎭");
+        setCoverImageUrl(p.coverImageUrl || "");
         setTags((p.tags || []).slice(0, 12));
         setShared(!!p.shared);
         setPriceText(String(p.price || 0));
@@ -123,6 +135,79 @@ export default function PersonaEditorPage() {
       toast.error(humanizeError(e));
     } finally {
       setImporting(false);
+    }
+  }
+
+  /** 图片封面：选文件 → Cloudinary 拿 URL（真正入库的是 URL 字符串） */
+  async function handleCoverImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      setCoverUploading(true);
+      const res = await apiUploadImage(file, "idea");
+      setCoverImageUrl(res.imageUrl);
+    } catch (err) {
+      toast.error(humanizeError(err));
+    } finally {
+      setCoverUploading(false);
+    }
+  }
+
+  /**
+   * 「从文本/截图生成」的文件入口：.txt/.md 直接读文本；图片走浏览器端 OCR
+   * （tesseract.js 动态加载，语言包走本站静态资源）——截图不出用户设备，
+   * 转成文字后才喂给服务端的文本 AI。
+   */
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      if (file.type.startsWith("image/")) {
+        setImportBusy("ocr");
+        setOcrProgress(0);
+        const text = await ocrImageToText(file, (p) => setOcrProgress(p));
+        if (!text.trim()) {
+          toast.error(t("arena.personaEditor.ocrEmpty"));
+          return;
+        }
+        setImportText((prev) => (prev.trim() ? `${prev}\n${text}` : text));
+      } else {
+        const text = await file.text();
+        setImportText((prev) => (prev.trim() ? `${prev}\n${text}` : text));
+      }
+    } catch (err) {
+      toast.error(humanizeError(err));
+    } finally {
+      setImportBusy("");
+    }
+  }
+
+  /** 文本 → AI 提炼人格草稿 → 填入下方表单（用户可再改再保存，不直接落库） */
+  async function handleGenerateFromText() {
+    const text = importText.trim();
+    if (text.length < 20) {
+      toast.error(t("arena.personaEditor.importTooShort"));
+      return;
+    }
+    try {
+      setImportBusy("generate");
+      const res = await generatePersonaDraft({ chatText: text.slice(0, 20000) });
+      const d = res.draft;
+      setName(d.name || "");
+      setDescription(d.description || "");
+      setCoverEmoji(d.coverEmoji || "🎭");
+      setTags((d.tags || []).slice(0, 12));
+      setSummary(d.style?.summary || "");
+      setCatchphrasesText((d.style?.catchphrases || []).join("，"));
+      setStanceHint(d.style?.stanceHint || "");
+      toast.success(t("arena.personaEditor.importGenerated"));
+      setImportOpen(false);
+    } catch (err) {
+      toast.error(humanizeError(err));
+    } finally {
+      setImportBusy("");
     }
   }
 
@@ -178,6 +263,7 @@ export default function PersonaEditorPage() {
       name: name.trim(),
       description: description.trim(),
       coverEmoji: coverEmoji.trim() || "🎭",
+      coverImageUrl,
       tags,
       style,
       shared,
@@ -244,7 +330,57 @@ export default function PersonaEditorPage() {
           <Download className="h-4 w-4" /> {importing ? t("arena.personaEditor.importing") : t("arena.personaEditor.importFromStyleProfile")}
         </button>
         <span className="text-xs text-gray-500">{t("arena.personaEditor.importHint")}</span>
+
+        <button
+          type="button"
+          onClick={() => setImportOpen((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-xl border border-purple-600 bg-purple-500/10 px-4 py-2 text-sm font-semibold text-purple-100 hover:bg-purple-500/20"
+        >
+          <Sparkles className="h-4 w-4" /> {t("arena.personaEditor.importFromTextTitle")}
+        </button>
       </div>
+
+      {/* 从文本/截图生成：贴文本 / 传 .txt/.md / 传发言截图（浏览器端 OCR）→ AI 提炼并填入下方表单 */}
+      {importOpen && (
+        <section className="mt-3 space-y-3 rounded-2xl border border-purple-700/50 bg-purple-950/10 p-4">
+          <p className="text-xs text-gray-400">{t("arena.personaEditor.importFromTextHint")}</p>
+          <textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            maxLength={20000}
+            placeholder={t("arena.personaEditor.importTextPlaceholder")}
+            rows={5}
+            className="w-full rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-700 px-3 py-2 text-xs text-gray-200 hover:bg-gray-800">
+              📄 {t("arena.personaEditor.importPickFile")}
+              <input
+                type="file"
+                accept=".txt,.md,text/plain,image/*"
+                className="hidden"
+                onChange={handleImportFile}
+                disabled={importBusy !== ""}
+              />
+            </label>
+            {importBusy === "ocr" && (
+              <span className="text-xs text-purple-200">
+                {t("arena.personaEditor.ocrRunning", { percent: Math.round(ocrProgress * 100) })}
+              </span>
+            )}
+            <span className="ml-auto text-[11px] text-gray-600">{importText.length}/20000</span>
+            <button
+              type="button"
+              disabled={importBusy !== "" || importText.trim().length < 20}
+              onClick={handleGenerateFromText}
+              className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              {importBusy === "generate" ? t("arena.personaEditor.importGenerating") : t("arena.personaEditor.importGenerateBtn")}
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="mt-4 space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">
         <h2 className="text-lg font-semibold text-white">{t("arena.personaEditor.basicInfo")}</h2>
@@ -287,6 +423,29 @@ export default function PersonaEditorPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 图片封面：可选，有图时各展示处优先于 emoji（PersonaCover 组件统一回退） */}
+          <div className="mt-2 flex items-center gap-3">
+            {coverImageUrl ? (
+              <div className="relative">
+                <img src={coverImageUrl} alt="" className="h-14 w-14 rounded-xl border border-gray-800 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setCoverImageUrl("")}
+                  title={t("arena.personaEditor.coverImageRemove")}
+                  className="absolute -right-2 -top-2 rounded-full border border-gray-700 bg-gray-900 px-1.5 text-xs text-gray-300 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-gray-700 text-lg text-gray-500 hover:border-gray-500 hover:text-gray-300">
+                {coverUploading ? "…" : "🖼"}
+                <input type="file" accept="image/*" className="hidden" onChange={handleCoverImageChange} disabled={coverUploading} />
+              </label>
+            )}
+            <span className="text-xs text-gray-500">{t("arena.personaEditor.coverImageHint")}</span>
           </div>
         </div>
 

@@ -75,8 +75,12 @@ function BountyGrid({ items }: { items: BountyCard[] }) {
           <Link
             key={b._id}
             to={`/arena/bounty/${b._id}`}
-            className="flex flex-col rounded-2xl border border-gray-800 bg-gray-900 p-4 hover:bg-gray-900/70"
+            className="flex flex-col overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 hover:bg-gray-900/70"
           >
+            {b.coverImageUrl && (
+              <img src={b.coverImageUrl} alt="" className="h-32 w-full object-cover" loading="lazy" />
+            )}
+            <div className="flex flex-1 flex-col p-4">
             <div className="flex items-start justify-between gap-2">
               <h3 className="line-clamp-2 font-semibold text-white">{b.title}</h3>
               <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${sm.className}`}>
@@ -110,6 +114,7 @@ function BountyGrid({ items }: { items: BountyCard[] }) {
               <span className="ml-auto text-gray-500">
                 {t("arena.bounty.approvedCount", { approved: b.approvedCount || 0, slots: b.slots })}
               </span>
+            </div>
             </div>
           </Link>
         );

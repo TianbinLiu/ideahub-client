@@ -1,0 +1,4 @@
+# OCR 静态资源按二进制处理：worker/core 必须与 tesseract.js dist 逐字节一致，
+# autocrlf 转换会让文件哈希漂移（traineddata 本就是二进制）
+public/tesseract/** -text
+public/tessdata/** -text
