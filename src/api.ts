@@ -1105,6 +1105,7 @@ export type ScenarioPersonaCard = {
   _id: string;
   name: string;
   coverEmoji: string;
+  coverImageUrl?: string;
   description: string;
   tags: string[];
   shared: boolean;
@@ -1427,6 +1428,8 @@ export type Bounty = {
   reward: number;
   platform: string;
   targetUrl: string;
+  /** 可选封面图（Cloudinary URL，空串 = 无封面） */
+  coverImageUrl?: string;
   tags: string[];
   slots: number;
   status: "open" | "closed" | "completed";
@@ -1453,6 +1456,7 @@ export type BountyInput = {
   reward: number;
   platform: string;
   targetUrl: string;
+  coverImageUrl?: string;
   tags: string[] | string;
   slots: number;
   deadline?: string | null;
@@ -1846,6 +1850,8 @@ export type Persona = {
   name: string;
   description: string;
   coverEmoji: string;
+  /** 可选图片封面（Cloudinary URL）：有值时优先于 coverEmoji 展示 */
+  coverImageUrl?: string;
   tags: string[];
   style: PersonaStyle;
   /** 后端从 name+style 计算的一段文本，供插件当作 personaText 用（截断到 ~600 字） */
@@ -1869,6 +1875,7 @@ export type PersonaInput = {
   name: string;
   description: string;
   coverEmoji: string;
+  coverImageUrl?: string;
   tags: string[] | string;
   style: PersonaStyle;
   shared: boolean;

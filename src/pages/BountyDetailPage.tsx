@@ -355,7 +355,11 @@ export default function BountyDetailPage() {
         {/* 左列：任务信息 + 外链 + 提交/审批 */}
         <div className="space-y-4">
           {/* 任务信息 */}
-          <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+          <section className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
+            {bounty.coverImageUrl && (
+              <img src={bounty.coverImageUrl} alt="" className="max-h-64 w-full object-cover" />
+            )}
+            <div className="p-5">
             <div className="flex items-start justify-between gap-3">
               <h1 className="text-2xl font-bold text-white">{bounty.title}</h1>
               <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${sm.className}`}>
@@ -450,6 +454,7 @@ export default function BountyDetailPage() {
                 </button>
               </div>
             )}
+            </div>
           </section>
 
           {/* 外链区 */}

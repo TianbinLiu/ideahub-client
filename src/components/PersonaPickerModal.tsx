@@ -26,6 +26,7 @@ import {
   type PersonaDraft,
 } from "../api";
 import { humanizeError } from "../utils/humanizeError";
+import PersonaCover from "./PersonaCover";
 
 type Scope = "all" | "installed" | "mine";
 type Mode = "pick" | "generate";
@@ -271,7 +272,7 @@ export default function PersonaPickerModal({ open, onClose, onSelect }: PersonaP
                     onClick={() => handlePick(p)}
                     className="flex w-full items-start gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 text-left hover:border-cyan-700/60 hover:bg-cyan-950/20"
                   >
-                    <span className="text-3xl leading-none">{p.coverEmoji || "🎭"}</span>
+                    <PersonaCover emoji={p.coverEmoji} imageUrl={p.coverImageUrl} sizeClass="h-10 w-10" emojiClass="text-3xl" alt={p.name} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-semibold text-white">{p.name}</span>
