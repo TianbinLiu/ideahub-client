@@ -467,30 +467,33 @@ export default function HomePage() {
   function renderCompactIdeaCard(idea: Idea, variant: "right" | "row") {
     const imageUrl = getIdeaImageUrl(idea);
     if (variant === "right") {
+      // 格子高度由外层 grid-rows-2 固定：封面必须是【弹性项】（flex-1 吃剩余空间），
+      // 文字区 shrink-0 保底 —— 固定图高会把标题/徽标挤出格子被裁掉（用户截图实锤）。
+      // 有图时不渲染摘要：剩余空间给图，标题收敛到 1 行，保证徽标/日期完整可见。
       return (
         <Link
           key={idea._id}
           to={`/ideas/${idea._id}`}
-          className="group flex min-h-0 flex-col justify-between overflow-hidden rounded-xl border border-gray-800 bg-gray-900/80 transition hover:border-cyan-700/70 hover:bg-gray-900"
+          className="group flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-800 bg-gray-900/80 transition hover:border-cyan-700/70 hover:bg-gray-900"
         >
-          {/* 推荐格子的封面：有图才占位（引用外站/带图帖子都有 coverImageUrl），
-              无图保持纯文字卡不虚占空间 */}
           {imageUrl && (
-            <img
-              src={imageUrl}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="h-20 w-full shrink-0 object-cover transition duration-300 group-hover:scale-105"
-            />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <img
+                src={imageUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+            </div>
           )}
-          <div className="flex flex-1 flex-col justify-between p-3">
+          <div className={`flex shrink-0 flex-col p-3 ${imageUrl ? "" : "min-h-0 flex-1 justify-between"}`}>
             <div>
               <div className="flex items-start justify-between gap-2">
-                <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white">{idea.title}</h3>
+                <h3 className={`${imageUrl ? "line-clamp-1" : "line-clamp-2"} text-sm font-semibold leading-5 text-white`}>{idea.title}</h3>
                 <span className="shrink-0 text-[11px] text-gray-500">{formatDate(idea.createdAt)}</span>
               </div>
-              {idea.summary ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
+              {!imageUrl && idea.summary ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-gray-400">{idea.summary}</p> : null}
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
               {renderIdeaTypeBadge(idea, true)}
