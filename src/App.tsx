@@ -28,6 +28,8 @@ const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const NewIdeaPage = lazy(() => import("./pages/NewIdeaPage"));
 const NewIdeaTypePage = lazy(() => import("./pages/NewIdeaTypePage"));
 const IdeaDetailPage = lazy(() => import("./pages/IdeaDetailPage"));
+const HotPage = lazy(() => import("./pages/HotPage"));
+const FeedPage = lazy(() => import("./pages/FeedPage"));
 const CompanyPage = lazy(() => import("./pages/CompanyPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
@@ -287,6 +289,8 @@ export default function App() {
         {/* ===== 主站：导航栏与改造前一致（<Navbar />），行为不变 ===== */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/hot" element={<HotPage />} />
+          <Route path="/feed" element={<FeedPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/ideas/:id" element={<IdeaDetailPage />} />
           <Route

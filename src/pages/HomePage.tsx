@@ -9,9 +9,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiFetch, listGroups, type Group } from "../api";
+import { apiFetch, getFollowingFeed, listGroups, type FeedAuthor, type Group, type Idea as ApiIdea } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { formatRelativeTime } from "../utils/relativeTime";
 import { getPlatformIcon } from "../utils/platformConfig";
 import { useAuth } from "../authContext";
 import { Flame, Radio } from "lucide-react";
@@ -109,6 +110,9 @@ export default function HomePage() {
   const [recommendationPageSize, setRecommendationPageSize] = useState(RECOMMENDATION_PAGE_SIZE);
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [followingIdeas, setFollowingIdeas] = useState<Idea[]>([]);
+  // 动态按钮：hover dropdown 开关 + 关注流最新几条（图标头像也取自第一条）
+  const [feedHover, setFeedHover] = useState(false);
+  const [feedPreview, setFeedPreview] = useState<(ApiIdea & { author?: FeedAuthor })[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [tagRankBoards, setTagRankBoards] = useState<TagRankBoard[]>([]);
   const [tagRankLoading, setTagRankLoading] = useState(false);
@@ -336,13 +340,27 @@ export default function HomePage() {
     };
   }, []);
 
-  function updateFeedMode(nextMode: HomeFeedMode) {
-    const next = new URLSearchParams(params);
-    if (nextMode === "dynamic") next.delete("feed");
-    else next.set("feed", "hot");
-    next.set("page", "1");
-    setParams(next);
-  }
+  // 「动态/热门」按钮已改为 /feed、/hot 页面入口；feedMode 仅为兼容带 ?feed=hot 的旧链接保留。
+
+  // 动态按钮的预览数据：关注流最新几条（头像 + hover dropdown 用）。未登录不拉。
+  useEffect(() => {
+    if (!user?._id) {
+      setFeedPreview([]);
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await getFollowingFeed({ limit: 6 });
+        if (mounted) setFeedPreview(res.ideas || []);
+      } catch {
+        if (mounted) setFeedPreview([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user?._id]);
 
   function toggleIdeaType(nextType: IdeaTypeKey) {
     const next = new URLSearchParams(params);
@@ -500,26 +518,62 @@ export default function HomePage() {
     <div className="mx-auto max-w-7xl p-4">
       <div className="grid gap-3 lg:grid-cols-[auto,1fr]" data-tour="home-header">
         <div className="flex items-start gap-4">
-          <button
-            type="button"
-            onClick={() => updateFeedMode("dynamic")}
-            className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold"
+          {/* 「动态」按钮：改为 /feed 动态页入口（不再切换 feed 排序）。
+              图标 = 关注列表中最新发布动态的用户头像（无关注/未登录回退 Radio 图标）；
+              hover 出最新关注动态 dropdown（B 站式：头像/名字/标题/相对时间）。 */}
+          <div
+            className="relative"
+            onMouseEnter={() => setFeedHover(true)}
+            onMouseLeave={() => setFeedHover(false)}
           >
-            <span className={`flex h-14 w-14 items-center justify-center rounded-full border transition ${feedMode === "dynamic" ? "border-cyan-400 bg-cyan-500/20 text-cyan-100" : "border-gray-700 bg-gray-900 text-gray-300 group-hover:bg-gray-800"}`}>
-              <Radio className="h-6 w-6" />
-            </span>
-            <span className={feedMode === "dynamic" ? "text-cyan-100" : "text-gray-300 group-hover:text-white"}>{t("home.dynamic")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => updateFeedMode("hot")}
-            className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold"
-          >
-            <span className={`flex h-14 w-14 items-center justify-center rounded-full border transition ${feedMode === "hot" ? "border-rose-400 bg-rose-500/20 text-rose-100" : "border-gray-700 bg-gray-900 text-gray-300 group-hover:bg-gray-800"}`}>
+            <Link to="/feed" className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold">
+              <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition group-hover:border-cyan-400 group-hover:bg-gray-800">
+                {feedPreview[0]?.author?.avatarUrl ? (
+                  <img src={feedPreview[0].author.avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Radio className="h-6 w-6" />
+                )}
+              </span>
+              <span className="text-gray-300 group-hover:text-white">{t("home.dynamic")}</span>
+            </Link>
+
+            {feedHover && feedPreview.length > 0 && (
+              <div className="absolute left-0 top-full z-40 w-80 rounded-2xl border border-gray-800 bg-gray-900 p-2 shadow-xl">
+                <p className="px-3 py-1 text-[11px] text-gray-500">{t("home.feedPreviewTitle")}</p>
+                {feedPreview.map((idea) => (
+                  <Link
+                    key={idea._id}
+                    to={`/ideas/${idea._id}`}
+                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-gray-800/70"
+                  >
+                    {idea.author?.avatarUrl ? (
+                      <img src={idea.author.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full border border-gray-700 object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-700 bg-gray-800 text-xs font-semibold text-gray-200">
+                        {(idea.author?.username || "?").slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs text-gray-400">{idea.author?.displayName || idea.author?.username}</span>
+                      <span className="block truncate text-sm text-gray-100">{idea.title}</span>
+                    </span>
+                    <span className="shrink-0 text-[11px] text-gray-600">{formatRelativeTime(idea.createdAt)}</span>
+                  </Link>
+                ))}
+                <Link to="/feed" className="block rounded-xl px-3 py-2 text-center text-xs text-cyan-300 hover:bg-gray-800/70">
+                  {t("home.feedPreviewMore")} →
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 「热门」按钮：改为 /hot 热门页入口 */}
+          <Link to="/hot" className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition group-hover:border-rose-400 group-hover:bg-gray-800">
               <Flame className="h-6 w-6" />
             </span>
-            <span className={feedMode === "hot" ? "text-rose-100" : "text-gray-300 group-hover:text-white"}>{t("home.hot")}</span>
-          </button>
+            <span className="text-gray-300 group-hover:text-white">{t("home.hot")}</span>
+          </Link>
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3" data-tour="home-filters">
