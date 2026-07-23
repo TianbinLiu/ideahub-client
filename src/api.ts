@@ -1633,6 +1633,13 @@ export function getSearchSuggest(prefix?: string) {
   );
 }
 
+/** 🔥 热搜榜（热点面板用）：完整全站榜单，不按个人历史剔重 */
+export function getHotSearchBoard(limit = 10) {
+  return apiFetch<{ ok: true; personal: SearchHistoryEntry[]; global: GlobalSearchSuggest[] }>(
+    `/api/search/suggest?board=1&limit=${limit}`
+  );
+}
+
 export function deleteSearchHistory(id: string) {
   return apiFetch<{ ok: true }>(`/api/me/search-history/${id}`, { method: "DELETE" });
 }

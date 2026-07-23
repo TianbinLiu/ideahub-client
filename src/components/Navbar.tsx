@@ -45,6 +45,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   clearSearchHistory,
   deleteSearchHistory,
+  getHotSearchBoard,
   getSearchSuggest,
   listGroups,
   type GlobalSearchSuggest,
@@ -201,7 +202,8 @@ export default function Navbar() {
     if (next) {
       setSuggestOpen(false);
       try {
-        const res = await getSearchSuggest();
+        // board 模式：完整榜单，不按个人历史剔重（否则自己搜过的词会从榜上消失）
+        const res = await getHotSearchBoard(10);
         setHotList(res.global || []);
       } catch {
         setHotList([]);
