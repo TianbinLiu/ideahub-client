@@ -1590,6 +1590,25 @@ type PointsLedgerResponse = {
 };
 
 /** 我的虚拟点数余额 */
+// ===== 关注流（动态页 / 首页动态按钮）=====
+
+/** 关注流条目的作者（多带 displayName/avatarUrl 供动态卡展示） */
+export type FeedAuthor = { _id: string; username: string; displayName?: string; avatarUrl?: string; role?: string };
+
+/**
+ * 我关注的人发布的公开 idea，时间倒序。authorId 可选=按某个关注对象过滤
+ * （仅限关注集合内；随便传别人的 id 只会得到空列表）。
+ */
+export function getFollowingFeed(params?: { page?: number; limit?: number; authorId?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.authorId) qs.set("authorId", params.authorId);
+  return apiFetch<{ ok: true; ideas: (Idea & { author?: FeedAuthor })[]; total: number; page: number; limit: number; totalPages: number }>(
+    `/api/feed/following${qs.toString() ? `?${qs.toString()}` : ""}`
+  );
+}
+
 // ===== 搜索历史 / 联想（服务端账号维度存储）=====
 
 /** 我的一条搜索历史 */

@@ -643,7 +643,9 @@
     "page": "Page",
     "prev": "← Prev",
     "next": "Next →",
-    "noIdeas": "No ideas yet. Be the first to create one!"
+    "noIdeas": "No ideas yet. Be the first to create one!",
+    "feedPreviewTitle": "Latest from your follows",
+    "feedPreviewMore": "See all updates"
   },
   "groups": {
     "title": "Groups",
@@ -2091,5 +2093,40 @@
     "placeholder": "Type a message…",
     "aiReplying": "Typing…",
     "send": "Send"
+  },
+  "hotPage": {
+    "title": "Trending",
+    "subtitle": "The best fresh and fun content across every field",
+    "rulesButton": "Trending rules",
+    "loading": "Loading…",
+    "empty": "Nothing trending yet",
+    "loadMore": "Load more",
+    "rulesTitle": "Trending rules",
+    "rulesWhatTitle": "What is Trending?",
+    "rulesWhatBody": "Trending ranks content by real user engagement, surfacing what the whole site cares about right now.",
+    "rulesHowTitle": "What gets on Trending?",
+    "rulesPoint1": "[Hot] A heat score combines likes, comments, and views — higher scores rank higher.",
+    "rulesPoint2": "[Fresh] Newer content gets a recency boost; heat decays naturally over time.",
+    "rulesPoint3": "[Genuine] Engage because you like it — gaming the numbers earns no extra boost.",
+    "rulesPoint4": "[All types] Business ideas, feedback, shares, daily posts, and updates all compete."
+  },
+  "feedPage": {
+    "title": "Feed",
+    "loginRequired": "Log in to post updates and see the latest from people you follow.",
+    "loginButton": "Log in",
+    "draftPlaceholder": "What would you like to share?",
+    "draftEmpty": "Write something first",
+    "defaultTitle": "Update",
+    "addImage": "Image",
+    "imageUploading": "Uploading…",
+    "imagesLimit": "Up to 4 images",
+    "publish": "Post",
+    "publishing": "Posting…",
+    "published": "Posted! View it on your profile",
+    "allFeed": "All",
+    "loading": "Loading…",
+    "loadMore": "Load more",
+    "empty": "No recent updates from people you follow",
+    "emptyNoFollowing": "You are not following anyone yet — find authors you like on the home page or via search"
   }
 }
