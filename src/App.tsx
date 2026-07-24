@@ -62,6 +62,7 @@ const ScenarioGalleryPage = lazy(() => import("./pages/ScenarioGalleryPage"));
 const ScenarioDetailPage = lazy(() => import("./pages/ScenarioDetailPage"));
 const ScenarioEditorPage = lazy(() => import("./pages/ScenarioEditorPage"));
 const ScenarioPlayPage = lazy(() => import("./pages/ScenarioPlayPage"));
+const ScenarioSessionReplayPage = lazy(() => import("./pages/ScenarioSessionReplayPage"));
 const StandpointPage = lazy(() => import("./pages/StandpointPage"));
 const BountyBoardPage = lazy(() => import("./pages/BountyBoardPage"));
 const BountyDetailPage = lazy(() => import("./pages/BountyDetailPage"));
@@ -215,6 +216,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/arena/simulate/:id/session/:sessionId" element={<ScenarioSessionReplayPage />} />
           <Route
             path="/arena/standpoint"
             element={

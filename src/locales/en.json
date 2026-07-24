@@ -1132,7 +1132,23 @@
       "backToScenarioIntro": "Back to Scenario Details",
       "debateTopic": "Debate topic: {{topic}}",
       "sceneBackground": "Scene: {{topic}}",
-      "aiNotConfiguredBanner": "AI is not configured on the server. For now you can only browse and post locally, and there will be no AI replies."
+      "aiNotConfiguredBanner": "AI is not configured on the server. For now you can only browse and post locally, and there will be no AI replies.",
+      "endSession": "End scenario",
+      "endingSession": "Ending…",
+      "noActiveSession": "No active session yet — send a message first",
+      "endReason_manual": "Ended manually",
+      "endReason_derailed": "They ended the conversation",
+      "endReason_completed": "Scenario completed",
+      "scoreUnit": "pts",
+      "noEvaluation": "No review generated for this session (AI unavailable or too short)",
+      "shareSession": "Share to comments",
+      "sharing": "Sharing…",
+      "sharedDone": "Shared ✓",
+      "sharedToast": "Session published and shared to comments",
+      "restartSession": "Play again",
+      "viewOthers": "See how others played",
+      "shareScore": ", AI review score {{score}}",
+      "shareCommentText": "I finished this scenario{{score}}. Replay: {{url}}"
     },
     "personaDetail": {
       "priceTag": "💰 {{price}} points",
@@ -1406,7 +1422,10 @@
       "platformInstagram": "Instagram",
       "platformGeneric": "Generic",
       "platformWechat": "WeChat",
-      "platformQq": "QQ"
+      "platformQq": "QQ",
+      "sessionsTitle": "Community sessions",
+      "sessionsHint": "Sessions shared by other players — see how they handled it and leave a like",
+      "sessionMeta": "{{count}} messages"
     },
     "bountyDetail": {
       "platformWeibo": "Weibo",
@@ -1900,6 +1919,14 @@
       "markReplied": "Mark as replied",
       "regenerate": "Regenerate",
       "ignore": "Ignore"
+    },
+    "sessionReplay": {
+      "loading": "Loading…",
+      "back": "Back to scenarios",
+      "backToScenario": "Back to scenario",
+      "notFound": "Session not found or not shared.",
+      "byUser": "{{name}}'s session replay",
+      "loginRequired": "Log in to like"
     }
   },
   "newIdeaExtra": {

@@ -202,6 +202,8 @@ export type AuthUser = {
   username: string;
   email: string;
   role: "user" | "company" | "admin";
+  /** 账号头像（情景对局里用户发言显示真实头像用；空串=无） */
+  avatarUrl?: string;
   hasPassword: boolean;
 };
 
@@ -1165,14 +1167,106 @@ export type ScenarioPlayHistoryItem = {
   parentId?: string | null;
 };
 
+// ===== 情景对局（session）：chat 场景的完整对话记录、结束/评分/回放/点赞 =====
+
+/** 对局评价（结束时 AI 生成；评估失败为 null） */
+export type SessionEvaluation = { score: number | null; comment: string };
+
+/** 对局卡（列表/结束响应用；messages 只在回放接口返回） */
+export type ScenarioSessionCard = {
+  _id: string;
+  user: { _id: string; username: string; avatarUrl?: string } | string;
+  status: "active" | "ended";
+  /** manual=手动结束 / derailed=发言脱离情景被拒续 / completed=情景演完 */
+  endReason: "" | "manual" | "derailed" | "completed";
+  messageCount: number;
+  evaluation: SessionEvaluation | null;
+  shared: boolean;
+  likeCount: number;
+  liked?: boolean;
+  isOwner?: boolean;
+  endedAt?: string | null;
+  createdAt: string;
+};
+
+export type SessionMessage = {
+  mid: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  isUser: boolean;
+  isAi: boolean;
+  text: string;
+  at: string;
+};
+
+/** play 响应里的对局信息（仅 chat 场景返回） */
+export type PlaySessionInfo = {
+  sessionId: string;
+  verdict: "continue" | "derailed" | "completed";
+  ended: boolean;
+  endReason: "" | "derailed" | "completed";
+  evaluation: SessionEvaluation | null;
+};
+
 export function playScenario(
   id: string,
   body: { history: ScenarioPlayHistoryItem[]; userMessage: { text: string; parentId?: string | null; id?: string } }
 ) {
-  return apiFetch<{ ok: true; replies: ScenarioPlayReply[]; model?: string }>(`/api/scenarios/${id}/play`, {
+  return apiFetch<{ ok: true; replies: ScenarioPlayReply[]; model?: string; session?: PlaySessionInfo | null }>(
+    `/api/scenarios/${id}/play`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+/** 我的进行中对局（play 页加载时恢复历史消息用；无则 session=null） */
+export function getActiveScenarioSession(scenarioId: string) {
+  return apiFetch<{ ok: true; session: (ScenarioSessionCard & { messages: SessionMessage[] }) | null }>(
+    `/api/scenarios/${scenarioId}/sessions/active`
+  );
+}
+
+/** 手动结束当前对局（AI 复盘评分） */
+export function endScenarioSession(scenarioId: string) {
+  return apiFetch<{ ok: true; session: ScenarioSessionCard; evaluation: SessionEvaluation | null }>(
+    `/api/scenarios/${scenarioId}/sessions/end`,
+    { method: "POST" }
+  );
+}
+
+/** 该情景「大家的对话」（已分享对局） */
+export function listScenarioSessions(scenarioId: string, params?: { sort?: "hot" | "new"; page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<{ ok: true; sessions: ScenarioSessionCard[]; total: number; totalPages: number }>(
+    `/api/scenarios/${scenarioId}/sessions${qs.toString() ? `?${qs.toString()}` : ""}`
+  );
+}
+
+/** 对局回放（已分享的所有人可看；未分享仅本人） */
+export function getScenarioSession(scenarioId: string, sessionId: string) {
+  return apiFetch<{ ok: true; session: ScenarioSessionCard & { messages: SessionMessage[] } }>(
+    `/api/scenarios/${scenarioId}/sessions/${sessionId}`
+  );
+}
+
+/** 公开自己的对局（进入「大家的对话」，可被点赞/回放） */
+export function shareScenarioSession(scenarioId: string, sessionId: string) {
+  return apiFetch<{ ok: true; shared: true }>(`/api/scenarios/${scenarioId}/sessions/${sessionId}/share`, {
     method: "POST",
-    body: JSON.stringify(body),
   });
+}
+
+export function toggleScenarioSessionLike(scenarioId: string, sessionId: string) {
+  return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(
+    `/api/scenarios/${scenarioId}/sessions/${sessionId}/like`,
+    { method: "POST" }
+  );
 }
 
 export function captureScenario(url: string) {

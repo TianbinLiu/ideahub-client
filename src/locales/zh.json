@@ -1132,7 +1132,23 @@
       "backToScenarioIntro": "返回情景介绍",
       "debateTopic": "争论主题：{{topic}}",
       "sceneBackground": "场景背景：{{topic}}",
-      "aiNotConfiguredBanner": "服务器未配置 AI，当前仅可浏览与本地发言，不会有 AI 回复。"
+      "aiNotConfiguredBanner": "服务器未配置 AI，当前仅可浏览与本地发言，不会有 AI 回复。",
+      "endSession": "结束情景",
+      "endingSession": "结束中…",
+      "noActiveSession": "还没有进行中的对局——先发一条消息吧",
+      "endReason_manual": "手动结束",
+      "endReason_derailed": "对方终止了交流",
+      "endReason_completed": "情景完成",
+      "scoreUnit": "分",
+      "noEvaluation": "本局未生成复盘（可能是 AI 暂不可用或对话太短）",
+      "shareSession": "分享到评论区",
+      "sharing": "分享中…",
+      "sharedDone": "已分享 ✓",
+      "sharedToast": "已公开对局并分享到评论区",
+      "restartSession": "再来一局",
+      "viewOthers": "看看大家的对话",
+      "shareScore": "，AI 复盘得分 {{score}}",
+      "shareCommentText": "我完成了这个情景{{score}}。对话回放：{{url}}"
     },
     "personaDetail": {
       "priceTag": "💰 {{price}} 赏金",
@@ -1406,7 +1422,10 @@
       "platformInstagram": "Instagram",
       "platformGeneric": "通用",
       "platformWechat": "微信",
-      "platformQq": "QQ"
+      "platformQq": "QQ",
+      "sessionsTitle": "大家的对话",
+      "sessionsHint": "其他玩家分享的对局，点进去看 TA 是怎么聊的，可以点赞",
+      "sessionMeta": "{{count}} 条消息"
     },
     "bountyDetail": {
       "platformWeibo": "微博",
@@ -1900,6 +1919,14 @@
       "markReplied": "标记为已回复",
       "regenerate": "重新生成",
       "ignore": "忽略"
+    },
+    "sessionReplay": {
+      "loading": "加载中…",
+      "back": "返回情景模拟",
+      "backToScenario": "返回情景介绍",
+      "notFound": "对局不存在或未公开。",
+      "byUser": "{{name}} 的对局回放",
+      "loginRequired": "登录后才能点赞"
     }
   },
   "newIdeaExtra": {
