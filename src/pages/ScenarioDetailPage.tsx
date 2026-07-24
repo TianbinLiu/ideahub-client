@@ -26,13 +26,16 @@ import { Bookmark, Eye, Heart, Pencil, Play } from "lucide-react";
 import {
   getScenario,
   installPersona,
+  listScenarioSessions,
   purchasePersona,
   toggleScenarioBookmark,
   toggleScenarioLike,
   uninstallPersona,
   type Scenario,
   type ScenarioPersonaCard,
+  type ScenarioSessionCard,
 } from "../api";
+import { formatRelativeTime } from "../utils/relativeTime";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
 import ScenarioSceneView from "../components/ScenarioSceneView";
@@ -79,6 +82,8 @@ export default function ScenarioDetailPage() {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   // 本情景中的人格（chat 场景绑定的，server 只给观看者可见的）
   const [personas, setPersonas] = useState<ScenarioPersonaCard[]>([]);
+  // 大家的对话：已分享的对局（chat 场景）
+  const [sessions, setSessions] = useState<ScenarioSessionCard[]>([]);
   // 正在收藏/取消收藏的人格 id（防连点）
   const [installingId, setInstallingId] = useState<string | null>(null);
 
@@ -92,6 +97,15 @@ export default function ScenarioDetailPage() {
         if (mounted) {
           setScenario(res.scenario);
           setPersonas(res.personas || []);
+          if (res.scenario.sceneKind === "chat") {
+            listScenarioSessions(id, { sort: "hot", limit: 8 })
+              .then((s) => {
+                if (mounted) setSessions(s.sessions || []);
+              })
+              .catch(() => {
+                // 对局列表拉不到不阻塞详情页
+              });
+          }
         }
       } catch (e) {
         if (mounted) toast.error(humanizeError(e));
@@ -406,6 +420,57 @@ export default function ScenarioDetailPage() {
                       </div>
                     ) : null}
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 大家的对话：已分享的对局（作者/得分/结束方式/点赞）→ 点击进回放 */}
+          {sessions.length > 0 && (
+            <div id="sessions" className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+              <h2 className="text-base font-semibold text-white">{t("arena.scenarioDetail.sessionsTitle")}</h2>
+              <p className="mt-0.5 text-xs text-gray-500">{t("arena.scenarioDetail.sessionsHint")}</p>
+              <div className="mt-3 space-y-2">
+                {sessions.map((s) => (
+                  <Link
+                    key={s._id}
+                    to={`/arena/simulate/${scenario._id}/session/${s._id}`}
+                    className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 hover:border-cyan-700/60 hover:bg-cyan-950/20"
+                  >
+                    {typeof s.user === "object" && s.user.avatarUrl ? (
+                      <img src={s.user.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full border border-gray-700 object-cover" />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-700 bg-gray-800 text-xs font-semibold text-gray-200">
+                        {(typeof s.user === "object" ? s.user.username : "?")?.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-white">
+                          {typeof s.user === "object" ? s.user.username : "-"}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] ${
+                            s.endReason === "completed"
+                              ? "border-emerald-500/50 text-emerald-200"
+                              : s.endReason === "derailed"
+                                ? "border-rose-500/50 text-rose-200"
+                                : "border-gray-600 text-gray-400"
+                          }`}
+                        >
+                          {t(`arena.scenarioPlay.endReason_${s.endReason || "manual"}`)}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-gray-500">
+                        {t("arena.scenarioDetail.sessionMeta", { count: s.messageCount })}
+                        {s.endedAt ? ` · ${formatRelativeTime(s.endedAt)}` : ""}
+                      </span>
+                    </span>
+                    {s.evaluation?.score != null && (
+                      <span className="shrink-0 text-lg font-bold text-white">{s.evaluation.score}</span>
+                    )}
+                    <span className="shrink-0 text-xs text-gray-400">❤️ {s.likeCount}</span>
+                  </Link>
                 ))}
               </div>
             </div>
