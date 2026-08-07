@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { apiFetch, apiUploadImage } from "../api";
 import { useAuth } from "../authContext";
@@ -10,10 +10,36 @@ import { MentionTextarea } from "../components/MentionTextarea";
 import { CharCount } from "../components/CharCount";
 import { UserHoverCard } from "../components/UserHoverCard";
 import { getPlatformIcon } from "../utils/platformConfig";
+import { normalizeSafeUrl } from "../utils/siteDraft";
 
 const LIMITS = {
   COMMENT: 2000,
 };
+
+/**
+ * 外链内嵌的沙箱权限。★这一串的每一项都是刻意【不】给的：
+ *
+ * - 不给 allow-same-origin：给了它，iframe 里的页面就保留自己的源。
+ *   若有人把 externalSource.url 指到【我们自己域名】上的一个页面
+ *   （比如 /uploads/ 下的用户上传物），它就与父页面同源 —— 同源 + allow-scripts
+ *   意味着它能直接改父页面的 DOM、读 localStorage 里的 JWT，甚至把自己的
+ *   sandbox 属性去掉。这是 W3C 明确警告的组合。
+ * - 不给 allow-top-navigation-by-user-activation / allow-popups-to-escape-sandbox：
+ *   有了这两项，被嵌页面可以把【顶层】地址栏导航走。用户以为还在 ideahub 上，
+ *   实际已经到了钓鱼页 —— 这是内嵌第三方内容最典型的滥用方式。
+ * - 保留 allow-scripts / allow-forms / allow-popups：多数站点不跑脚本就白屏，
+ *   这是内嵌功能存在的前提。弹窗停留在沙箱内（不带 escape）。
+ */
+const EMBED_SANDBOX = "allow-scripts allow-forms allow-popups";
+
+/** 内嵌/跳转前统一过一遍协议校验：javascript: 与 data: 一律拿不到 URL */
+function safeExternalUrl(raw?: string): string {
+  const normalized = normalizeSafeUrl(raw);
+  if (!normalized) return "";
+  // 原来这里只做了 http→https 的字符串替换，那既挡不住 javascript:，
+  // 也没验证过协议——replace 匹配不上就原样放行了。
+  return normalized.replace(/^http:\/\//i, "https://");
+}
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
@@ -526,7 +552,7 @@ export default function IdeaDetailPage() {
                     <span className="text-purple-400">{getPlatformIcon(idea.externalSource.platform)} {idea.externalSource.platform}</span>
                     {" · "}
                     <a
-                      href={idea.externalSource.url}
+                      href={safeExternalUrl(idea.externalSource.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:underline"
@@ -733,7 +759,7 @@ export default function IdeaDetailPage() {
                 </div>
                 <div className="flex gap-2">
                   <a
-                    href={idea.externalSource.url}
+                    href={safeExternalUrl(idea.externalSource.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex rounded-lg border border-blue-700 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-950/40"
@@ -752,7 +778,7 @@ export default function IdeaDetailPage() {
                 <div className="fixed inset-0 z-50 bg-black">
                   <div className="flex items-center justify-between p-4 bg-gray-900">
                     <a
-                      href={idea.externalSource.url}
+                      href={safeExternalUrl(idea.externalSource.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:underline text-sm truncate max-w-xl"
@@ -769,23 +795,25 @@ export default function IdeaDetailPage() {
                   {/* 内嵌被 X-Frame-Options/CSP 拒绝时 iframe 会白屏且不触发 onError；固定提示用户点上方链接在新标签打开原站 */}
                   <p className="px-4 pb-2 bg-gray-900 text-xs text-purple-300/70">{t("idea.linkWidgetFrameHint")}</p>
                   <iframe
-                    src={idea.externalSource.url.replace(/^http:\/\//i, 'https://')}
+                    src={safeExternalUrl(idea.externalSource.url)}
                     className="w-full h-[calc(100vh-84px)] border-0"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                    sandbox={EMBED_SANDBOX}
+                    referrerPolicy="no-referrer"
                   />
                 </div>
               ) : (
                 <>
                   <iframe
-                    src={idea.externalSource.url.replace(/^http:\/\//i, 'https://')}
+                    src={safeExternalUrl(idea.externalSource.url)}
                     className="w-full h-96 mt-3 rounded-lg border border-purple-700"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                    sandbox={EMBED_SANDBOX}
+                    referrerPolicy="no-referrer"
                   />
                   {/* X-Frame-Options/CSP 拒绝内嵌时浏览器不触发 onError，iframe 会静默白屏；固定显示一条可点提示引导用户在新标签打开原站 */}
                   <p className="mt-2 text-xs text-purple-300/70">
                     {t("idea.linkWidgetFrameHint")}{" "}
                     <a
-                      href={idea.externalSource.url}
+                      href={safeExternalUrl(idea.externalSource.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:underline"
