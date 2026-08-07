@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "//": "★ 生产站点由 ECS 上的 nginx 提供服务，本文件对 ideahubs.org 不生效。改安全头请改 deploy/nginx-security-headers.conf 并上传到服务器；详见 deploy/README.md。此处保留是为了 Vercel 预览部署与两边保持一致。",
   "rewrites": [{ "source": "/(.*)", "destination": "/" }],
   "headers": [
     {
