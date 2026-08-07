@@ -25,7 +25,7 @@
  */
 
 import { Suspense } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import ArenaNavbar from "./ArenaNavbar";
 import ArenaGate from "./ArenaGate";
 import PageLoading from "./PageLoading";

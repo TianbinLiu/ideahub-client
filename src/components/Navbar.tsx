@@ -39,7 +39,7 @@
  * ✅ 响应式设计
  */
 
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../authContext";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {

@@ -14,7 +14,7 @@
  * - 顶部：作者/得分/结束方式徽章/点赞
  */
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import {

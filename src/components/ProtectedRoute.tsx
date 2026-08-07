@@ -1,5 +1,5 @@
 // src/components/ProtectedRoute.tsx
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "../authContext";
 import AuthDialog from "./AuthDialog";
 

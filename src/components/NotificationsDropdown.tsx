@@ -13,7 +13,7 @@
  * - 响应式关闭（鼠标离开时自动关闭）
  * 
  * 依赖文件:
- * @uses react-router-dom - 路由导航
+ * @uses react-router - 路由导航
  * @uses react-i18next - 国际化
  * 
  * 被使用于:
@@ -30,7 +30,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { listConversations, listNotifications, listMessageRequests } from "../api";
 import { Bell } from "lucide-react";

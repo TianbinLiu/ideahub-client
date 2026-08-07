@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { apiFetch, getFollowingFeed, listGroups, type FeedAuthor, type Group, type Idea as ApiIdea } from "../api";
 import toast from "react-hot-toast";

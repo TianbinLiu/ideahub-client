@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { getMyComponents, getWorkshopTagInsights, listMyWorkshopTemplates, listWorkshopTemplates, type WorkshopHotTag, type WorkshopTemplate } from "../api";
 import toast from "react-hot-toast";

@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Eye, Heart, Pencil, Play } from "lucide-react";
