@@ -71,7 +71,39 @@ else
 fi
 
 echo
-echo "=== 验证（应能看到 CSP / HSTS / X-Frame-Options）==="
-curl -sI https://ideahubs.org | grep -iE "content-security-policy|strict-transport|x-frame-options|x-content-type|referrer-policy|permissions-policy" || echo "⚠️  未看到安全头，请检查"
+echo "=== 验证 ==="
+# ★ 必须重试：systemctl reload nginx 是【异步】的 —— 旧 worker 会继续服务
+#   已建立的连接直到它们结束，reload 命令返回时新配置往往还没全面生效。
+#   立刻 curl 有相当概率打到旧 worker，拿到没有安全头的响应，
+#   于是脚本报「未看到安全头」，而实际上配置完全正确（本脚本首次运行时就是这样误报的）。
+FOUND=0
+for attempt in 1 2 3 4 5; do
+    HEADERS=$(curl -sI https://ideahubs.org --max-time 10 || true)
+    if grep -qi "content-security-policy" <<<"$HEADERS"; then
+        FOUND=1
+        break
+    fi
+    echo "  第 ${attempt} 次尚未生效，等待 2s 后重试（nginx reload 是异步的）…"
+    sleep 2
+done
+
+if [[ "$FOUND" == "1" ]]; then
+    echo "✅ 安全头已生效："
+    grep -iE "content-security-policy|strict-transport|x-frame-options|x-content-type|referrer-policy|permissions-policy|cross-origin-opener" <<<"$HEADERS" \
+        | sed -E 's/(content-security-policy:.{70}).*/\1…（已截断）/I'
+    echo
+    echo "=== 静态资源也要带头（验证 add_header 不继承的坑已绕过）==="
+    ASSET=$(curl -s https://ideahubs.org --max-time 10 | grep -oE '/assets/[A-Za-z0-9_.-]+\.js' | head -1)
+    if [[ -n "$ASSET" ]]; then
+        curl -sI "https://ideahubs.org${ASSET}" --max-time 10 \
+            | grep -iE "cache-control|content-security-policy" \
+            | sed -E 's/(content-security-policy:.{50}).*/\1…/I'
+        echo "  ↑ 应【同时】出现 Cache-Control 与 CSP；只有 Cache-Control 说明 include 没插进 location 块"
+    fi
+else
+    echo "⚠️  重试 5 次仍未看到安全头。配置已通过 nginx -t 且已 reload，"
+    echo "    请手动确认：curl -I https://ideahubs.org"
+    echo "    若确实未生效，回退：sudo cp $BACKUP $SITE && sudo nginx -t && sudo systemctl reload nginx"
+fi
 echo
 echo "回退方法：sudo cp $BACKUP $SITE && sudo nginx -t && sudo systemctl reload nginx"
