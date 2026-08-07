@@ -99,6 +99,40 @@ sudo nginx -t && sudo systemctl reload nginx
 也可以先用观察模式跑一段时间——把 snippet 里的 `Content-Security-Policy`
 改成 `Content-Security-Policy-Report-Only`，只报告不拦截。
 
+## 恢复真实客户端 IP（Cloudflare real_ip）
+
+接入 Cloudflare 代理后，nginx 看到的 `$remote_addr` 是 Cloudflare 边缘 IP。
+两个后果：访问日志查不到真实用户；nginx 把该 IP 追加进 `X-Forwarded-For`，
+Node 侧 `trust proxy=1` 于是取到边缘 IP，**同一边缘后的所有用户共用一个限流桶**
+（登录限流从「按用户」退化成「按全站」，已实测复现）。
+
+```bash
+scp deploy/apply-nginx-realip.sh deploy@8.217.8.225:/tmp/
+ssh deploy@8.217.8.225
+sudo bash /tmp/apply-nginx-realip.sh
+```
+
+**这个脚本不修改任何现有配置文件** —— 只往 `/etc/nginx/conf.d/` 放一个新文件，
+由 `nginx.conf` 里既有的 `include /etc/nginx/conf.d/*.conf;` 自动加载。
+回退就是删掉那一个文件。
+
+### 几个刻意的设计
+
+- **IP 段实时拉取，不硬编码**：Cloudflare 的边缘网段会变。用过期的段，nginx 会把
+  真实的 Cloudflare 请求当成不可信来源、跳过 real_ip 替换 —— 日志和限流悄悄退回
+  错误状态且不报错。属于静默失效，所以每次运行都重新拉，拉取失败宁可中止不改。
+- **拉取结果做合理性校验**：段数异常或格式不像 CIDR 就中止，避免把错误页写进配置。
+- **放 http 层而不是逐个 server 块**：一处生效于全部 server（含以后新增的）。
+  逐块插入还有锚点歧义 —— 本站 `server_name api.ideahubs.org;` 在 80 端口跳转块
+  和 443 块各出现一次，按名字锚定会改错地方（初版脚本的断言正好拦下了这个）。
+- **`real_ip_header CF-Connecting-IP`** 而非 `X-Forwarded-For`：前者恒为单个真实
+  客户端 IP，不受链路跳数影响；且 Cloudflare 会覆盖客户端自带的同名头
+  （实测伪造该头的请求被 Cloudflare 直接 403），故来自 CF 网段的请求可信。
+
+### 维护
+
+Cloudflare 更新网段后重跑本脚本即可（幂等）。可以考虑加进月度巡检。
+
 ## 建议的缓存策略
 
 带 hash 的静态资源可以长缓存，`index.html` 绝不能：否则发版后用户拿到的旧 HTML
