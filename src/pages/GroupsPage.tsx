@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { createGroup, joinGroup, leaveGroup, listGroups, type Group } from "../api";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";

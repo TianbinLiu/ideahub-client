@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { getMyComponents, updateMyComponents } from "../api";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";

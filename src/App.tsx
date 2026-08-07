@@ -10,7 +10,7 @@
  * - 管理员页面用 AdminRoute 包裹
  */
 
-import { Routes, Route, Navigate, Outlet, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useNavigate } from "react-router";
 import { useEffect, useState, lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import ArenaLayout from "./components/ArenaLayout";

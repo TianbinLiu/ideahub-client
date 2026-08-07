@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router";
 import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, listUserGroupReferrals, searchUsers, sendMessageRequest, unblockDmUser, voteUser, type GroupReferral, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import { useTranslation } from "react-i18next";

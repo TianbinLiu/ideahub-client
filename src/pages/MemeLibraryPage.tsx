@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
 import { ImageOff, Plus, Trash2, X } from "lucide-react";
 import {

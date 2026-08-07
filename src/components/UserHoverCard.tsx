@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { apiFetch, blockDmUser, getDmBlockStatus, getUserReputation, sendMessageRequest, unblockDmUser, voteUser, type ReputationStats } from "../api";
 import { useAuth } from "../authContext";
 import toast from "react-hot-toast";

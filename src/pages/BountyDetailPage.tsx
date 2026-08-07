@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
 import { Check, ExternalLink, ImagePlus, Pencil, Send, Trash2, X } from "lucide-react";
 import {

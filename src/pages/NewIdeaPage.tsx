@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { ExternalSource, Group } from "../api";
 import { apiFetch, apiUploadImage, generateIdeaDraft, listGroups } from "../api";

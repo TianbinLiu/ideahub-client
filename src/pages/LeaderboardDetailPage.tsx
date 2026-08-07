@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { apiFetch, apiUploadImage } from "../api";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";

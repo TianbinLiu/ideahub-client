@@ -1,7 +1,7 @@
 // src/pages/OAuthCallbackPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useAuth } from "../authContext";

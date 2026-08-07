@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import AuthDialog from "../components/AuthDialog";
 import { safeNext } from "../utils/safeNext";
 

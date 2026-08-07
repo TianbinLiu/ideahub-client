@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import toast from "react-hot-toast";
 import { useAuth } from "../authContext";
 import { humanizeError } from "../utils/humanizeError";
