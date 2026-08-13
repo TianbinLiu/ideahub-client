@@ -2240,3 +2240,28 @@ export function useMeme(id: string) {
 }
 
 
+
+// ── 安卓 App（启梦）安装包 ──────────────────────────────────────────────
+// 契约见 ideahub-server 的 src/routes/appRelease.routes.js：
+// 清单由服务端从 GitHub Release 转一手，版本号/大小/sha256 的唯一出处是 App 仓的发版脚本。
+
+export type AppRelease = {
+  versionCode: number;
+  versionName: string;
+  apkUrl: string;
+  sizeBytes: number;
+  sha256: string;
+  notes?: string;
+};
+
+/** 最新版信息（匿名可读）。★ 页面上只用来"显示"，下载走下面那个固定地址 */
+export function getAppLatest() {
+  return apiFetch<AppRelease>("/api/app/latest.json");
+}
+
+/**
+ * 安装包下载地址。★ 故意**不用**清单里的 apkUrl：
+ * 那个地址带版本号（…/v1.7/qimeng-1.7.apk），一旦被人复制/分享出去，
+ * 下次发版之后拿到的就是旧包。这里是服务端的固定短链，永远 302 到当前版本。
+ */
+export const APP_DOWNLOAD_URL = `${API_BASE}/api/app/download`;

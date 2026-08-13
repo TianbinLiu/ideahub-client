@@ -2155,5 +2155,25 @@
     "loadMore": "Load more",
     "empty": "No recent updates from people you follow",
     "emptyNoFollowing": "You are not following anyone yet — find authors you like on the home page or via search"
+  },
+  "download": {
+    "title": "Download the 启梦 app",
+    "tagline": "An idea is where the dream starts",
+    "androidOnly": "Android · sideload build",
+    "version": "Version {{version}}",
+    "button": "Download the APK",
+    "buttonWithSize": "Download the APK ({{size}})",
+    "iosNotice": "There is no iOS build yet — this is an Android package.",
+    "manifestUnavailable": "Version details are temporarily unavailable; the download still works.",
+    "inAppBrowserWarning": "APK downloads are blocked inside WeChat/QQ. Tap the ··· menu and choose “Open in browser”, then come back to this page.",
+    "notesTitle": "What's new in {{version}}",
+    "howToTitle": "How to install",
+    "step1": "Open this page in your phone's browser and tap the button above.",
+    "step2": "When Android says installs from unknown apps are blocked, allow it for the browser you used.",
+    "step3": "Open the downloaded file from the notification bar or your file manager and follow the prompts.",
+    "reinstallNotice": "If it ends with “App not installed”, you most likely still have an early test build signed with a different key — uninstall that one first.",
+    "qrCaption": "Scan to open this page on your phone",
+    "checksumTitle": "Verify the package (sha256)",
+    "checksumHint": "If you want to be sure nothing was tampered with: hash the downloaded file and compare it with the string below."
   }
 }
