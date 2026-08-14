@@ -2176,7 +2176,7 @@
     "checksumTitle": "Verify the package (sha256)",
     "checksumHint": "If you want to be sure nothing was tampered with: hash the downloaded file and compare it with the string below.",
     "pageTitle": "Download",
-    "pageSubtitle": "Both are direct-install Android builds and prompt for updates automatically.",
+    "pageSubtitle": "Direct-install Android builds. This page always serves the latest release automatically.",
     "appQimengName": "QiMeng",
     "appQimengTagline": "An idea is the first step of a dream",
     "appShihuiName": "ShiHui",
