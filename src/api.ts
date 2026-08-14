@@ -2254,9 +2254,14 @@ export type AppRelease = {
   notes?: string;
 };
 
+/** 目前发布的两个安卓 App。值同时是服务端的通道名（/api/app/<id>/…） */
+export type AppId = "qimeng" | "shihui";
+
 /** 最新版信息（匿名可读）。★ 页面上只用来"显示"，下载走下面那个固定地址 */
-export function getAppLatest() {
-  return apiFetch<AppRelease>("/api/app/latest.json");
+export function getAppLatest(app: AppId = "qimeng") {
+  // ★ 启梦保留历史地址 /api/app/latest.json：所有已安装的包都在打它，语义不能改。
+  //   新 App 一律走 /api/app/<id>/latest.json。
+  return apiFetch<AppRelease>(app === "qimeng" ? "/api/app/latest.json" : `/api/app/${app}/latest.json`);
 }
 
 /**
@@ -2264,4 +2269,8 @@ export function getAppLatest() {
  * 那个地址带版本号（…/v1.7/qimeng-1.7.apk），一旦被人复制/分享出去，
  * 下次发版之后拿到的就是旧包。这里是服务端的固定短链，永远 302 到当前版本。
  */
-export const APP_DOWNLOAD_URL = `${API_BASE}/api/app/download`;
+export const appDownloadUrl = (app: AppId = "qimeng") =>
+  app === "qimeng" ? `${API_BASE}/api/app/download` : `${API_BASE}/api/app/${app}/download`;
+
+/** @deprecated 用 appDownloadUrl("qimeng")。留着是因为别处可能还引着它 */
+export const APP_DOWNLOAD_URL = appDownloadUrl("qimeng");

@@ -2174,6 +2174,13 @@
     "reinstallNotice": "如果装到最后提示「应用未安装」，多半是手机上还留着早期签名不同的测试版——先卸载再装。",
     "qrCaption": "用手机扫码打开这一页",
     "checksumTitle": "校验安装包（sha256）",
-    "checksumHint": "在意来源是否被篡改的话：下载后算一遍安装包的 sha256，和下面这串对上就说明拿到的是我们发布的那一份。"
+    "checksumHint": "在意来源是否被篡改的话：下载后算一遍安装包的 sha256，和下面这串对上就说明拿到的是我们发布的那一份。",
+    "pageTitle": "下载 App",
+    "pageSubtitle": "两个都是安卓直装版，装了会自动提示更新。",
+    "appQimengName": "启梦",
+    "appQimengTagline": "有想法，就是梦想启程的第一步",
+    "appShihuiName": "诗绘",
+    "appShihuiTagline": "一句诗一段水墨动画，念出这一句，走进下一句",
+    "qrCaptionApp": "扫码在手机上打开这一页下载「{{app}}」"
   }
 }

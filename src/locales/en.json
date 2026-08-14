@@ -2174,6 +2174,13 @@
     "reinstallNotice": "If it ends with “App not installed”, you most likely still have an early test build signed with a different key — uninstall that one first.",
     "qrCaption": "Scan to open this page on your phone",
     "checksumTitle": "Verify the package (sha256)",
-    "checksumHint": "If you want to be sure nothing was tampered with: hash the downloaded file and compare it with the string below."
+    "checksumHint": "If you want to be sure nothing was tampered with: hash the downloaded file and compare it with the string below.",
+    "pageTitle": "Download",
+    "pageSubtitle": "Both are direct-install Android builds and prompt for updates automatically.",
+    "appQimengName": "QiMeng",
+    "appQimengTagline": "An idea is the first step of a dream",
+    "appShihuiName": "ShiHui",
+    "appShihuiTagline": "One line of poetry, one ink animation — recite it to move on",
+    "qrCaptionApp": "Scan to open this page on your phone and download {{app}}"
   }
 }
