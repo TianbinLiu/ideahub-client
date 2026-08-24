@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Download, ShieldCheck, Smartphone } from "lucide-react";
 import { appDownloadUrl, getAppLatest, type AppId, type AppRelease } from "../api";
+import SiteFooter from "../components/SiteFooter";
 import { encodeQr, qrSvgPath } from "../utils/qrcode";
 
 type Platform = "android" | "ios" | "desktop";
@@ -228,6 +229,10 @@ export default function DownloadPage() {
         </ol>
         <p className="mt-3 text-xs text-gray-500">{t("download.reinstallNotice")}</p>
       </section>
+
+      {/* ★ 主体 + 联系方式 + 隐私政策：微信/QQ 开放平台与 Google Play 审核都会来这一页
+          核对这三样，缺了会被驳回（要求原文是"官网需含下载、介绍等基本内容"） */}
+      <SiteFooter />
     </div>
   );
 }

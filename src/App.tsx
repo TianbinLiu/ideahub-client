@@ -32,6 +32,7 @@ const HotPage = lazy(() => import("./pages/HotPage"));
 const FeedPage = lazy(() => import("./pages/FeedPage"));
 const CompanyPage = lazy(() => import("./pages/CompanyPage"));
 const DownloadPage = lazy(() => import("./pages/DownloadPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const MessageRequestsPage = lazy(() => import("./pages/MessageRequestsPage"));
@@ -298,6 +299,9 @@ export default function App() {
           {/* App 安装包下载页。★必须**不登录**可访问：这个地址会被分享/印成二维码给
               还没有账号的人，挂在 ProtectedRoute 后面等于扫了码只看到登录页 */}
           <Route path="/download" element={<DownloadPage />} />
+          {/* 隐私政策。★同样**必须不登录可访问**：应用市场与开放平台（微信/QQ/Play）
+              审核的人没有账号，这一页正是给他们看的 */}
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/ideas/:id" element={<IdeaDetailPage />} />
           <Route
             path="/ideas/:id/edit"
