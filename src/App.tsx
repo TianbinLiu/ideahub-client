@@ -33,6 +33,7 @@ const FeedPage = lazy(() => import("./pages/FeedPage"));
 const CompanyPage = lazy(() => import("./pages/CompanyPage"));
 const DownloadPage = lazy(() => import("./pages/DownloadPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const VideoPreviewPage = lazy(() => import("./pages/VideoPreviewPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const MessageRequestsPage = lazy(() => import("./pages/MessageRequestsPage"));
@@ -302,6 +303,9 @@ export default function App() {
           {/* 隐私政策。★同样**必须不登录可访问**：应用市场与开放平台（微信/QQ/Play）
               审核的人没有账号，这一页正是给他们看的 */}
           <Route path="/privacy" element={<PrivacyPage />} />
+          {/* App 作品的站外预览页（App 分享链接的落地页）。★不登录可访问：
+              链接就是发给没装 App 的陌生人的，看完引导去 /download */}
+          <Route path="/v/:id" element={<VideoPreviewPage />} />
           <Route path="/ideas/:id" element={<IdeaDetailPage />} />
           <Route
             path="/ideas/:id/edit"
