@@ -2225,5 +2225,19 @@
     "operator": "运营者：刘天彬（个人开发者）",
     "contact": "联系邮箱：",
     "privacy": "隐私政策"
+  },
+  "videoPreview": {
+    "appName": "启梦",
+    "tagline": "有想法，就是梦想启程的第一步",
+    "getApp": "下载 App",
+    "getAppLong": "下载启梦 App",
+    "loading": "加载中…",
+    "play": "播放",
+    "unavailable": "这条视频不存在或已下架。去启梦 App 里看看更多作品吧。",
+    "doneTitle": "看完啦",
+    "doneTruncated": "后面的还在启梦 App 里",
+    "doneSub": "在启梦 App 里，你也可以写一句创意，让 AI 帮你拍成短片。",
+    "plays": "{{count}} 次播放",
+    "replay": "再看一遍"
   }
 }

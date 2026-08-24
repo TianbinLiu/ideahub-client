@@ -2225,5 +2225,19 @@
     "operator": "Operated by Tianbin Liu (individual developer)",
     "contact": "Contact:",
     "privacy": "Privacy Policy"
+  },
+  "videoPreview": {
+    "appName": "QiMeng",
+    "tagline": "An idea is the first step of a dream",
+    "getApp": "Get the app",
+    "getAppLong": "Get the QiMeng app",
+    "loading": "Loading…",
+    "play": "Play",
+    "unavailable": "This video doesn't exist or has been taken down. Find more in the QiMeng app.",
+    "doneTitle": "That's the whole video",
+    "doneTruncated": "The rest lives in the QiMeng app",
+    "doneSub": "In QiMeng, one written idea becomes a short film — scene by scene.",
+    "plays": "{{count}} plays",
+    "replay": "Watch again"
   }
 }
