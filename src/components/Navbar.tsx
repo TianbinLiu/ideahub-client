@@ -282,7 +282,7 @@ export default function Navbar() {
     <div className="sticky top-0 z-40 border-b border-gray-800 bg-gray-950/88 backdrop-blur" data-tour="top-nav">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto,1fr,auto] items-center gap-4 px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link to="/" className="font-bold text-xl text-white">IdeaHub</Link>
+          <Link to="/" className="font-bold text-xl text-white">{t("common.brand")}</Link>
           <NavLink to="/" title={t("nav.home")} aria-label={t("nav.home")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
             <Home className="h-5 w-5" />
           </NavLink>
@@ -467,7 +467,7 @@ export default function Navbar() {
                       <CircleUserRound className="h-7 w-7" />
                     </div>
                     <div>
-                      <div className="font-semibold text-white">IdeaHub</div>
+                      <div className="font-semibold text-white">{t("common.brand")}</div>
                       <div className="text-xs text-gray-400">{t("auth.signInQuickly")}</div>
                     </div>
                   </div>
