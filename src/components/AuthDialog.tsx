@@ -399,7 +399,7 @@ export default function AuthDialog({ initialMode = "login", next, onClose }: Aut
                 <CircleUserRound className="h-7 w-7" />
               </div>
               <div>
-                <div className="text-lg font-bold">IdeaHub</div>
+                <div className="text-lg font-bold">{t("common.brand")}</div>
                 <div className="text-xs text-gray-500">{isChinaRegion ? t("auth.regionChinaLogin") : t("auth.regionGlobalLogin")}</div>
               </div>
             </div>

@@ -13,7 +13,8 @@
     "previous": "Previous",
     "search": "Search",
     "filter": "Filter",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "brand": "QiMeng"
   },
   "nav": {
     "home": "Home",
@@ -119,7 +120,7 @@
     "completingOAuthLogin": "Completing OAuth login. Please wait.",
     "loggedIn": "Logged in!",
     "oauthLinkedSuccess": "{{provider}} linked successfully.",
-    "oauthConflict": "This third-party account cannot be linked because it is already associated with another IdeaHub account.",
+    "oauthConflict": "This third-party account cannot be linked because it is already associated with another QiMeng account.",
     "oauthNotLinkedError": "This provider is not linked to your account.",
     "oauthUnlinkLastMethod": "You must keep at least one login method on your account.",
     "passwordAlreadySet": "Password login is already enabled for this account.",
@@ -456,7 +457,7 @@
   "me": {
     "pageTitle": "Me",
     "linkedAccounts": "Linked Accounts",
-    "linkedAccountsDescription": "Bind Google or GitHub explicitly to this IdeaHub account. This no longer happens automatically by email.",
+    "linkedAccountsDescription": "Bind Google or GitHub explicitly to this QiMeng account. Accounts are no longer merged automatically by email.",
     "passwordLogin": "Password Login",
     "passwordLoginEnabled": "Enabled",
     "passwordLoginNotSet": "Not set",
@@ -599,7 +600,7 @@
     "serverError": "Server error."
   },
   "home": {
-    "welcome": "Welcome to IdeaHub",
+    "welcome": "Welcome to QiMeng",
     "newIdea": "New Idea",
     "title": "Public Ideas",
     "subtitle": "Browse ideas shared by creators.",
@@ -2187,7 +2188,7 @@
     "title": "Privacy Policy",
     "updated": "Last updated: 24 August 2026",
     "whoTitle": "Who runs this",
-    "whoBody": "The QiMeng app and this website are operated by Tianbin Liu, an individual developer. For anything concerning your personal data, write to support@ideahubs.org.",
+    "whoBody": "The QiMeng app and the QiMeng website (ideahubs.org) are operated by Tianbin Liu, an individual developer. For anything concerning your personal data, write to support@ideahubs.org.",
     "collectTitle": "What we collect",
     "collectIntro": "Only what the features actually need:",
     "collectAccount": "What you give us: username, email, display name, bio and avatar; plus your phone number if you sign in with one. Passwords are stored as bcrypt hashes — we never see the plaintext and cannot recover it for you.",

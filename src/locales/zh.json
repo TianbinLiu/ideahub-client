@@ -13,7 +13,8 @@
     "previous": "上一页",
     "search": "搜索",
     "filter": "筛选",
-    "clearFilters": "清除筛选"
+    "clearFilters": "清除筛选",
+    "brand": "启梦创作"
   },
   "nav": {
     "home": "首页",
@@ -119,7 +120,7 @@
     "completingOAuthLogin": "完成OAuth登录。请稍候。",
     "loggedIn": "登录成功！",
     "oauthLinkedSuccess": "已成功绑定 {{provider}}。",
-    "oauthConflict": "该第三方账号无法绑定，因为它已经关联到另一个 IdeaHub 账号。",
+    "oauthConflict": "该第三方账号无法绑定，因为它已经关联到另一个启梦创作账号。",
     "oauthNotLinkedError": "该第三方账号尚未绑定到当前账号。",
     "oauthUnlinkLastMethod": "账号必须至少保留一种登录方式。",
     "passwordAlreadySet": "当前账号已启用密码登录。",
@@ -456,7 +457,7 @@
   "me": {
     "pageTitle": "我的",
     "linkedAccounts": "已绑定账号",
-    "linkedAccountsDescription": "在当前 IdeaHub 账号上显式绑定 Google 或 GitHub。系统不再按邮箱自动并号。",
+    "linkedAccountsDescription": "在当前启梦创作账号上显式绑定 Google 或 GitHub。系统不再按邮箱自动并号。",
     "passwordLogin": "密码登录",
     "passwordLoginEnabled": "已启用",
     "passwordLoginNotSet": "未设置",
@@ -599,7 +600,7 @@
     "serverError": "服务器错误。"
   },
   "home": {
-    "welcome": "欢迎来到 IdeaHub",
+    "welcome": "欢迎来到启梦创作",
     "newIdea": "新建想法",
     "title": "公开想法",
     "subtitle": "浏览创作者分享的想法。",
@@ -2187,7 +2188,7 @@
     "title": "隐私政策",
     "updated": "最近更新：2026 年 8 月 24 日",
     "whoTitle": "谁在运营",
-    "whoBody": "「启梦」App 与本网站由个人开发者刘天彬运营。与个人信息有关的任何问题，都可以发信到 support@ideahubs.org。",
+    "whoBody": "「启梦」App 与「启梦创作」网站（ideahubs.org）由个人开发者刘天彬运营。与个人信息有关的任何问题，都可以发信到 support@ideahubs.org。",
     "collectTitle": "我们收集哪些信息",
     "collectIntro": "只收集把功能做出来所必需的那些：",
     "collectAccount": "你主动提供的：用户名、邮箱、昵称、简介、头像；用手机号登录时还有手机号。密码以 bcrypt 哈希保存，我们看不到明文，也无法帮你找回原密码。",
