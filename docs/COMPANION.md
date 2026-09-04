@@ -55,6 +55,7 @@
    （Face / Eye L / Eye R / Eyeball L … + 四个顶层表情补片 Part `ExprSmile/ExprAngry/ExprClosed/ExprMouthOpen`）。
    **每层必须裁到自身 alpha 包围盒**，否则 Cubism 自动生成脸部变形器会失败（"rect is invalid"）。
 3. Cubism Editor 5.3（PRO 试用）：导入 PSD → 参数面板「自动生成脸部动作」→ 4096 贴图集 → 以 SDK 4.2 兼容格式导出 moc3。
+4. 残影清理（2026-09-05，贴图 mascot12）：See-through 补全区带着上层轮廓/阴影的印子，上层一动就露出来；用 LaMa（IOPaint）逐层重画被遮挡的边带后贴回贴图集，moc3 不动。脚本与说明见 App 仓 `docs/live2d-model-roadmap.md` §2。
 4. 手写 exp3 / motion3（idle/nod/shake/think/excited），合并进 model3.json 的 FileReferences 与 Groups（EyeBlink/LipSync）。
 
 工作目录在仓库外：`C:/Users/tliu7/live2d-lab/`（脚本、cmo3 工程、验证页 `stage-test/`）。
@@ -64,7 +65,7 @@
    闭眼补片 `eyes_closed_L/R` 的不透明度也钉在同一参数上），以及披风(550)>双臂(500)、前发/头饰(600) 的绘制顺序。
    运行时因此改成参数驱动：`ExprClosed/ExprMouthOpen` 两个 Part 常开，眨眼是 70/40/120ms 的曲线，口型 = 包络^0.7 × 0.85。
 
-已知限制：`ExprSmile/ExprAngry` 仍是整块补片（笑眼/怒目盖在真眼上）；头发物理未做；贴图 4096 一张。
+已知限制：`ExprSmile/ExprAngry` 仍是整块补片（笑眼/怒目盖在真眼上）；头发物理未做（运行时弹簧）；贴图 4096 一张。
 
 ## 人格 / 音频 / 模型市场
 
