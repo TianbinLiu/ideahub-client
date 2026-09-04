@@ -648,6 +648,34 @@
     "feedPreviewTitle": "Latest from your follows",
     "feedPreviewMore": "See all updates"
   },
+  "companion": {
+    "name": "Mengmeng",
+    "greeting": "Hi, I'm {{name}}. What's on your mind? You can also ask me how QiMeng works.",
+    "placeholder": "Chat with {{name}}…",
+    "loginToChat": "Log in to chat with {{name}}",
+    "send": "Send",
+    "stop": "Stop",
+    "voiceOn": "Voice: on (click to mute)",
+    "voiceOff": "Voice: off (click to unmute)",
+    "scene": "Change scene background",
+    "sceneTitle": "Pick a scene background",
+    "sceneHint": "Remembered on this device only; the default keeps the site's dark blue background.",
+    "close": "Close",
+    "scenes": {
+      "default": "Default dark blue",
+      "tavern": "Tavern",
+      "bedroom": "Bedroom",
+      "library": "Study",
+      "balcony": "Balcony",
+      "cafe": "Café",
+      "atelier": "Atelier"
+    },
+    "thinking": "{{name}} is thinking…",
+    "unavailable": "AI isn't configured on this server yet, so {{name}} can only keep you company for now.",
+    "failed": "{{name}} zoned out. Try saying that again?",
+    "collapseHero": "Hide featured",
+    "expandHero": "Show featured"
+  },
   "groups": {
     "title": "Groups",
     "subtitle": "Create or join communities, then browse ideas scoped to those groups.",

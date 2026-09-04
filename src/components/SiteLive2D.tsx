@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router";
 import "./SiteLive2D.css";
 import { getMyComponents, type Live2DComponentSettings } from "../api";
 import { useAuth } from "../authContext";
@@ -253,6 +254,9 @@ function ensureModuleScript(src: string) {
 
 export default function SiteLive2D() {
   const { user, loading: authLoading } = useAuth();
+  // 首页有自己的看板娘舞台（CompanionStage + CompanionChat），右下角挂件在首页不出现，免得两个模型打架
+  const { pathname } = useLocation();
+  const onHome = pathname === "/";
   const latestConfigKeyRef = useRef("");
   const waifuConfigUrlRef = useRef<string | null>(null);
   // 缓存已拉取的组件数据（按 userId 归属），显隐切换时复用，避免每次都重新请求 getMyComponents()
@@ -263,6 +267,11 @@ export default function SiteLive2D() {
 
   useEffect(() => {
     const live2dWindow = window as Live2DWindow;
+    if (onHome) {
+      teardownLive2D(live2dWindow);
+      latestConfigKeyRef.current = "";
+      return;
+    }
     let disposed = false;
 
     async function disposeRuntimeConfig() {
@@ -373,7 +382,7 @@ export default function SiteLive2D() {
       teardownLive2D(live2dWindow);
       void disposeRuntimeConfig();
     };
-  }, [authLoading, isVisible, user?._id]);
+  }, [authLoading, isVisible, onHome, user?._id]);
 
   function hideLive2D() {
     const nextSide = getReopenSideFromWidget();
@@ -388,7 +397,7 @@ export default function SiteLive2D() {
     setIsVisible(true);
   }
 
-  if (!isEnabled) {
+  if (!isEnabled || onHome) {
     return null;
   }
 

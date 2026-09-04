@@ -4,9 +4,16 @@
  * @requires_auth no
  * @i18n_module idea
  * @route /
+ *
+ * 布局（桌面）：左列 = 顶部入口/筛选 → 推荐位（可收起）→ 留白（看板娘站这里）→ 对话框；
+ *               右栏 = 关注动态（竖排）+ 标签排行（单列）。
+ * ★ 看板娘舞台（CompanionStage）绝对定位铺满左列、z-0；内容都在 z-10 的层里。
+ *   模型按"留白 div"定位：推荐位展开时头部藏在卡片后面，收起时留白变高、模型自动长大。
+ * ★ 场景背景是 fixed 全屏层（z-0）+ 内容 relative z-10；默认场景不铺图，保留 App 壳的深蓝底。
+ * ★ 推荐位收起状态、场景选择都只存 localStorage（纯观感偏好，不进后端）。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { apiFetch, getFollowingFeed, listGroups, type FeedAuthor, type Group, type Idea as ApiIdea } from "../api";
@@ -15,7 +22,11 @@ import { humanizeError } from "../utils/humanizeError";
 import { formatRelativeTime } from "../utils/relativeTime";
 import { getPlatformIcon } from "../utils/platformConfig";
 import { useAuth } from "../authContext";
-import { Flame, Radio } from "lucide-react";
+import { ChevronDown, ChevronUp, Flame, Radio } from "lucide-react";
+import CompanionStage from "../components/CompanionStage";
+import CompanionChat from "../components/CompanionChat";
+import SceneBackgroundPicker from "../components/SceneBackgroundPicker";
+import { readScene, saveScene, sceneImage, type SceneKey } from "../companion/scenes";
 
 type Idea = {
   _id: string;
@@ -64,8 +75,11 @@ const IDEA_TYPE_OPTIONS: Array<{ key: IdeaTypeKey; emoji: string; activeClass: s
 
 const IDEA_TYPE_STORAGE_KEY = "preferredHomeIdeaType";
 const IDEA_GROUP_STORAGE_KEY = "preferredHomeIdeaGroup";
+const HERO_COLLAPSED_STORAGE_KEY = "ideahub-home-hero-collapsed";
 const RECOMMENDATION_PAGE_SIZE = 6;
 const COMPACT_RECOMMENDATION_PAGE_SIZE = 4;
+const RAIL_FOLLOWING_LIMIT = 6;
+const RAIL_TAG_RANK_LIMIT = 6;
 
 function isIdeaTypeKey(value: string): value is IdeaTypeKey {
   return IDEA_TYPE_OPTIONS.some((item) => item.key === value);
@@ -82,6 +96,14 @@ function toHttpsUrl(raw?: string) {
 function formatDate(raw?: string) {
   if (!raw) return "";
   return new Date(raw).toLocaleDateString();
+}
+
+function readHeroCollapsed() {
+  try {
+    return localStorage.getItem(HERO_COLLAPSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export default function HomePage() {
@@ -116,6 +138,12 @@ export default function HomePage() {
   const [followingLoading, setFollowingLoading] = useState(false);
   const [tagRankBoards, setTagRankBoards] = useState<TagRankBoard[]>([]);
   const [tagRankLoading, setTagRankLoading] = useState(false);
+  // 看板娘舞台：推荐位收起 / 场景背景 / 场景弹窗 / 模型脚踩的留白
+  const [heroCollapsed, setHeroCollapsed] = useState(readHeroCollapsed);
+  const [scene, setScene] = useState<SceneKey>(readScene);
+  const [sceneOpen, setSceneOpen] = useState(false);
+  const stageAnchorRef = useRef<HTMLDivElement>(null);
+  const sceneBackground = sceneImage(scene);
 
   const visibleIdeas = useMemo(
     () => ideas.filter((idea) => !dismissedIdeaIds.includes(idea._id)),
@@ -428,6 +456,21 @@ export default function HomePage() {
     setParams(next);
   }
 
+  function toggleHero() {
+    const next = !heroCollapsed;
+    setHeroCollapsed(next);
+    try {
+      localStorage.setItem(HERO_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // ignore persistence failure
+    }
+  }
+
+  function chooseScene(next: SceneKey) {
+    setScene(next);
+    saveScene(next);
+  }
+
   function getIdeaImageUrl(idea?: Idea | null) {
     return toHttpsUrl(idea?.coverImageUrl || idea?.imageUrls?.[0]);
   }
@@ -464,7 +507,7 @@ export default function HomePage() {
     );
   }
 
-  function renderCompactIdeaCard(idea: Idea, variant: "right" | "row") {
+  function renderCompactIdeaCard(idea: Idea, variant: "right" | "row" | "rail") {
     const imageUrl = getIdeaImageUrl(idea);
     if (variant === "right") {
       // 格子高度由外层 grid-rows-2 固定：封面必须是【弹性项】（flex-1 吃剩余空间），
@@ -474,7 +517,7 @@ export default function HomePage() {
         <Link
           key={idea._id}
           to={`/ideas/${idea._id}`}
-          className="group flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-800 bg-gray-900/80 transition hover:border-cyan-700/70 hover:bg-gray-900"
+          className="group flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-800 bg-gray-900/90 transition hover:border-cyan-700/70 hover:bg-gray-900"
         >
           {imageUrl && (
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -504,11 +547,12 @@ export default function HomePage() {
       );
     }
 
+    // row = 横向滚动条里的固定宽卡片（移动端关注动态）；rail = 右栏竖排、吃满栏宽
     return (
       <Link
         key={idea._id}
         to={`/ideas/${idea._id}`}
-        className={`group overflow-hidden rounded-xl border border-gray-800 bg-gray-900/80 transition hover:border-cyan-700/70 hover:bg-gray-900 ${variant === "row" ? "w-72 shrink-0" : ""}`}
+        className={`group overflow-hidden rounded-xl border border-gray-800 bg-gray-900/90 transition hover:border-cyan-700/70 hover:bg-gray-900 ${variant === "row" ? "w-72 shrink-0" : "w-full"}`}
       >
         {imageUrl ? (
           <img src={imageUrl} alt="" loading="lazy" decoding="async" className="h-28 w-full object-cover transition duration-300 group-hover:scale-105" />
@@ -531,209 +575,269 @@ export default function HomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl p-4">
-      <div className="grid gap-3 lg:grid-cols-[auto,1fr]" data-tour="home-header">
-        <div className="flex items-start gap-4">
-          {/* 「动态」按钮：改为 /feed 动态页入口（不再切换 feed 排序）。
-              图标 = 关注列表中最新发布动态的用户头像（无关注/未登录回退 Radio 图标）；
-              hover 出最新关注动态 dropdown（B 站式：头像/名字/标题/相对时间）。 */}
-          <div
-            className="relative"
-            onMouseEnter={() => setFeedHover(true)}
-            onMouseLeave={() => setFeedHover(false)}
-          >
-            <Link to="/feed" className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold">
-              <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition group-hover:border-cyan-400 group-hover:bg-gray-800">
-                {feedPreview[0]?.author?.avatarUrl ? (
-                  <img src={feedPreview[0].author.avatarUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <Radio className="h-6 w-6" />
-                )}
-              </span>
-              <span className="text-gray-300 group-hover:text-white">{t("home.dynamic")}</span>
-            </Link>
+    <>
+      {sceneBackground ? (
+        <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${sceneBackground})` }} />
+          {/* 压暗一层，保证卡片文字对比度；上下渐变让导航栏与页脚自然过渡 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-950/80 via-gray-950/45 to-gray-950/85" />
+        </div>
+      ) : null}
 
-            {feedHover && feedPreview.length > 0 && (
-              <div className="absolute left-0 top-full z-40 w-80 rounded-2xl border border-gray-800 bg-gray-900 p-2 shadow-xl">
-                <p className="px-3 py-1 text-[11px] text-gray-500">{t("home.feedPreviewTitle")}</p>
-                {feedPreview.map((idea) => (
-                  <Link
-                    key={idea._id}
-                    to={`/ideas/${idea._id}`}
-                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-gray-800/70"
+      <div className="relative z-10 mx-auto max-w-7xl p-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+          {/* 左列：舞台在 z-0 铺满，内容在 z-10 */}
+          <div className="relative">
+            <CompanionStage anchorRef={stageAnchorRef} className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block" />
+
+            <div className="relative z-10 flex min-h-[calc(100vh-7rem)] flex-col">
+              <div className="grid gap-3 lg:grid-cols-[auto,1fr]" data-tour="home-header">
+                <div className="flex items-start gap-4">
+                  {/* 「动态」按钮：改为 /feed 动态页入口（不再切换 feed 排序）。
+                      图标 = 关注列表中最新发布动态的用户头像（无关注/未登录回退 Radio 图标）；
+                      hover 出最新关注动态 dropdown（B 站式：头像/名字/标题/相对时间）。 */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setFeedHover(true)}
+                    onMouseLeave={() => setFeedHover(false)}
                   >
-                    {idea.author?.avatarUrl ? (
-                      <img src={idea.author.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full border border-gray-700 object-cover" />
-                    ) : (
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-700 bg-gray-800 text-xs font-semibold text-gray-200">
-                        {(idea.author?.username || "?").slice(0, 1).toUpperCase()}
+                    <Link to="/feed" className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold">
+                      <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition group-hover:border-cyan-400 group-hover:bg-gray-800">
+                        {feedPreview[0]?.author?.avatarUrl ? (
+                          <img src={feedPreview[0].author.avatarUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Radio className="h-6 w-6" />
+                        )}
                       </span>
+                      <span className="text-gray-300 group-hover:text-white">{t("home.dynamic")}</span>
+                    </Link>
+
+                    {feedHover && feedPreview.length > 0 && (
+                      <div className="absolute left-0 top-full z-40 w-80 rounded-2xl border border-gray-800 bg-gray-900 p-2 shadow-xl">
+                        <p className="px-3 py-1 text-[11px] text-gray-500">{t("home.feedPreviewTitle")}</p>
+                        {feedPreview.map((idea) => (
+                          <Link
+                            key={idea._id}
+                            to={`/ideas/${idea._id}`}
+                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-gray-800/70"
+                          >
+                            {idea.author?.avatarUrl ? (
+                              <img src={idea.author.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full border border-gray-700 object-cover" />
+                            ) : (
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-700 bg-gray-800 text-xs font-semibold text-gray-200">
+                                {(idea.author?.username || "?").slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-xs text-gray-400">{idea.author?.displayName || idea.author?.username}</span>
+                              <span className="block truncate text-sm text-gray-100">{idea.title}</span>
+                            </span>
+                            <span className="shrink-0 text-[11px] text-gray-600">{formatRelativeTime(idea.createdAt)}</span>
+                          </Link>
+                        ))}
+                        <Link to="/feed" className="block rounded-xl px-3 py-2 text-center text-xs text-cyan-300 hover:bg-gray-800/70">
+                          {t("home.feedPreviewMore")} →
+                        </Link>
+                      </div>
                     )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs text-gray-400">{idea.author?.displayName || idea.author?.username}</span>
-                      <span className="block truncate text-sm text-gray-100">{idea.title}</span>
+                  </div>
+
+                  {/* 「热门」按钮：改为 /hot 热门页入口 */}
+                  <Link to="/hot" className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition group-hover:border-rose-400 group-hover:bg-gray-800">
+                      <Flame className="h-6 w-6" />
                     </span>
-                    <span className="shrink-0 text-[11px] text-gray-600">{formatRelativeTime(idea.createdAt)}</span>
+                    <span className="text-gray-300 group-hover:text-white">{t("home.hot")}</span>
                   </Link>
-                ))}
-                <Link to="/feed" className="block rounded-xl px-3 py-2 text-center text-xs text-cyan-300 hover:bg-gray-800/70">
-                  {t("home.feedPreviewMore")} →
+                </div>
+
+                <div className="rounded-2xl border border-gray-800 bg-gray-900/85 p-3 backdrop-blur-sm" data-tour="home-filters">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {/* 收起推荐位 = 给看板娘让位；状态记在本机 */}
+                    <button
+                      type="button"
+                      onClick={toggleHero}
+                      className="mr-auto inline-flex items-center gap-1 rounded-full border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                      aria-expanded={!heroCollapsed}
+                      aria-controls="home-hero"
+                    >
+                      {heroCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                      {heroCollapsed ? t("companion.expandHero") : t("companion.collapseHero")}
+                    </button>
+                    <Link to="/tag-rank" className="rounded-full border border-indigo-700/70 bg-indigo-950/30 px-3 py-1.5 text-xs font-semibold text-indigo-200 hover:bg-indigo-900/40">
+                      {t("nav.tagRank")}
+                    </Link>
+                    {IDEA_TYPE_OPTIONS.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => toggleIdeaType(item.key)}
+                        className={`rounded-full border px-3 py-1.5 text-xs transition ${selectedIdeaTypes.includes(item.key) ? item.activeClass : item.inactiveClass}`}
+                      >
+                        {item.emoji} {getIdeaTypeTitle(item.key)}
+                      </button>
+                    ))}
+                    {selectedIdeaTypes.length > 0 ? (
+                      <button type="button" onClick={clearIdeaTypes} className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300 hover:bg-gray-800">
+                        {t("common.clearFilters")}
+                      </button>
+                    ) : null}
+                    <select value={groupSlug} onChange={(event) => updateGroup(event.target.value)} className="rounded-full border border-gray-700 bg-gray-950 px-3 py-1 text-xs text-gray-200">
+                      {accessibleGroups.map((group) => (
+                        <option key={group.slug} value={group.slug}>{group.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {groupSlug === "world" ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-xs" data-tour="home-preferred">
+                      <span className="text-gray-400">{t("home.preferredGroups")}</span>
+                      {joinedGroups.length === 0 ? (
+                        <span className="rounded-full border border-gray-800 px-3 py-1 text-gray-500">{t("home.noPreferredGroups")}</span>
+                      ) : joinedGroups.map((group) => (
+                        <button
+                          key={group.slug}
+                          type="button"
+                          onClick={() => togglePreferredGroup(group.slug)}
+                          className={`rounded-full border px-3 py-1 ${preferredGroupSlugs.includes(group.slug) ? "border-cyan-500 bg-cyan-500/15 text-cyan-100" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+                        >
+                          {group.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {loading && <p className="mt-6 text-gray-300">{t("common.loading")}</p>}
+              {err && <p className="mt-6 text-red-400">{t("common.error")}: {err}</p>}
+
+              {!heroCollapsed ? (
+                <section id="home-hero" className="mt-4 grid gap-4 lg:grid-cols-[minmax(260px,.7fr)_minmax(0,1.3fr)]" data-tour="home-hero">
+                  <div className="relative h-[260px] self-start overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 lg:h-[318px]">
+                    {featuredIdea ? (
+                      <Link to={`/ideas/${featuredIdea._id}`} className="block h-full">
+                        {getIdeaImageUrl(featuredIdea) ? (
+                          <img src={getIdeaImageUrl(featuredIdea)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(34,211,238,.24),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(244,114,182,.22),transparent_26%),linear-gradient(135deg,#111827,#020617)]" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-5">
+                          {renderIdeaTypeBadge(featuredIdea)}
+                          <h2 className="mt-3 max-w-2xl text-2xl font-bold leading-8 text-white">{featuredIdea.title}</h2>
+                          {featuredIdea.summary ? <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-gray-200">{featuredIdea.summary}</p> : null}
+                          {renderIdeaMeta(featuredIdea)}
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-gray-400">{t("home.noPublicIdeas")}</div>
+                    )}
+
+                    {featuredIdeas.length > 1 ? (
+                      <div className="absolute bottom-5 right-5 flex gap-1.5">
+                        {featuredIdeas.map((idea, index) => (
+                          <button
+                            key={idea._id}
+                            type="button"
+                            onClick={() => setFeaturedIndex(index)}
+                            className={`h-2 rounded-full transition ${index === featuredIndex % featuredIdeas.length ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/70"}`}
+                            aria-label={`${t("home.featured")}${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="relative h-[260px] overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/85 p-3 pb-8 backdrop-blur-sm lg:h-[318px]">
+                    <div className="grid h-full grid-cols-2 grid-rows-2 gap-3 lg:grid-cols-3">
+                      {recommendationIdeas.length === 0 && !loading ? <p className="text-sm text-gray-400">{t("home.noPublicIdeas")}</p> : recommendationIdeas.map((idea) => renderCompactIdeaCard(idea, "right"))}
+                    </div>
+                    {recommendationPageCount > 1 ? (
+                      <div className="absolute bottom-5 right-5 flex gap-1.5">
+                        {Array.from({ length: recommendationPageCount }).map((_, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => setRecommendationPage(index)}
+                            className={`h-2 rounded-full transition ${index === recommendationPage ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/70"}`}
+                            aria-label={`${t("home.featured")}${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {/* 舞台留白：看板娘脚踩这里；桌面端才留高度，手机上没有舞台 */}
+              <div ref={stageAnchorRef} className="hidden min-h-[280px] flex-1 lg:block" aria-hidden="true" />
+
+              <div className="mt-4 lg:mt-0">
+                <CompanionChat onOpenScene={() => setSceneOpen(true)} />
+              </div>
+
+              {/* 移动端：关注动态保留横向滚动条（右栏在手机上会堆到最下面，太远） */}
+              <section className="mt-6 lg:hidden">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-white">{t("home.followingPosts")}</h2>
+                  {user?._id ? <Link to={`/users/${user._id}?tab=following`} className="text-sm text-cyan-300 hover:text-cyan-100">{t("home.more")}</Link> : null}
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {followingLoading ? <p className="text-sm text-gray-400">{t("common.loading")}</p> : null}
+                  {!followingLoading && followingIdeas.length === 0 ? (
+                    <div className="w-full rounded-2xl border border-gray-800 bg-gray-900/85 p-5 text-sm text-gray-400">
+                      {user?._id ? t("home.noFollowingPosts") : t("home.loginForFollowingPosts")}
+                    </div>
+                  ) : followingIdeas.map((idea) => renderCompactIdeaCard(idea, "row"))}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          {/* 右栏：关注动态竖排 + 标签排行单列（桌面）；手机上关注动态已在左列展示过，这里只剩标签排行 */}
+          <aside className="flex flex-col gap-4">
+            <section className="hidden rounded-2xl border border-gray-800 bg-gray-900/85 p-4 backdrop-blur-sm lg:block" data-tour="home-following">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-base font-semibold text-white">{t("home.followingPosts")}</h2>
+                {user?._id ? <Link to={`/users/${user._id}?tab=following`} className="text-sm text-cyan-300 hover:text-cyan-100">{t("home.more")}</Link> : null}
+              </div>
+              <div className="flex flex-col gap-3">
+                {followingLoading ? <p className="text-sm text-gray-400">{t("common.loading")}</p> : null}
+                {!followingLoading && followingIdeas.length === 0 ? (
+                  <p className="rounded-xl border border-gray-800 bg-gray-950/50 p-4 text-sm text-gray-400">
+                    {user?._id ? t("home.noFollowingPosts") : t("home.loginForFollowingPosts")}
+                  </p>
+                ) : followingIdeas.slice(0, RAIL_FOLLOWING_LIMIT).map((idea) => renderCompactIdeaCard(idea, "rail"))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-800 bg-gray-900/85 p-4 backdrop-blur-sm" data-tour="home-tag-rank">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-white">{t("nav.tagRank")}</h2>
+                <Link to="/tag-rank" className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-200 hover:bg-gray-800">
+                  {t("home.more")}
                 </Link>
               </div>
-            )}
-          </div>
-
-          {/* 「热门」按钮：改为 /hot 热门页入口 */}
-          <Link to="/hot" className="group flex w-14 flex-col items-center gap-1.5 text-xs font-semibold">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition group-hover:border-rose-400 group-hover:bg-gray-800">
-              <Flame className="h-6 w-6" />
-            </span>
-            <span className="text-gray-300 group-hover:text-white">{t("home.hot")}</span>
-          </Link>
-        </div>
-
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3" data-tour="home-filters">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link to="/tag-rank" className="rounded-full border border-indigo-700/70 bg-indigo-950/30 px-3 py-1.5 text-xs font-semibold text-indigo-200 hover:bg-indigo-900/40">
-              {t("nav.tagRank")}
-            </Link>
-            {IDEA_TYPE_OPTIONS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => toggleIdeaType(item.key)}
-                className={`rounded-full border px-3 py-1.5 text-xs transition ${selectedIdeaTypes.includes(item.key) ? item.activeClass : item.inactiveClass}`}
-              >
-                {item.emoji} {getIdeaTypeTitle(item.key)}
-              </button>
-            ))}
-            {selectedIdeaTypes.length > 0 ? (
-              <button type="button" onClick={clearIdeaTypes} className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300 hover:bg-gray-800">
-                {t("common.clearFilters")}
-              </button>
-            ) : null}
-            <select value={groupSlug} onChange={(event) => updateGroup(event.target.value)} className="rounded-full border border-gray-700 bg-gray-950 px-3 py-1 text-xs text-gray-200">
-              {accessibleGroups.map((group) => (
-                <option key={group.slug} value={group.slug}>{group.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {groupSlug === "world" ? (
-            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-xs" data-tour="home-preferred">
-              <span className="text-gray-400">{t("home.preferredGroups")}</span>
-              {joinedGroups.length === 0 ? (
-                <span className="rounded-full border border-gray-800 px-3 py-1 text-gray-500">{t("home.noPreferredGroups")}</span>
-              ) : joinedGroups.map((group) => (
-                <button
-                  key={group.slug}
-                  type="button"
-                  onClick={() => togglePreferredGroup(group.slug)}
-                  className={`rounded-full border px-3 py-1 ${preferredGroupSlugs.includes(group.slug) ? "border-cyan-500 bg-cyan-500/15 text-cyan-100" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
-                >
-                  {group.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
+              {tagRankLoading ? <p className="text-sm text-gray-400">{t("tagRank.loadingLeaderboards")}</p> : null}
+              {!tagRankLoading && tagRankBoards.length === 0 ? <p className="text-sm text-gray-400">{t("tagRank.noLeaderboards")}</p> : null}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                {tagRankBoards.slice(0, RAIL_TAG_RANK_LIMIT).map((board) => (
+                  <Link key={board._id} to={`/leaderboard/${board._id}`} className="rounded-xl border border-gray-800 bg-gray-950/60 p-3 transition hover:border-indigo-600/70 hover:bg-gray-950">
+                    <div className="line-clamp-2 font-semibold text-white">{board.tags?.join(", ") || t("nav.tagRank")}</div>
+                    <div className="mt-1 text-xs text-gray-400">{board.postsCount || 0} {t("leaderboard.nominations")}</div>
+                    <div className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500">
+                      {board.entries?.slice(0, 3).map((entry) => entry.idea?.title || "").filter(Boolean).join(" · ") || formatDate(board.computedAt)}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </aside>
         </div>
       </div>
 
-      {loading && <p className="mt-6 text-gray-300">{t("common.loading")}</p>}
-      {err && <p className="mt-6 text-red-400">{t("common.error")}: {err}</p>}
-
-      <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(260px,.7fr)_minmax(0,1.3fr)]" data-tour="home-hero">
-        <div className="relative h-[260px] self-start overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 lg:h-[318px]">
-          {featuredIdea ? (
-            <Link to={`/ideas/${featuredIdea._id}`} className="block h-full">
-              {getIdeaImageUrl(featuredIdea) ? (
-                <img src={getIdeaImageUrl(featuredIdea)} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(34,211,238,.24),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(244,114,182,.22),transparent_26%),linear-gradient(135deg,#111827,#020617)]" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-5">
-                {renderIdeaTypeBadge(featuredIdea)}
-                <h2 className="mt-3 max-w-2xl text-2xl font-bold leading-8 text-white">{featuredIdea.title}</h2>
-                {featuredIdea.summary ? <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-gray-200">{featuredIdea.summary}</p> : null}
-                {renderIdeaMeta(featuredIdea)}
-              </div>
-            </Link>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">{t("home.noPublicIdeas")}</div>
-          )}
-
-          {featuredIdeas.length > 1 ? (
-            <div className="absolute bottom-5 right-5 flex gap-1.5">
-              {featuredIdeas.map((idea, index) => (
-                <button
-                  key={idea._id}
-                  type="button"
-                  onClick={() => setFeaturedIndex(index)}
-                  className={`h-2 rounded-full transition ${index === featuredIndex % featuredIdeas.length ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/70"}`}
-                  aria-label={`${t("home.featured")}${index + 1}`}
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="relative h-[260px] overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/70 p-3 pb-8 lg:h-[318px]">
-          <div className="grid h-full grid-cols-2 grid-rows-2 gap-3 lg:grid-cols-3">
-            {recommendationIdeas.length === 0 && !loading ? <p className="text-sm text-gray-400">{t("home.noPublicIdeas")}</p> : recommendationIdeas.map((idea) => renderCompactIdeaCard(idea, "right"))}
-          </div>
-          {recommendationPageCount > 1 ? (
-            <div className="absolute bottom-5 right-5 flex gap-1.5">
-              {Array.from({ length: recommendationPageCount }).map((_, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setRecommendationPage(index)}
-                  className={`h-2 rounded-full transition ${index === recommendationPage ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/70"}`}
-                  aria-label={`${t("home.featured")}${index + 1}`}
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="mt-6" data-tour="home-following">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">{t("home.followingPosts")}</h2>
-          {user?._id ? <Link to={`/users/${user._id}?tab=following`} className="text-sm text-cyan-300 hover:text-cyan-100">{t("home.more")}</Link> : null}
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {followingLoading ? <p className="text-sm text-gray-400">{t("common.loading")}</p> : null}
-          {!followingLoading && followingIdeas.length === 0 ? (
-            <div className="w-full rounded-2xl border border-gray-800 bg-gray-900/70 p-5 text-sm text-gray-400">
-              {user?._id ? t("home.noFollowingPosts") : t("home.loginForFollowingPosts")}
-            </div>
-          ) : followingIdeas.map((idea) => renderCompactIdeaCard(idea, "row"))}
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-2xl border border-gray-800 bg-gray-900/70 p-4" data-tour="home-tag-rank">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">{t("nav.tagRank")}</h2>
-          <Link to="/tag-rank" className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-200 hover:bg-gray-800">
-            {t("home.more")}
-          </Link>
-        </div>
-        {tagRankLoading ? <p className="text-sm text-gray-400">{t("tagRank.loadingLeaderboards")}</p> : null}
-        {!tagRankLoading && tagRankBoards.length === 0 ? <p className="text-sm text-gray-400">{t("tagRank.noLeaderboards")}</p> : null}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {tagRankBoards.map((board) => (
-            <Link key={board._id} to={`/leaderboard/${board._id}`} className="rounded-xl border border-gray-800 bg-gray-950/50 p-3 transition hover:border-indigo-600/70 hover:bg-gray-950">
-              <div className="line-clamp-2 font-semibold text-white">{board.tags?.join(", ") || t("nav.tagRank")}</div>
-              <div className="mt-1 text-xs text-gray-400">{board.postsCount || 0} {t("leaderboard.nominations")}</div>
-              <div className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500">
-                {board.entries?.slice(0, 3).map((entry) => entry.idea?.title || "").filter(Boolean).join(" · ") || formatDate(board.computedAt)}
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </div>
+      {sceneOpen ? <SceneBackgroundPicker value={scene} onSelect={chooseScene} onClose={() => setSceneOpen(false)} /> : null}
+    </>
   );
 }

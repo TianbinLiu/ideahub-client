@@ -26,6 +26,8 @@
 import { API_BASE } from "./config";
 import { getToken, notifyAuthExpired } from "./auth";
 import type { SiteDraft, SiteDraftWidget } from "./utils/siteDraft";
+import { createSseParser } from "./companion/sse";
+import type { CompanionSentence } from "./companion/protocol";
 
 type ApiError = Error & {
   code?: string;
@@ -2274,3 +2276,104 @@ export const appDownloadUrl = (app: AppId = "qimeng") =>
 
 /** @deprecated 用 appDownloadUrl("qimeng")。留着是因为别处可能还引着它 */
 export const APP_DOWNLOAD_URL = appDownloadUrl("qimeng");
+
+// ===== 首页看板娘数字人（/api/companion + /api/tts）=====
+// 契约：ideahub-server 的 src/routes/companion.routes.js（SSE）与 src/routes/tts.routes.js（audio/mpeg）。
+// ★ 这两个接口不走 apiFetch：一个是流（要 ReadableStream 逐块读），一个回二进制（要 Blob），
+//   apiFetch 只会 res.json()。鉴权与 401 处理和 apiFetch 保持一致（Bearer + notifyAuthExpired）。
+
+export type CompanionConfig = {
+  ok: true;
+  /** 看板娘名字（服务端 COMPANION_NAME，缺省「小梦」） */
+  name: string;
+  /** 服务端有没有配 AI key；false 时前端只展示、不允许发送 */
+  enabled: boolean;
+  /** 服务端有没有配 TTS key；false 时只有字幕 + 合成口型 */
+  tts: boolean;
+  /** 指定的豆包音色 id；空串 = 用 /api/tts 的默认音色 */
+  voice: string;
+  loginRequired: boolean;
+};
+
+export function getCompanionConfig() {
+  return apiFetch<CompanionConfig>("/api/companion/config");
+}
+
+function authOnlyHeaders(init?: HeadersInit) {
+  const headers = new Headers(init);
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return { headers, hadToken: Boolean(token) };
+}
+
+async function throwHttpError(res: Response, hadToken: boolean): Promise<never> {
+  const json = await res.json().catch(() => ({}));
+  if (res.status === 401 && hadToken) notifyAuthExpired(json?.code || "UNAUTHORIZED");
+  throw createApiError(json?.message || `HTTP ${res.status}`, { code: json?.code, details: json?.details, status: res.status });
+}
+
+export type CompanionChatHandlers = {
+  /** 服务端切好的一句（含表情/动作标签与 TTS 参数），按 index 递增到达 */
+  onSentence?: (sentence: CompanionSentence) => void;
+  /** 原始增量文本，只适合做"打字机"展示 */
+  onToken?: (token: string) => void;
+  /** 整段回复（已剥掉标签） */
+  onDone?: (text: string) => void;
+};
+
+/**
+ * 流式对话。resolve = 流正常结束；服务端发 `error` 事件或 HTTP 非 2xx 都 reject。
+ * 传 signal 可随时中断（服务端收到断开会 abort 上游模型，不白烧 token）。
+ */
+export async function streamCompanionChat(
+  body: { messages: Array<{ role: "user" | "assistant"; content: string }>; lang?: "zh" | "en" },
+  handlers: CompanionChatHandlers,
+  signal?: AbortSignal
+) {
+  const { headers, hadToken } = authOnlyHeaders({ "Content-Type": "application/json", Accept: "text/event-stream" });
+  const res = await fetch(`${API_BASE}/api/companion/chat`, { method: "POST", headers, body: JSON.stringify(body), signal });
+  if (!res.ok) await throwHttpError(res, hadToken);
+
+  const state = { failure: "" };
+  const parser = createSseParser(({ event, data }) => {
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(data) as Record<string, unknown>;
+    } catch {
+      return;
+    }
+    if (event === "sentence") handlers.onSentence?.(payload as unknown as CompanionSentence);
+    else if (event === "token") handlers.onToken?.(String(payload.t ?? ""));
+    else if (event === "done") handlers.onDone?.(String(payload.text ?? ""));
+    else if (event === "error") state.failure = String(payload.message || "companion upstream failed");
+  });
+
+  if (!res.body) {
+    parser.push(await res.text());
+  } else {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      parser.push(decoder.decode(value, { stream: true }));
+    }
+    parser.push(decoder.decode());
+  }
+  parser.flush();
+  if (state.failure) throw createApiError(state.failure, { code: "COMPANION_UPSTREAM", status: 502 });
+}
+
+/**
+ * 豆包 TTS：返回 audio/mpeg 的 Blob（登录 + 每分钟 30 次限流，见服务端）。
+ * emotion/instruct 来自 sentence.tts；expressive=true 走 2.0-expressive 模型，情绪标签才生效。
+ */
+export async function synthesizeSpeech(
+  body: { text: string; voice?: string; emotion?: string; instruct?: string; expressive?: boolean; rate?: number; pitch?: number },
+  signal?: AbortSignal
+): Promise<Blob> {
+  const { headers, hadToken } = authOnlyHeaders({ "Content-Type": "application/json" });
+  const res = await fetch(`${API_BASE}/api/tts`, { method: "POST", headers, body: JSON.stringify(body), signal });
+  if (!res.ok) await throwHttpError(res, hadToken);
+  return res.blob();
+}
