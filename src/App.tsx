@@ -78,6 +78,9 @@ const PersonaGalleryPage = lazy(() => import("./pages/PersonaGalleryPage"));
 const PersonaDetailPage = lazy(() => import("./pages/PersonaDetailPage"));
 const PersonaEditorPage = lazy(() => import("./pages/PersonaEditorPage"));
 const MemeLibraryPage = lazy(() => import("./pages/MemeLibraryPage"));
+const Live2dMarketPage = lazy(() => import("./pages/Live2dMarketPage"));
+const Live2dModelDetailPage = lazy(() => import("./pages/Live2dModelDetailPage"));
+const Live2dModelEditorPage = lazy(() => import("./pages/Live2dModelEditorPage"));
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -486,6 +489,29 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Live2DSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          {/*
+            首页数字人换装：Live2D 模型市场（docs/COMPANION.md「人格 / 音频 / 模型市场」）。
+            ★故意不放在 /arena 下：那一片有浏览器插件门禁，而换装是首页看板娘的功能，游客也要能逛市场；
+              new / edit 与人格编辑器一样用 ProtectedRoute 守登录。
+          */}
+          <Route path="/live2d/market" element={<Live2dMarketPage />} />
+          <Route
+            path="/live2d/market/new"
+            element={
+              <ProtectedRoute>
+                <Live2dModelEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/live2d/market/:id" element={<Live2dModelDetailPage />} />
+          <Route
+            path="/live2d/market/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Live2dModelEditorPage />
               </ProtectedRoute>
             }
           />

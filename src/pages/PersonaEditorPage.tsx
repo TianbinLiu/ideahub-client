@@ -12,6 +12,8 @@
  *   / style(summary、catchphrases 逗号分隔、stanceHint)
  * - “从我的发言风格面板导入”：getMyStyleProfile 预填 summary/catchphrases/stats（stats 直接带上）
  * - 编辑态 getPersona 预填 + updatePersona；否则 createPersona；成功跳详情
+ * - 「音频（可选）」：<VoiceSettingsFields> → voice（对象 = 人格自带的嗓子；null = 跟随模型推荐 / 默认），
+ *   首页数字人装上该人格时按它说话（服务端按 用户覆盖 > 人格 > 模型 > 默认 合并）
  * - 底部用 <StyleStandCard> 预览由当前表单组装的风格面板
  */
 
@@ -30,8 +32,10 @@ import {
   type PersonaStyle,
   type SpeakingProfile,
   type StyleStat,
+  type VoiceSettings,
 } from "../api";
 import StyleStandCard from "../components/StyleStandCard";
+import VoiceSettingsFields from "../components/VoiceSettingsFields";
 import { humanizeError } from "../utils/humanizeError";
 import { ocrImageToText } from "../utils/ocrImage";
 
@@ -81,6 +85,8 @@ export default function PersonaEditorPage() {
   const [catchphrasesText, setCatchphrasesText] = useState("");
   const [stanceHint, setStanceHint] = useState("");
   const [stats, setStats] = useState<StyleStat[]>([]);
+  // 人格自带的嗓子；null = 不设置（提交时也发 null，服务端语义是「清掉」，编辑态取消音频靠它）
+  const [voice, setVoice] = useState<VoiceSettings | null>(null);
 
   const parsedCatchphrases = useMemo(
     () => catchphrasesText.split(/[,，、\n]+/).map((x) => x.trim()).filter(Boolean).slice(0, 12),
@@ -107,6 +113,7 @@ export default function PersonaEditorPage() {
         setCatchphrasesText((p.style?.catchphrases || []).join("，"));
         setStanceHint(p.style?.stanceHint || "");
         setStats(p.style?.stats || []);
+        setVoice(p.voice ?? null);
       } catch (e) {
         if (mounted) toast.error(humanizeError(e));
       } finally {
@@ -268,6 +275,7 @@ export default function PersonaEditorPage() {
       style,
       shared,
       price,
+      voice,
     };
 
     try {
@@ -578,6 +586,13 @@ export default function PersonaEditorPage() {
         <p className="text-xs text-gray-500">
           {t("arena.personaEditor.statsHint", { count: stats.length })}
         </p>
+      </section>
+
+      {/* 音频（可选）：人格自带的嗓子。试听句子用第一条口头禅，没有就用组件的默认问候 */}
+      <section className="mt-4 space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">
+        <h2 className="text-lg font-semibold text-white">{t("arena.personaEditor.voiceSection")}</h2>
+        <p className="text-xs text-gray-500">{t("arena.personaEditor.voiceHint")}</p>
+        <VoiceSettingsFields value={voice} onChange={setVoice} previewText={parsedCatchphrases[0]} />
       </section>
 
       <div className="mt-4">
