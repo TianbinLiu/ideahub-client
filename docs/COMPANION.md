@@ -37,7 +37,12 @@
 
 工作目录在仓库外：`C:/Users/tliu7/live2d-lab/`（脚本、cmo3 工程、验证页 `stage-test/`）。
 
-已知限制：moc3 里嘴/眼还没有形变器，张嘴与眨眼靠补片不透明度；身体/呼吸变形器与头发物理未做。
+5. （mascot8，2026-09-04）在 Cubism 里补的形变：`Mouth Open Warp`（ParamMouthOpenY 0→1 从一条线连续张到全开）、
+   `Mouth Warp` 的 ParamMouthForm（-1 窄 / 1 宽）、`Eye L/R Warp` 的 ParamEyeL/ROpen（1→0 整组眼睛压扁到睫毛线，
+   闭眼补片 `eyes_closed_L/R` 的不透明度也钉在同一参数上），以及披风(550)>双臂(500)、前发/头饰(600) 的绘制顺序。
+   运行时因此改成参数驱动：`ExprClosed/ExprMouthOpen` 两个 Part 常开，眨眼是 70/40/120ms 的曲线，口型 = 包络^0.7 × 0.85。
+
+已知限制：`ExprSmile/ExprAngry` 仍是整块补片（笑眼/怒目盖在真眼上）；头发物理未做；贴图 4096 一张。
 
 ## 运行时行为速查
 
