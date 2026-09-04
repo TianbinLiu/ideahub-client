@@ -12,13 +12,18 @@
  *   离开首页再回来会重挂一次；如果每次都新建 WebGL 上下文，Cubism 缓存的着色器就属于旧上下文，画布一片空白
  *   （见 live2d/companionModel.ts 文件头）。
  * ★ 移动端不挂（父级 hidden lg:block）：手机上没有留白区域，也省掉 800KB 运行时。
+ * ★ 换装（模型市场）：登录用户加载 GET /api/companion/settings 里的 model.modelJsonUrl，游客/未设置用官方模型
+ *   （规则在 companion/modelSource.ts）。url 变了 CompanionModel.acquire 会销毁重建，所以要等设置拿到再第一次加载 ——
+ *   否则每个换过装的用户进首页都要先看官方模型闪一下再重建一次（两次下载贴图）。
+ *   市场模型加载失败（作者删了包 / 贴图坏了）回落到官方模型，而不是整个舞台消失。
  */
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { CompanionModel } from "../live2d/companionModel";
 import { companionBus } from "../companion/bus";
-
-const MODEL_URL = "/live2d/mascot/mascot.model3.json";
+import { OFFICIAL_MODEL_URL, resolveCompanionModelUrl } from "../companion/modelSource";
+import { useCompanionSettings } from "../hooks/useCompanionSettings";
+import { useAuth } from "../authContext";
 
 type Props = {
   /** 模型脚踩的留白区域；为空时占满整个舞台 */
@@ -29,10 +34,20 @@ type Props = {
 export default function CompanionStage({ anchorRef, className }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?._id || "";
+  // 设置改动（ideahub:companion-updated）和登录态变化都由 hook 自己重新拉
+  const { settings, ready } = useCompanionSettings(Boolean(userId));
+  // 加载失败的市场模型地址：回落官方模型；用户换了别的模型会再试
+  const [brokenUrl, setBrokenUrl] = useState("");
+
+  const wantedUrl = resolveCompanionModelUrl(settings);
+  // "" = 还没确定该加载谁（登录态 / 设置未就绪），先不 acquire
+  const modelUrl = !authLoading && ready ? (wantedUrl === brokenUrl ? OFFICIAL_MODEL_URL : wantedUrl) : "";
 
   useEffect(() => {
     const wrap = wrapRef.current;
-    if (!wrap) return;
+    if (!wrap || !modelUrl) return;
 
     let alive = true;
     let model: CompanionModel | null = null;
@@ -64,7 +79,7 @@ export default function CompanionStage({ anchorRef, className }: Props) {
     document.addEventListener("pointerleave", onLeave);
     window.addEventListener("resize", fit);
 
-    void CompanionModel.acquire(MODEL_URL)
+    void CompanionModel.acquire(modelUrl)
       .then((created) => {
         if (!alive) return;
         model = created;
@@ -77,8 +92,10 @@ export default function CompanionStage({ anchorRef, className }: Props) {
         fit();
       })
       .catch((error) => {
-        console.warn("[companion] stage failed to load", error);
-        if (alive) setFailed(true);
+        console.warn("[companion] stage failed to load", modelUrl, error);
+        if (!alive) return;
+        if (modelUrl !== OFFICIAL_MODEL_URL) setBrokenUrl(modelUrl);
+        else setFailed(true);
       });
 
     return () => {
@@ -93,7 +110,7 @@ export default function CompanionStage({ anchorRef, className }: Props) {
         model = null;
       }
     };
-  }, [anchorRef]);
+  }, [anchorRef, modelUrl]);
 
   if (failed) return null;
 

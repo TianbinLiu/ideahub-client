@@ -13,6 +13,9 @@
  * - 操作（需登录）：下载收藏/取消收藏（乐观更新 downloadCount）、点赞（toggle）、装备（equip）
  * - 装备成功后写 localStorage 'lbw_active_persona' = {name, descriptor} 供插件读取
  * - 作者可编辑/删除；未登录操作引导登录
+ * - 「设为我的数字人人格」：PUT /api/companion/settings { personaId }（已是当前 → 「取消使用」发 null）。
+ *   403 unpaid → 提示先购买（页面本来就有购买按钮）；403 private → 提示未公开。游客按钮置灰 + 登录提示
+ * - 人格自带音频（persona.voice）有值时展示 <VoiceSummary>
  * - 页面下方 <CommentThread targetType="persona">：给大家讨论这个人格用的评论区
  */
 
@@ -20,8 +23,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { Download, Heart, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Bot, Download, Heart, Pencil, Sparkles, Trash2 } from "lucide-react";
 import {
+  companionForbiddenReason,
   deletePersona,
   equipPersona,
   getPersona,
@@ -29,14 +33,17 @@ import {
   purchasePersona,
   togglePersonaLike,
   uninstallPersona,
+  updateCompanionSettings,
   type Persona,
   type SpeakingProfile,
 } from "../api";
 import StyleStandCard from "../components/StyleStandCard";
 import CommentThread from "../components/CommentThread";
 import PersonaCover from "../components/PersonaCover";
+import VoiceSummary from "../components/VoiceSummary";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
+import { useCompanionSettings } from "../hooks/useCompanionSettings";
 
 const ACTIVE_PERSONA_KEY = "lbw_active_persona";
 
@@ -71,6 +78,9 @@ export default function PersonaDetailPage() {
   const [persona, setPersona] = useState<Persona | null>(null);
   const [equipping, setEquipping] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  // 首页数字人当前用的人格（登录才拉；改动事件到了 hook 自己刷新）
+  const { settings: companionSettings, setSettings: setCompanionSettings } = useCompanionSettings(Boolean(user));
+  const [companionBusy, setCompanionBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -204,6 +214,35 @@ export default function PersonaDetailPage() {
     }
   }
 
+  /**
+   * 给首页数字人装 / 卸这个人格。与「装备」（浏览器插件用的 equip）是两回事：
+   * 装备决定插件在别的平台怎么替你说话，这个决定首页看板娘用谁的口吻和嗓子。
+   */
+  async function handleToggleCompanion() {
+    if (!id || !persona) return;
+    if (!user) return requireLogin();
+    const isCurrent = companionSettings?.settings.personaId === persona._id;
+    try {
+      setCompanionBusy(true);
+      const res = await updateCompanionSettings({ personaId: isCurrent ? null : persona._id });
+      setCompanionSettings(res);
+      toast.success(isCurrent ? t("arena.personaDetail.companionCleared") : t("arena.personaDetail.companionSet"));
+    } catch (e) {
+      const reason = companionForbiddenReason(e);
+      if (reason === "unpaid") {
+        // 服务端说没买：把本地的 purchased 打回 false，购买按钮就会出现在最前面
+        setPersona((p) => (p ? { ...p, purchased: false } : p));
+        toast.error(t("arena.personaDetail.companionUnpaid"));
+      } else if (reason === "private") {
+        toast.error(t("arena.personaDetail.companionPrivate"));
+      } else {
+        toast.error(humanizeError(e));
+      }
+    } finally {
+      setCompanionBusy(false);
+    }
+  }
+
   async function handleDelete() {
     if (!id || !persona) return;
     if (typeof window !== "undefined" && !window.confirm(t("arena.personaDetail.deleteConfirm"))) return;
@@ -228,6 +267,7 @@ export default function PersonaDetailPage() {
     );
 
   const isOwner = Boolean(persona.isOwner || (user && authorId(persona.author) === user._id));
+  const isCompanionPersona = Boolean(user && companionSettings?.settings.personaId === persona._id);
 
   return (
     <div className="mx-auto max-w-5xl p-4 pb-20">
@@ -332,6 +372,25 @@ export default function PersonaDetailPage() {
                 {equipping ? t("arena.personaDetail.equippingButton") : t("arena.personaDetail.equipPersona")}
               </button>
             )}
+            {/* 首页数字人：设为 / 取消当前人格。游客置灰（接口要登录），title 里说明原因 */}
+            <button
+              type="button"
+              disabled={!user || companionBusy}
+              onClick={handleToggleCompanion}
+              title={!user ? t("arena.personaDetail.companionLoginHint") : undefined}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 ${
+                isCompanionPersona
+                  ? "border border-cyan-500 text-cyan-200 hover:bg-cyan-950/30"
+                  : "bg-cyan-500 text-black hover:bg-cyan-400"
+              }`}
+            >
+              <Bot className="h-4 w-4" />
+              {companionBusy
+                ? t("arena.personaDetail.companionBusy")
+                : isCompanionPersona
+                  ? t("arena.personaDetail.stopUsingForCompanion")
+                  : t("arena.personaDetail.useForCompanion")}
+            </button>
             <button
               type="button"
               onClick={handleInstall}
@@ -375,10 +434,22 @@ export default function PersonaDetailPage() {
 
           {!user && (
             <p className="mt-3 text-xs text-gray-500">
-              {t("arena.personaDetail.loginHint")}
+              {t("arena.personaDetail.loginHint")} {t("arena.personaDetail.companionLoginHint")}
             </p>
           )}
+          {isCompanionPersona && (
+            <p className="mt-3 text-xs text-cyan-300/80">{t("arena.personaDetail.companionInUse")}</p>
+          )}
         </div>
+
+        {/* ===== 音频：人格自带的嗓子（没设置就不占地方） ===== */}
+        {persona.voice && (
+          <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+            <h2 className="text-lg font-semibold text-white">{t("arena.personaDetail.voiceTitle")}</h2>
+            <p className="mt-0.5 text-xs text-gray-500">{t("arena.personaDetail.voiceHint")}</p>
+            <VoiceSummary voice={persona.voice} className="mt-3" />
+          </section>
+        )}
 
         {/* ===== 风格面板 ===== */}
         <StyleStandCard profile={toProfile(persona)} />

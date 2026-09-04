@@ -11,15 +11,29 @@
  * ★ 队列是串行 Promise 链而不是 state：句子到达是乱序异步的，用 state 排队会丢句/乱序。
  * ★ runId 递增 = "停止"：所有还在队列里的旧任务看到 run 变了就直接放弃，不用逐个取消。
  * ★ 未登录只拦"发送"（打开登录框），对话框本身照常显示，让游客知道这里能聊。
+ * ★ 人格 / 音频 / 换装（docs/COMPANION.md「人格 / 音频 / 模型市场」）：config 里带着当前人格与合并后的音色，
+ *   TTS 请求按 voiceSettings 发；「人格」按钮开 PersonaPickerModal → PUT /api/companion/settings，「换装」跳模型市场。
+ *   谁改了设置都会广播 ideahub:companion-updated，这里监听它重拉 config（人格名 chip、音色都跟着变）。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import toast from "react-hot-toast";
-import { ImageIcon, Send, Square, Volume2, VolumeX } from "lucide-react";
-import { getCompanionConfig, streamCompanionChat, synthesizeSpeech, type CompanionConfig } from "../api";
+import { Drama, ImageIcon, Send, Shirt, Square, Volume2, VolumeX, X } from "lucide-react";
+import {
+  COMPANION_UPDATED_EVENT,
+  companionForbiddenReason,
+  getCompanionConfig,
+  streamCompanionChat,
+  synthesizeSpeech,
+  updateCompanionSettings,
+  type CompanionConfig,
+  type Persona,
+} from "../api";
 import { useAuth } from "../authContext";
 import AuthDialog from "./AuthDialog";
+import PersonaPickerModal from "./PersonaPickerModal";
 import { companionBus } from "../companion/bus";
 import { SpeechPlayer } from "../companion/speech";
 import { estimateSpeechMs, normalizeAction, normalizeFace, type CompanionSentence } from "../companion/protocol";
@@ -71,6 +85,8 @@ export default function CompanionChat({ onOpenScene }: Props) {
   const [subtitle, setSubtitle] = useState("");
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
   const [authOpen, setAuthOpen] = useState(false);
+  const [personaOpen, setPersonaOpen] = useState(false);
+  const [personaBusy, setPersonaBusy] = useState(false);
 
   const playerRef = useRef<SpeechPlayer | null>(null);
   const runRef = useRef(0);
@@ -79,20 +95,27 @@ export default function CompanionChat({ onOpenScene }: Props) {
 
   const name = config?.name || t("companion.name");
   const enabled = config ? config.enabled : true;
+  const userId = user?._id || "";
 
+  // config 里的人格 / 音色只对登录用户有：登录态变了、别处改了设置（事件）都要重拉
   useEffect(() => {
     let mounted = true;
-    getCompanionConfig()
-      .then((next) => {
-        if (mounted) setConfig(next);
-      })
-      .catch(() => {
-        if (mounted) setConfig({ ok: true, name: "", enabled: false, tts: false, voice: "", loginRequired: true });
-      });
+    const load = () => {
+      getCompanionConfig()
+        .then((next) => {
+          if (mounted) setConfig(next);
+        })
+        .catch(() => {
+          if (mounted) setConfig({ ok: true, name: "", enabled: false, tts: false, voice: "", loginRequired: true });
+        });
+    };
+    load();
+    window.addEventListener(COMPANION_UPDATED_EVENT, load);
     return () => {
       mounted = false;
+      window.removeEventListener(COMPANION_UPDATED_EVENT, load);
     };
-  }, []);
+  }, [userId]);
 
   // 卸载（离开首页）时把还在播的声音、排队的演出全部掐掉
   useEffect(
@@ -163,6 +186,36 @@ export default function CompanionChat({ onOpenScene }: Props) {
     }
   }
 
+  /** 选人格 → 存到服务端设置；成功后 updateCompanionSettings 会广播事件，上面的 effect 重拉 config */
+  async function handlePickPersona(persona: Persona) {
+    try {
+      setPersonaBusy(true);
+      await updateCompanionSettings({ personaId: persona._id });
+      toast.success(t("companion.personaSet", { name: persona.name }));
+      setPersonaOpen(false);
+    } catch (error) {
+      // 付费未购 / 未公开：PersonaPickerModal 已经拦了一道，这里是服务端最终裁决（比如作者刚改成收费）
+      const reason = companionForbiddenReason(error);
+      if (reason === "unpaid") toast.error(t("companion.personaUnpaid"));
+      else if (reason === "private") toast.error(t("companion.personaPrivate"));
+      else toast.error(humanizeError(error));
+    } finally {
+      setPersonaBusy(false);
+    }
+  }
+
+  async function handleClearPersona() {
+    try {
+      setPersonaBusy(true);
+      await updateCompanionSettings({ personaId: null });
+      toast.success(t("companion.personaCleared"));
+    } catch (error) {
+      toast.error(humanizeError(error));
+    } finally {
+      setPersonaBusy(false);
+    }
+  }
+
   async function send() {
     const text = input.trim().slice(0, MAX_INPUT_CHARS);
     if (!text) return;
@@ -193,14 +246,20 @@ export default function CompanionChat({ onOpenScene }: Props) {
         { messages: history, lang: i18n.language.startsWith("zh") ? "zh" : "en" },
         {
           onSentence: (sentence) => {
+            // 音色三层（用户覆盖 > 人格自带 > 模型推荐 > 默认）服务端已合并进 voiceSettings，这里原样展开；
+            // 情绪与语调指令按句来（sentence.tts.instruct 已是「人设语调；情绪语调」合并后的串）。
+            // 老服务端没有 voiceSettings 时回落到老字段 voice + expressive=true，行为与改造前一致。
+            const vs = config?.voiceSettings;
             const audio: Promise<Blob | null> = wantVoice
               ? synthesizeSpeech(
                   {
                     text: sentence.text,
-                    voice: config?.voice || undefined,
+                    voice: vs?.voiceId || config?.voice || undefined,
+                    rate: vs?.rate ?? undefined,
+                    pitch: vs?.pitch ?? undefined,
+                    expressive: vs ? vs.expressive : true,
                     emotion: sentence.tts?.emotion,
                     instruct: sentence.tts?.instruct,
-                    expressive: true,
                   },
                   controller.signal,
                 ).catch(() => null)
@@ -235,6 +294,27 @@ export default function CompanionChat({ onOpenScene }: Props) {
         </div>
       ) : null}
 
+      {/* 当前人格 chip：用户自己选的可以一键取消；模型作者推荐的只标注来源（取消要去换模型或自己另选） */}
+      {config?.persona ? (
+        <div className="mb-1 flex w-fit items-center gap-1 rounded-full border border-cyan-900/60 bg-gray-950/70 px-2.5 py-0.5 text-[11px] text-cyan-200 backdrop-blur">
+          <Drama className="h-3 w-3" />
+          <span>{t("companion.personaChip", { name: config.persona.name })}</span>
+          {config.personaSource === "model" ? <span className="text-gray-500">· {t("companion.personaFromModel")}</span> : null}
+          {config.personaSource === "user" ? (
+            <button
+              type="button"
+              onClick={() => void handleClearPersona()}
+              disabled={personaBusy}
+              className="ml-0.5 rounded-full text-gray-500 hover:text-white disabled:opacity-50"
+              title={t("companion.personaClear")}
+              aria-label={t("companion.personaClear")}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -261,6 +341,27 @@ export default function CompanionChat({ onOpenScene }: Props) {
         >
           {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </button>
+        {/* 人格：开选择器（游客先登录）；换装：去模型市场 */}
+        <button
+          type="button"
+          onClick={() => (user ? setPersonaOpen(true) : setAuthOpen(true))}
+          disabled={personaBusy}
+          className={`rounded-full p-2 transition hover:bg-gray-800 hover:text-white disabled:opacity-50 ${
+            config?.persona ? "text-cyan-300" : "text-gray-300"
+          }`}
+          title={t("companion.persona")}
+          aria-label={t("companion.persona")}
+        >
+          <Drama className="h-4 w-4" />
+        </button>
+        <Link
+          to="/live2d/market"
+          className="rounded-full p-2 text-gray-300 transition hover:bg-gray-800 hover:text-white"
+          title={t("companion.changeModel")}
+          aria-label={t("companion.changeModel")}
+        >
+          <Shirt className="h-4 w-4" />
+        </Link>
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
@@ -303,6 +404,7 @@ export default function CompanionChat({ onOpenScene }: Props) {
       {phase === "thinking" ? <p className="mt-1 px-2 text-xs text-gray-400">{t("companion.thinking", { name })}</p> : null}
 
       {authOpen ? <AuthDialog initialMode="login" next="/" onClose={() => setAuthOpen(false)} /> : null}
+      <PersonaPickerModal open={personaOpen} onClose={() => setPersonaOpen(false)} onSelect={(persona) => void handlePickPersona(persona)} />
     </div>
   );
 }

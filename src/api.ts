@@ -2013,6 +2013,8 @@ export type Persona = {
   isOwner?: boolean;
   /** 当前用户是否已购买（永久解锁）；作者本人恒 false，gate 一律先判 isOwner */
   purchased?: boolean;
+  /** 人格自带的嗓子（数字人装上该人格时按它说话）；null/缺省 = 跟随模型推荐或服务端默认 */
+  voice?: VoiceSettings | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -2028,6 +2030,8 @@ export type PersonaInput = {
   shared: boolean;
   /** 售价（赏金点数，0=免费；仅公开人格有意义） */
   price?: number;
+  /** 对象 = 设置；null = 清掉；缺省 = 不动（服务端语义，见 docs/COMPANION.md） */
+  voice?: VoiceSettings | null;
 };
 
 type PersonaListResponse = {
@@ -2290,9 +2294,17 @@ export type CompanionConfig = {
   enabled: boolean;
   /** 服务端有没有配 TTS key；false 时只有字幕 + 合成口型 */
   tts: boolean;
-  /** 指定的豆包音色 id；空串 = 用 /api/tts 的默认音色 */
+  /** 指定的豆包音色 id；空串 = 用 /api/tts 的默认音色。★老字段，= voiceSettings.voiceId，留着兼容老客户端 */
   voice: string;
   loginRequired: boolean;
+  /** 登录时才有：合并后的 TTS 参数（用户覆盖 > 人格自带 > 模型推荐 > 服务端默认），可直接展开进 /api/tts */
+  voiceSettings?: VoiceSettings;
+  /** 登录时才有：当前生效的人格（用户选的 → 模型作者推荐的 → null=默认人设） */
+  persona?: PersonaSummary | null;
+  /** persona 的来源；"" = 没有人格 */
+  personaSource?: "user" | "model" | "";
+  /** 登录时才有：当前使用的市场模型；null = 官方内置 */
+  model?: Live2dModel | null;
 };
 
 export function getCompanionConfig() {
@@ -2376,4 +2388,232 @@ export async function synthesizeSpeech(
   const res = await fetch(`${API_BASE}/api/tts`, { method: "POST", headers, body: JSON.stringify(body), signal });
   if (!res.ok) await throwHttpError(res, hadToken);
   return res.blob();
+}
+
+// ===== 数字人 · 人格 / 音频 / Live2D 模型市场 =====
+// 契约：ideahub-server 分支 claude/companion-market —— /api/tts/voices、/api/companion/settings、/api/live2d-models。
+// 三层叠加：人格（说什么口吻）→ 音频（用什么嗓子）→ 模型（长什么样）。服务端负责合并，前端只管展示与改设置。
+
+/**
+ * 豆包 TTS 参数（三处共用：人格自带 / 模型推荐 / 用户覆盖）。
+ * ★ 每个字段都有「跟随」语义：voiceId "" / rate null / pitch null 表示不覆盖下一层，服务端按层合并。
+ */
+export type VoiceSettings = {
+  /** "" = 跟随默认；只允许 /^[a-zA-Z0-9_.-]{1,64}$/ */
+  voiceId: string;
+  /** speech_rate [-50,100]，倍速 = 1 + r/100；null = 跟随 */
+  rate: number | null;
+  /** [-12,12]；null = 跟随 */
+  pitch: number | null;
+  /** ≤200 字语调指令（只对 2.0 音色生效） */
+  instruct: string;
+  /** 走 seed-tts-2.0-expressive（默认 true） */
+  expressive: boolean;
+};
+
+/** 数字人接口里带的人格摘要（不是市场列表那个 Persona：没有 style/stats） */
+export type PersonaSummary = {
+  _id: string;
+  name: string;
+  description: string;
+  coverEmoji: string;
+  coverImageUrl: string;
+  tags: string[];
+  styleDescriptor: string;
+  voice: VoiceSettings | null;
+  price: number;
+  shared: boolean;
+  author: { _id: string; username: string } | string | null;
+};
+
+/** 官方内置模型的市场 id（服务端合成的条目，不在库里；install 会 400） */
+export const OFFICIAL_LIVE2D_MODEL_ID = "official-mascot";
+
+/** 市场里的一个 Live2D 模型（含官方内置条目） */
+export type Live2dModel = {
+  /** "official-mascot" = 官方内置 */
+  _id: string;
+  official: boolean;
+  author: { _id: string; username: string } | string | null;
+  name: string;
+  description: string;
+  coverImageUrl: string;
+  tags: string[];
+  /** 官方内置为 ""：前端用自己打包的 /live2d/mascot/mascot.model3.json（见 companion/modelSource.ts） */
+  modelJsonUrl: string;
+  bundleName: string;
+  bundleBytes: number;
+  fileCount: number;
+  /** 作者推荐的人格（看的人能用时才带） */
+  persona: PersonaSummary | null;
+  /** 作者推荐的嗓子 */
+  voice: VoiceSettings | null;
+  shared: boolean;
+  stats: { viewCount: number; downloadCount: number; likeCount: number };
+  installed: boolean;
+  liked: boolean;
+  isOwner: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+/** GET/PUT /api/companion/settings 的响应 */
+export type CompanionSettings = {
+  ok: true;
+  /** 用户自己存的三个选择；null = 没选（跟随） */
+  settings: { personaId: string | null; modelId: string | null; voice: VoiceSettings | null };
+  /** 生效的人格：用户选的 → 模型作者推荐的（personaSource 说明来源）→ null（默认人设） */
+  persona: PersonaSummary | null;
+  personaSource: "user" | "model" | "";
+  /** null = 官方内置 */
+  model: Live2dModel | null;
+  /** 合并结果（用户覆盖 > 人格自带 > 模型推荐 > 服务端默认） */
+  voice: VoiceSettings;
+};
+
+/** GET /api/tts/voices 目录里的一条；目录之外的 id 也允许（表单要留「自定义音色 ID」入口） */
+export type TtsVoice = { id: string; name: string; why: string; expressive?: boolean; rate?: number };
+
+/** 数字人设置改动后广播的事件名：首页舞台/对话框、市场页监听它刷新（跨页面不共享 state，靠事件） */
+export const COMPANION_UPDATED_EVENT = "ideahub:companion-updated";
+
+export function getTtsVoices() {
+  return apiFetch<{ ok: true; voices: TtsVoice[]; defaultVoiceId: string }>("/api/tts/voices");
+}
+
+export function getCompanionSettings() {
+  return apiFetch<CompanionSettings>("/api/companion/settings");
+}
+
+/**
+ * 改数字人设置。缺省的键不动、null 清掉；modelId "official-mascot" 等价 null。
+ * 人格不可选用 → 403 { code: "FORBIDDEN", details: { reason: "private" | "unpaid" } }。
+ * ★ 成功后在这里统一广播 COMPANION_UPDATED_EVENT：调用点有四五处（人格详情 / 市场列表 / 市场详情 / 首页），
+ *   放在调用方各自 dispatch 迟早会漏一处，首页就不刷新。
+ */
+export async function updateCompanionSettings(patch: {
+  personaId?: string | null;
+  modelId?: string | null;
+  voice?: VoiceSettings | null;
+}) {
+  const res = await apiFetch<CompanionSettings>("/api/companion/settings", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(COMPANION_UPDATED_EVENT));
+  return res;
+}
+
+/** 403 时服务端给的拒绝原因（updateCompanionSettings 选人格用）；不是 403 或没带原因 → "" */
+export function companionForbiddenReason(err: unknown): "private" | "unpaid" | "" {
+  const e = err as ApiError | null;
+  if (!e || e.status !== 403) return "";
+  const reason = (e.details as { reason?: unknown } | undefined)?.reason;
+  return reason === "private" || reason === "unpaid" ? reason : "";
+}
+
+type Live2dModelListResponse = {
+  ok: true;
+  models: Live2dModel[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+/** scope=all 第一页最前是官方条目（不计 total）；installed/mine 未登录 401 */
+export function listLive2dModels(params?: {
+  sort?: "new" | "hot";
+  q?: string;
+  tag?: string;
+  scope?: "all" | "installed" | "mine";
+  page?: number;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.tag) qs.set("tag", params.tag);
+  if (params?.scope) qs.set("scope", params.scope);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<Live2dModelListResponse>(`/api/live2d-models${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+export function getLive2dModel(id: string) {
+  return apiFetch<{ ok: true; model: Live2dModel }>(`/api/live2d-models/${encodeURIComponent(id)}`);
+}
+
+/**
+ * 上传模型（multipart，与 uploadLive2dBundle 同一种传法：apiFetch 见到 FormData 不会加 Content-Type，
+ * 浏览器自己带 boundary）。字段名与服务端一字不差：bundle / name / description / coverImageUrl /
+ * tags（逗号分隔）/ shared（"true"/"false"）/ personaId / voice（JSON 字符串）。
+ * 5 次/分钟；Cubism 2 包、缺文件 → 400 带英文 message（前端用 companion/live2dUploadError.ts 翻译）。
+ */
+export function createLive2dModel(form: {
+  bundle: File;
+  name: string;
+  description: string;
+  coverImageUrl: string;
+  tags: string[];
+  shared: boolean;
+  personaId: string;
+  voice: VoiceSettings | null;
+}) {
+  const formData = new FormData();
+  formData.append("bundle", form.bundle);
+  formData.append("name", form.name);
+  formData.append("description", form.description);
+  formData.append("coverImageUrl", form.coverImageUrl);
+  formData.append("tags", form.tags.join(","));
+  formData.append("shared", form.shared ? "true" : "false");
+  if (form.personaId) formData.append("personaId", form.personaId);
+  if (form.voice) formData.append("voice", JSON.stringify(form.voice));
+  return apiFetch<{ ok: true; model: Live2dModel }>("/api/live2d-models", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function updateLive2dModel(
+  id: string,
+  patch: {
+    name?: string;
+    description?: string;
+    coverImageUrl?: string;
+    tags?: string[];
+    shared?: boolean;
+    personaId?: string | null;
+    voice?: VoiceSettings | null;
+  }
+) {
+  return apiFetch<{ ok: true; model: Live2dModel }>(`/api/live2d-models/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteLive2dModel(id: string) {
+  return apiFetch<{ ok: true }>(`/api/live2d-models/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/** 收藏 = 下载数 +1（不是「使用」；使用走 updateCompanionSettings({ modelId })）。官方条目 400 */
+export function installLive2dModel(id: string) {
+  return apiFetch<{ ok: true; installed: boolean; downloadCount: number }>(
+    `/api/live2d-models/${encodeURIComponent(id)}/install`,
+    { method: "POST" }
+  );
+}
+
+export function uninstallLive2dModel(id: string) {
+  return apiFetch<{ ok: true; installed: boolean; downloadCount: number }>(
+    `/api/live2d-models/${encodeURIComponent(id)}/install`,
+    { method: "DELETE" }
+  );
+}
+
+export function toggleLive2dModelLike(id: string) {
+  return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(`/api/live2d-models/${encodeURIComponent(id)}/like`, {
+    method: "POST",
+  });
 }
