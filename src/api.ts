@@ -2376,14 +2376,26 @@ export async function streamCompanionChat(
   if (state.failure) throw createApiError(state.failure, { code: "COMPANION_UPSTREAM", status: 502 });
 }
 
+/** POST /api/tts 的请求体。★ 有 mix 时不传 voice（服务端以 mix 为准）；instruct / expressive 对 1.0 混音无效，也不传 */
+export type TtsRequestBody = {
+  text: string;
+  voice?: string;
+  /** 1～3 味 1.0 音色按权重调和（声音市场模板 / 用户自配）；与 voice 二选一 */
+  mix?: VoiceMixEntry[];
+  emotion?: string;
+  instruct?: string;
+  expressive?: boolean;
+  rate?: number;
+  pitch?: number;
+};
+
 /**
  * 豆包 TTS：返回 audio/mpeg 的 Blob（登录 + 每分钟 30 次限流，见服务端）。
  * emotion/instruct 来自 sentence.tts；expressive=true 走 2.0-expressive 模型，情绪标签才生效。
+ * ★ 请求体请用 companion/voiceMix.ts 的 buildTtsRequest() 从 VoiceSettings 拼：单音色 / 混音的分叉只写在那一处，
+ *   首页逐句 TTS、触摸反应、各处「试听」都走它，不要在调用点各自判断 mix。
  */
-export async function synthesizeSpeech(
-  body: { text: string; voice?: string; emotion?: string; instruct?: string; expressive?: boolean; rate?: number; pitch?: number },
-  signal?: AbortSignal
-): Promise<Blob> {
+export async function synthesizeSpeech(body: TtsRequestBody, signal?: AbortSignal): Promise<Blob> {
   const { headers, hadToken } = authOnlyHeaders({ "Content-Type": "application/json" });
   const res = await fetch(`${API_BASE}/api/tts`, { method: "POST", headers, body: JSON.stringify(body), signal });
   if (!res.ok) await throwHttpError(res, hadToken);
@@ -2394,22 +2406,34 @@ export async function synthesizeSpeech(
 // 契约：ideahub-server 分支 claude/companion-market —— /api/tts/voices、/api/companion/settings、/api/live2d-models。
 // 三层叠加：人格（说什么口吻）→ 音频（用什么嗓子）→ 模型（长什么样）。服务端负责合并，前端只管展示与改设置。
 
+/** 混音配方里的一味：1.0 音色 id + 权重。服务端会把权重归一到和为 1（3 位小数），前端展示用 voiceMix.ts 再归一一遍 */
+export type VoiceMixEntry = { voiceId: string; weight: number };
+
 /**
  * 豆包 TTS 参数（三处共用：人格自带 / 模型推荐 / 用户覆盖）。
  * ★ 每个字段都有「跟随」语义：voiceId "" / rate null / pitch null 表示不覆盖下一层，服务端按层合并。
+ * ★ 三种形态（docs/COMPANION.md「声音市场」）：单音色（voiceId）/ 混音（mix，服务端会清空 voiceId）/
+ *   来自声音市场模板（mix + templateId）。templateId 只是「来自哪个模板」的标记，配方是快照：模板被删了声音不变。
  */
 export type VoiceSettings = {
   /** "" = 跟随默认；只允许 /^[a-zA-Z0-9_.-]{1,64}$/ */
   voiceId: string;
+  /** 1～3 味 1.0 音色（只能用 GET /api/tts/voices 的 mixable 目录里的 id）；null = 单音色。老服务端没有这个字段 */
+  mix: VoiceMixEntry[] | null;
+  /** 来自声音市场哪个模板（「使用中」展示用）；null = 不是从模板来的。老服务端没有这个字段 */
+  templateId: string | null;
   /** speech_rate [-50,100]，倍速 = 1 + r/100；null = 跟随 */
   rate: number | null;
   /** [-12,12]；null = 跟随 */
   pitch: number | null;
-  /** ≤200 字语调指令（只对 2.0 音色生效） */
+  /** ≤200 字语调指令（只对 2.0 单音色生效，混音时无效） */
   instruct: string;
-  /** 走 seed-tts-2.0-expressive（默认 true） */
+  /** 走 seed-tts-2.0-expressive（默认 true；混音走 1.0，不看这个） */
   expressive: boolean;
 };
+
+/** PUT settings / 人格 / 模型的 voice 也接受只带 templateId 的形态：服务端自己展开成模板快照（少一次前端取模板） */
+export type VoiceSettingsInput = VoiceSettings | { templateId: string };
 
 /** 数字人接口里带的人格摘要（不是市场列表那个 Persona：没有 style/stats） */
 export type PersonaSummary = {
@@ -2471,14 +2495,20 @@ export type CompanionSettings = {
   voice: VoiceSettings;
 };
 
-/** GET /api/tts/voices 目录里的一条；目录之外的 id 也允许（表单要留「自定义音色 ID」入口） */
-export type TtsVoice = { id: string; name: string; why: string; expressive?: boolean; rate?: number };
+/** GET /api/tts/voices 目录里的一条 2.0 单音色；目录之外的 id 也允许（表单要留「自定义音色 ID」入口） */
+export type TtsVoice = { id: string; name: string; why: string; expressive?: boolean; rate?: number; generation?: "2.0"; mixable?: false };
+
+/** 混音原料：1.0 音色（*_moon_bigtts / *_mars_bigtts）。2.0 音色混不了，所以目录里两类分开给 */
+export type MixableVoice = { id: string; name: string; gender: "female" | "male"; generation: "1.0"; mixable: true };
 
 /** 数字人设置改动后广播的事件名：首页舞台/对话框、市场页监听它刷新（跨页面不共享 state，靠事件） */
 export const COMPANION_UPDATED_EVENT = "ideahub:companion-updated";
 
+/** mixable / maxMixVoices 是声音市场那版服务端才有的：老服务端缺省 → 前端当「不能混音」处理（见 companion/ttsVoices.ts） */
 export function getTtsVoices() {
-  return apiFetch<{ ok: true; voices: TtsVoice[]; defaultVoiceId: string }>("/api/tts/voices");
+  return apiFetch<{ ok: true; voices: TtsVoice[]; mixable?: MixableVoice[]; defaultVoiceId: string; maxMixVoices?: number }>(
+    "/api/tts/voices"
+  );
 }
 
 export function getCompanionSettings() {
@@ -2494,7 +2524,8 @@ export function getCompanionSettings() {
 export async function updateCompanionSettings(patch: {
   personaId?: string | null;
   modelId?: string | null;
-  voice?: VoiceSettings | null;
+  /** 整份 VoiceSettings，或 { templateId }（服务端展开成模板快照）；null = 恢复跟随人格 / 模型 */
+  voice?: VoiceSettingsInput | null;
 }) {
   const res = await apiFetch<CompanionSettings>("/api/companion/settings", {
     method: "PUT",
@@ -2502,6 +2533,103 @@ export async function updateCompanionSettings(patch: {
   });
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(COMPANION_UPDATED_EVENT));
   return res;
+}
+
+// ===== 声音市场（混音模板）/api/voice-templates =====
+// 契约：ideahub-server PR #49。一个模板 = 1～3 味 1.0 音色按比例调和 + 语速 + 音高；「使用」= PUT settings { voice: { templateId } }
+// + POST /:id/use 计数。配方是快照：作者删了模板，用户的声音不变，只是不再显示「使用中」。
+
+/** 声音市场里的一个模板；voice 是服务端拼好的 VoiceSettings 快照（voiceId ""、mix=recipe、templateId=_id），可直接当设置用 */
+export type VoiceTemplate = {
+  _id: string;
+  author: { _id: string; username: string } | string;
+  name: string;
+  description: string;
+  recipe: VoiceMixEntry[];
+  rate: number | null;
+  pitch: number | null;
+  instruct: string;
+  expressive: boolean;
+  shared: boolean;
+  stats: { useCount: number; likeCount: number };
+  liked: boolean;
+  isOwner: boolean;
+  createdAt: string;
+  updatedAt: string;
+  voice: VoiceSettings;
+};
+
+/** POST / PUT 的请求体：recipe 1～3 味，只能是 1.0 音色（2.0 id / 超 3 味 → 400，message 是中文人话，直接展示） */
+export type VoiceTemplateInput = {
+  /** 1～60 字 */
+  name: string;
+  /** ≤300 字 */
+  description?: string;
+  recipe: VoiceMixEntry[];
+  rate?: number | null;
+  pitch?: number | null;
+  /** ≤200 字；对混音无效，留着只是形状对齐 */
+  instruct?: string;
+  expressive?: boolean;
+  shared?: boolean;
+};
+
+type VoiceTemplateListResponse = {
+  ok: true;
+  templates: VoiceTemplate[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+/** scope=mine 未登录 401；limit ≤ 40 */
+export function listVoiceTemplates(params?: { sort?: "new" | "hot"; q?: string; scope?: "all" | "mine"; page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set("sort", params.sort);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.scope) qs.set("scope", params.scope);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return apiFetch<VoiceTemplateListResponse>(`/api/voice-templates${qs.toString() ? `?${qs.toString()}` : ""}`);
+}
+
+/** 私有且非作者 → 403 FORBIDDEN；不存在 → 404 NOT_FOUND */
+export function getVoiceTemplate(id: string) {
+  return apiFetch<{ ok: true; template: VoiceTemplate }>(`/api/voice-templates/${encodeURIComponent(id)}`);
+}
+
+/** 登录，10 次/分钟 */
+export function createVoiceTemplate(input: VoiceTemplateInput) {
+  return apiFetch<{ ok: true; template: VoiceTemplate }>("/api/voice-templates", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateVoiceTemplate(id: string, patch: Partial<VoiceTemplateInput>) {
+  return apiFetch<{ ok: true; template: VoiceTemplate }>(`/api/voice-templates/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteVoiceTemplate(id: string) {
+  return apiFetch<{ ok: true }>(`/api/voice-templates/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function toggleVoiceTemplateLike(id: string) {
+  return apiFetch<{ ok: true; liked: boolean; likeCount: number }>(`/api/voice-templates/${encodeURIComponent(id)}/like`, {
+    method: "POST",
+  });
+}
+
+/**
+ * 把模板应用到数字人 / 人格 / 模型时调一次（POST /:id/use，只是计数，不改任何设置）。
+ * ★ 没叫 useVoiceTemplate：`use` 开头的函数会被 react-hooks/rules-of-hooks 当成 Hook，在事件回调里调用直接报错。
+ */
+export function recordVoiceTemplateUse(id: string) {
+  return apiFetch<{ ok: true; useCount: number }>(`/api/voice-templates/${encodeURIComponent(id)}/use`, { method: "POST" });
 }
 
 /** 403 时服务端给的拒绝原因（updateCompanionSettings 选人格用）；不是 403 或没带原因 → "" */

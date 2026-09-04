@@ -73,6 +73,10 @@ export default function CompanionStage({ anchorRef, className }: Props) {
       if (!model) return;
       const wr = wrap.getBoundingClientRect();
       model.lookAtClient(event.clientX, event.clientY, { left: wr.left, top: wr.top });
+      // 指到身上换手型：提示"这里可以摸"。hitTest 只查几块包围盒，跟着 pointermove 跑没压力
+      if (event.target === model.canvas) {
+        model.canvas.style.cursor = model.hitTest(event.clientX, event.clientY, { left: wr.left, top: wr.top }).length ? "pointer" : "";
+      }
     };
     const onLeave = () => model?.lookForward();
     // 轻点（按下到抬起 < 350ms、位移 < 12px）= 摸了看板娘：问模型点到哪个命中区，交给对话框演一句（protocol.ts 的 TOUCH_REACTIONS）
@@ -99,6 +103,9 @@ export default function CompanionStage({ anchorRef, className }: Props) {
         if (!alive) return;
         model = created;
         created.attach(wrap);
+        // 舞台容器是 pointer-events-none（铺满左列、压在内容下面，不能挡住卡片的点击），
+        // 但画布本身要能被点到才有"摸一下有反应"：画布上没点到人的地方 hitTest 是空数组，等于没点
+        created.canvas.style.pointerEvents = "auto";
         companionBus.setModel(created);
         if (import.meta.env.DEV) {
           // 只在开发环境暴露到 window，方便在控制台直接调参数/看补片状态

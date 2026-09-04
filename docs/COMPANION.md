@@ -12,15 +12,27 @@
 | `src/components/CompanionStage.tsx` | Live2D 画布，铺满左列 z-0；模型按"留白 div"定位、跟随鼠标转头；登录用户按设置加载市场模型 |
 | `src/components/CompanionChat.tsx` | 对话框：SSE 流式对话、逐句 TTS（按合并后的音色）、演出队列、字幕、登录门禁、语音开关、场景 / 人格 / 换装按钮 |
 | `src/components/SceneBackgroundPicker.tsx` | 场景背景弹窗（默认深蓝 / 酒馆 / 卧室 / 书房 / 露台 / 咖啡馆 / 画室） |
-| `src/components/VoiceSettingsFields.tsx` | 「音频」表单块（音色 / 语速 / 音调 / 语调指令 / 情感模式 / 试听），人格编辑器与模型编辑器共用 |
-| `src/components/VoiceSummary.tsx` | 一组音频设置的只读摘要（人格详情 / 模型详情） |
+| `src/components/VoiceSettingsFields.tsx` | 「音频」表单块（单音色 / 混音 / 声音市场模板 三种模式 + 语速 / 音调 / 语调指令 / 情感模式 / 试听），人格编辑器、模型编辑器、首页声音面板共用 |
+| `src/components/VoiceSliders.tsx` | 语速 / 音调滑杆（带「跟随」态），音频表单与模板编辑器共用 |
+| `src/components/VoiceMixer.tsx` | 混音器：1～3 味 1.0 音色 × 权重滑杆，显示归一后的百分比，带试听 |
+| `src/components/VoiceSummary.tsx` | 一组音频设置的只读摘要（人格详情 / 模型详情）：混音显示配方，来自模板显示来源链接 |
+| `src/components/VoiceTemplateCard.tsx` | 声音模板卡片（配方摘要 / 语速音调 / ⬆ ❤ / 试听 / 主动作），市场列表、首页面板、选择器共用 |
+| `src/components/VoiceTemplateBrowser.tsx` | 模板紧凑浏览器（搜索 + 全部/我的 + 最热/最新），首页声音面板与选择器弹窗共用 |
+| `src/components/VoiceTemplatePickerModal.tsx` | 「声音市场模板」选择器弹窗（音频表单用） |
+| `src/components/CompanionVoiceModal.tsx` | 首页对话框「声音」面板：当前生效的声音 + 模板市场 tab + 自定义 tab（保存 / 恢复跟随） |
+| `src/pages/VoiceMarketPage.tsx` | 声音市场列表 `/voices/market`：设为我的声音 / 点赞 / 试听 |
+| `src/pages/VoiceTemplateDetailPage.tsx` | 模板详情 `/voices/market/:id`：配方表 / 语速音调 / 统计 / 作者编辑删除 |
+| `src/pages/VoiceTemplateEditorPage.tsx` | 创建 / 编辑模板 `/voices/market/new`、`/voices/market/:id/edit` |
+| `src/companion/voiceMix.ts` | 混音纯函数：权重归一 / 百分比（最大余数法）/ 配方文案 / `buildTtsRequest`（VoiceSettings → /api/tts 请求体的唯一实现）/ 服务端人话透传 |
+| `src/companion/voiceTemplates.ts` | 模板公共小件：作者名 / 错误文案 / 模板名缓存 hook / 试听句子 / 模板 → VoiceSettings 快照 |
+| `src/hooks/useAudioPreview.ts` | 所有「试听」按钮共用的播放逻辑（object URL 的 revoke、全站同时只放一段、过期结果丢弃） |
 | `src/components/Live2dModelCover.tsx` | 模型封面（无图时名字首字占位） |
 | `src/pages/Live2dMarketPage.tsx` | 模型市场列表 `/live2d/market`：使用 / 收藏 / 点赞 |
 | `src/pages/Live2dModelDetailPage.tsx` | 模型详情 `/live2d/market/:id`：模型信息 / 推荐人格 / 推荐音色 |
 | `src/pages/Live2dModelEditorPage.tsx` | 上传 / 编辑模型 `/live2d/market/new`、`/live2d/market/:id/edit` |
 | `src/hooks/useCompanionSettings.ts` | 读 `GET /api/companion/settings`，并监听 `ideahub:companion-updated` 刷新 |
 | `src/companion/modelSource.ts` | 「该加载哪个 model3.json」的唯一实现（官方内置 vs 市场模型） |
-| `src/companion/ttsVoices.ts` | 音色目录（`GET /api/tts/voices`）缓存 + hook + id 校验 |
+| `src/companion/ttsVoices.ts` | 音色目录（`GET /api/tts/voices`：2.0 单音色 `voices` + 1.0 混音原料 `mixable`）缓存 + hook + id 校验 |
 | `src/companion/live2dUploadError.ts` | 把服务端解包失败的英文报错翻成 i18n key |
 | `src/live2d/loader.ts` | 从 CDN 串行加载 Cubism Core → pixi.js 7 → pixi-live2d-display（lipsync 补丁版） |
 | `src/live2d/companionModel.ts` | 模型驱动：表情补片 / 动作 / 眨眼 / 口型包络 / 视线，全部挂在 ticker LOW 优先级；换 url 销毁重建 |
@@ -29,7 +41,7 @@
 | `src/companion/speech.ts` | 播放 TTS Blob，同时用 AnalyserNode 算响度包络喂口型 |
 | `src/companion/bus.ts` | 舞台与对话框之间的模块级单例（兄弟组件，不用 context 免得整页重渲染） |
 | `src/companion/scenes.ts` | 场景清单 + localStorage 偏好 |
-| `src/api.ts` | `getCompanionConfig` / `streamCompanionChat` / `synthesizeSpeech`；`getCompanionSettings` / `updateCompanionSettings`；`listLive2dModels` 等市场接口 |
+| `src/api.ts` | `getCompanionConfig` / `streamCompanionChat` / `synthesizeSpeech`；`getCompanionSettings` / `updateCompanionSettings`；`listLive2dModels` 等模型市场接口；`listVoiceTemplates` 等声音市场接口 |
 | `public/live2d/mascot/` | 官方看板娘模型（moc3 + 4096 webp 贴图 + exp3/motion3） |
 | `public/backgrounds/` | 场景背景 webp（1920×1080）与缩略图 |
 
@@ -84,6 +96,37 @@
 而这些组件分布在不同路由、不共享 state。所以 `updateCompanionSettings()` 成功后在 `window` 上广播
 `ideahub:companion-updated`（常量 `COMPANION_UPDATED_EVENT`），`useCompanionSettings` 与 `CompanionChat` 监听它重拉。
 删除自己正在用的模型时详情页也会补发一次。★ 事件只在 `updateCompanionSettings` 里发一处，不要在调用方各自 dispatch。
+
+## 声音市场（混音模板）
+
+服务端契约：ideahub-server PR #49（`/api/voice-templates`、`GET /api/tts/voices` 的 `mixable` / `maxMixVoices`、`POST /api/tts` 的 `mix`）。
+一个「声音模板」= 1～3 味豆包 **1.0** 基础音色按比例调和 + 语速 + 音高，可以公开分享，别人一键换上。
+
+### `VoiceSettings` 的三种形态
+
+| 形态 | 字段 | 表单里叫什么 | TTS 怎么发 |
+| --- | --- | --- | --- |
+| 单音色 | `voiceId`（+ `instruct` / `expressive`） | 「单音色」：目录下拉 / 自定义 ID | `{ voice, rate, pitch, expressive, emotion, instruct }` |
+| 混音 | `mix: [{ voiceId, weight }] × 1～3`，`voiceId` 服务端清空 | 「混音」：`VoiceMixer` | `{ mix, rate, pitch }` —— **不传** voice / instruct / expressive / emotion |
+| 来自模板 | `mix` + `templateId` | 「声音市场模板」：选择器 → chip「来自模板：xx」 | 同混音 |
+
+- **只有 1.0 音色能混**（`*_moon_bigtts` / `*_mars_bigtts`）。目录里 2.0 单音色（`voices`，支持语调指令 / 情感模式）与
+  1.0 混音原料（`mixable`）分开给：单音色下拉只列前者，混音器只列后者。2.0 id 进配方服务端 400，message 是中文人话，
+  `voiceErrorMessage()` 原样展示（`humanizeError` 会把 VALIDATION_ERROR 翻成笼统的「请检查输入」，所以要先过 `serverHumanMessage`）。
+- **语调指令 / 情感模式对混音无效**：混音模式下指令框禁用、情感模式不显示；`buildTtsRequest()` 也不会把它们发出去。
+- **权重**：滑杆 0.05～1（step 0.05），UI 显示归一后的百分比（`mixPercentages` 最大余数法，三味等权是 34/33/33 而不是 33/33/33=99%）；
+  请求体用 `normalizeMixWeights` 归一到和为 1（3 位小数），服务端会再归一一遍。
+- **`templateId` 是快照标记**：「使用」模板 = `PUT /api/companion/settings { voice: { templateId } }`（服务端展开成整份 VoiceSettings）
+  + `POST /api/voice-templates/:id/use` 计数（计数失败不影响设置，只 `console.warn`）。之后模板被作者改了、删了，用户的声音**不变**，
+  只是各处不再显示「使用中」、摘要里显示「模板已不存在」。人格 / 模型的 `voice` 同样可以带 `mix` / `templateId`。
+- **模式切换即改 value**（`VoiceSettingsFields`）：模式从 value 推导（`templateId` → 模板；`mix` 非空 → 混音；否则单音色），
+  切到「单音色」清掉 `mix` / `templateId`；切到「混音」清掉 `templateId`（配方复制成自己的，chip 消失）；
+  「声音市场模板」那个 tab 是按钮，点开选择器，选中才切过去。
+- **试听句子统一**：「你好，我是{数字人名}，这是我的新声音。」（`usePreviewSentence`，首页面板用 `config.name`，其它地方用默认名）。
+- **首页入口**：对话框「声音」按钮 → `CompanionVoiceModal`：顶部是合并结果（`config.voiceSettings`）+ 来源；「模板市场」tab 一键设为；
+  「自定义」tab 绑定 `settings.settings.voice`（用户覆盖那一层，**不是**合并结果，否则人格自带的音色会被当成用户改过的存回去），
+  「恢复跟随人格 / 模型」= `{ voice: null }`。
+- 路由 `/voices/market`、`/voices/market/:id`（游客可看可试听）、`/voices/market/new`、`/voices/market/:id/edit`（`ProtectedRoute`）。
 
 ## 运行时行为速查
 

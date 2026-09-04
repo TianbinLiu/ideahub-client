@@ -11,16 +11,17 @@
  * ★ 队列是串行 Promise 链而不是 state：句子到达是乱序异步的，用 state 排队会丢句/乱序。
  * ★ runId 递增 = "停止"：所有还在队列里的旧任务看到 run 变了就直接放弃，不用逐个取消。
  * ★ 未登录只拦"发送"（打开登录框），对话框本身照常显示，让游客知道这里能聊。
- * ★ 人格 / 音频 / 换装（docs/COMPANION.md「人格 / 音频 / 模型市场」）：config 里带着当前人格与合并后的音色，
- *   TTS 请求按 voiceSettings 发；「人格」按钮开 PersonaPickerModal → PUT /api/companion/settings，「换装」跳模型市场。
- *   谁改了设置都会广播 ideahub:companion-updated，这里监听它重拉 config（人格名 chip、音色都跟着变）。
+ * ★ 人格 / 音频 / 换装（docs/COMPANION.md「人格 / 音频 / 模型市场」「声音市场」）：config 里带着当前人格与合并后的音色，
+ *   TTS 请求按 voiceSettings 发（buildTtsRequest：有混音配方传 mix，否则传 voice —— 分叉只在那一处）；
+ *   「人格」按钮开 PersonaPickerModal → PUT /api/companion/settings，「声音」按钮开 CompanionVoiceModal（模板市场 / 自定义），
+ *   「换装」跳模型市场。谁改了设置都会广播 ideahub:companion-updated，这里监听它重拉 config（人格名 chip、音色都跟着变）。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import toast from "react-hot-toast";
-import { Drama, ImageIcon, Send, Shirt, Square, Volume2, VolumeX, X } from "lucide-react";
+import { AudioLines, Drama, ImageIcon, Send, Shirt, Square, Volume2, VolumeX, X } from "lucide-react";
 import {
   COMPANION_UPDATED_EVENT,
   companionForbiddenReason,
@@ -33,8 +34,10 @@ import {
 } from "../api";
 import { useAuth } from "../authContext";
 import AuthDialog from "./AuthDialog";
+import CompanionVoiceModal from "./CompanionVoiceModal";
 import PersonaPickerModal from "./PersonaPickerModal";
 import { companionBus } from "../companion/bus";
+import { buildTtsRequest } from "../companion/voiceMix";
 import { SpeechPlayer } from "../companion/speech";
 import { estimateSpeechMs, normalizeAction, normalizeFace, pickTouchReaction, type CompanionSentence } from "../companion/protocol";
 import { humanizeError } from "../utils/humanizeError";
@@ -87,6 +90,7 @@ export default function CompanionChat({ onOpenScene }: Props) {
   const [authOpen, setAuthOpen] = useState(false);
   const [personaOpen, setPersonaOpen] = useState(false);
   const [personaBusy, setPersonaBusy] = useState(false);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
 
   const playerRef = useRef<SpeechPlayer | null>(null);
   const runRef = useRef(0);
@@ -150,18 +154,10 @@ export default function CompanionChat({ onOpenScene }: Props) {
         const run = runRef.current;
         const controller = new AbortController();
         const sentence: CompanionSentence = { index: 0, text: pick.text, emotion: pick.emotion, face: pick.face, action: pick.action, tts: { emotion: pick.emotion, instruct: "" } };
-        const vs = config?.voiceSettings;
         const audio: Promise<Blob | null> =
           voiceOn && Boolean(config?.tts)
             ? synthesizeSpeech(
-                {
-                  text: sentence.text,
-                  voice: vs?.voiceId || config?.voice || undefined,
-                  rate: vs?.rate ?? undefined,
-                  pitch: vs?.pitch ?? undefined,
-                  expressive: vs ? vs.expressive : true,
-                  emotion: sentence.tts.emotion,
-                },
+                buildTtsRequest({ text: sentence.text, settings: config?.voiceSettings, fallbackVoiceId: config?.voice, emotion: sentence.tts.emotion }),
                 controller.signal,
               ).catch(() => null)
             : Promise.resolve(null);
@@ -286,21 +282,19 @@ export default function CompanionChat({ onOpenScene }: Props) {
         { messages: history, lang: i18n.language.startsWith("zh") ? "zh" : "en" },
         {
           onSentence: (sentence) => {
-            // 音色三层（用户覆盖 > 人格自带 > 模型推荐 > 默认）服务端已合并进 voiceSettings，这里原样展开；
-            // 情绪与语调指令按句来（sentence.tts.instruct 已是「人设语调；情绪语调」合并后的串）。
+            // 音色三层（用户覆盖 > 人格自带 > 模型推荐 > 默认）服务端已合并进 voiceSettings，buildTtsRequest 负责展开：
+            // 有混音配方就传 mix（不传 voice / instruct），否则传 voice；情绪与语调指令按句来
+            // （sentence.tts.instruct 已是「人设语调；情绪语调」合并后的串）。
             // 老服务端没有 voiceSettings 时回落到老字段 voice + expressive=true，行为与改造前一致。
-            const vs = config?.voiceSettings;
             const audio: Promise<Blob | null> = wantVoice
               ? synthesizeSpeech(
-                  {
+                  buildTtsRequest({
                     text: sentence.text,
-                    voice: vs?.voiceId || config?.voice || undefined,
-                    rate: vs?.rate ?? undefined,
-                    pitch: vs?.pitch ?? undefined,
-                    expressive: vs ? vs.expressive : true,
+                    settings: config?.voiceSettings,
+                    fallbackVoiceId: config?.voice,
                     emotion: sentence.tts?.emotion,
                     instruct: sentence.tts?.instruct,
-                  },
+                  }),
                   controller.signal,
                 ).catch(() => null)
               : Promise.resolve(null);
@@ -394,6 +388,18 @@ export default function CompanionChat({ onOpenScene }: Props) {
         >
           <Drama className="h-4 w-4" />
         </button>
+        {/* 声音：开声音面板（模板市场 / 自定义；游客先登录） */}
+        <button
+          type="button"
+          onClick={() => (user ? setVoiceModalOpen(true) : setAuthOpen(true))}
+          className={`rounded-full p-2 transition hover:bg-gray-800 hover:text-white ${
+            config?.voiceSettings?.templateId ? "text-cyan-300" : "text-gray-300"
+          }`}
+          title={t("companion.voiceButton")}
+          aria-label={t("companion.voiceButton")}
+        >
+          <AudioLines className="h-4 w-4" />
+        </button>
         <Link
           to="/live2d/market"
           className="rounded-full p-2 text-gray-300 transition hover:bg-gray-800 hover:text-white"
@@ -445,6 +451,7 @@ export default function CompanionChat({ onOpenScene }: Props) {
 
       {authOpen ? <AuthDialog initialMode="login" next="/" onClose={() => setAuthOpen(false)} /> : null}
       <PersonaPickerModal open={personaOpen} onClose={() => setPersonaOpen(false)} onSelect={(persona) => void handlePickPersona(persona)} />
+      <CompanionVoiceModal open={voiceModalOpen} onClose={() => setVoiceModalOpen(false)} config={config} />
     </div>
   );
 }

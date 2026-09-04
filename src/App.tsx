@@ -80,6 +80,9 @@ const MemeLibraryPage = lazy(() => import("./pages/MemeLibraryPage"));
 const Live2dMarketPage = lazy(() => import("./pages/Live2dMarketPage"));
 const Live2dModelDetailPage = lazy(() => import("./pages/Live2dModelDetailPage"));
 const Live2dModelEditorPage = lazy(() => import("./pages/Live2dModelEditorPage"));
+const VoiceMarketPage = lazy(() => import("./pages/VoiceMarketPage"));
+const VoiceTemplateDetailPage = lazy(() => import("./pages/VoiceTemplateDetailPage"));
+const VoiceTemplateEditorPage = lazy(() => import("./pages/VoiceTemplateEditorPage"));
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -507,6 +510,28 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Live2dModelEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          {/*
+            声音市场：豆包 1.0 混音模板（docs/COMPANION.md「声音市场」）。与模型市场同样不放在 /arena 下 ——
+            游客也要能逛、能试听；new / edit 走 ProtectedRoute。
+          */}
+          <Route path="/voices/market" element={<VoiceMarketPage />} />
+          <Route
+            path="/voices/market/new"
+            element={
+              <ProtectedRoute>
+                <VoiceTemplateEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/voices/market/:id" element={<VoiceTemplateDetailPage />} />
+          <Route
+            path="/voices/market/:id/edit"
+            element={
+              <ProtectedRoute>
+                <VoiceTemplateEditorPage />
               </ProtectedRoute>
             }
           />
