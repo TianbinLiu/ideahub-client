@@ -3,12 +3,15 @@
  * @category Component
  * @requires_auth no
  *
- * 只负责：加载模型、把它"站"到 anchorRef 指向的留白区域、跟随鼠标转头、尺寸变化时重摆。
+ * 只负责：取模型、把它"站"到 anchorRef 指向的留白区域、跟随鼠标转头、尺寸变化时重摆。
  * 表情/动作/口型由 CompanionChat 通过 companionBus 驱动，本组件不认识对话。
  *
  * ★ 舞台画布覆盖整个左列，但模型按 anchorRef（留白 div）定位：这样推荐位展开时头部会"躲"在卡片后面，
  *   收起时留白变高、模型自动长大——这就是"看板娘在最底层"的全部实现，不需要任何 z-index 魔法。
- * ★ 移动端不挂（父级 hidden lg:block）：手机上没有留白区域，也省掉 700KB 运行时。
+ * ★ 画布不是这里 render 出来的：模型是全站单例、自带画布，这里只是 acquire 后 attach 进容器、卸载时 detach。
+ *   离开首页再回来会重挂一次；如果每次都新建 WebGL 上下文，Cubism 缓存的着色器就属于旧上下文，画布一片空白
+ *   （见 live2d/companionModel.ts 文件头）。
+ * ★ 移动端不挂（父级 hidden lg:block）：手机上没有留白区域，也省掉 800KB 运行时。
  */
 
 import { useEffect, useRef, useState, type RefObject } from "react";
@@ -25,15 +28,13 @@ type Props = {
 
 export default function CompanionStage({ anchorRef, className }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const wrap = wrapRef.current;
-    const canvas = canvasRef.current;
-    if (!wrap || !canvas) return;
+    if (!wrap) return;
 
-    let disposed = false;
+    let alive = true;
     let model: CompanionModel | null = null;
 
     const fit = () => {
@@ -63,35 +64,32 @@ export default function CompanionStage({ anchorRef, className }: Props) {
     document.addEventListener("pointerleave", onLeave);
     window.addEventListener("resize", fit);
 
-    void (async () => {
-      try {
-        const created = await CompanionModel.create(canvas, MODEL_URL);
-        if (disposed) {
-          created.destroy();
-          return;
-        }
+    void CompanionModel.acquire(MODEL_URL)
+      .then((created) => {
+        if (!alive) return;
         model = created;
+        created.attach(wrap);
         companionBus.setModel(created);
         if (import.meta.env.DEV) {
           // 只在开发环境暴露到 window，方便在控制台直接调参数/看补片状态
           (window as Window & { __companionModel?: CompanionModel }).__companionModel = created;
         }
         fit();
-      } catch (error) {
+      })
+      .catch((error) => {
         console.warn("[companion] stage failed to load", error);
-        if (!disposed) setFailed(true);
-      }
-    })();
+        if (alive) setFailed(true);
+      });
 
     return () => {
-      disposed = true;
+      alive = false;
       observer.disconnect();
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("resize", fit);
       if (model) {
+        model.detach();
         if (companionBus.model === model) companionBus.setModel(null);
-        model.destroy();
         model = null;
       }
     };
@@ -99,9 +97,5 @@ export default function CompanionStage({ anchorRef, className }: Props) {
 
   if (failed) return null;
 
-  return (
-    <div ref={wrapRef} className={className} aria-hidden="true">
-      <canvas ref={canvasRef} className="block h-full w-full" />
-    </div>
-  );
+  return <div ref={wrapRef} className={className} aria-hidden="true" />;
 }

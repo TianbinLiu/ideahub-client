@@ -10,6 +10,11 @@
  * ★ 所有写参数的操作都挂在 ticker 的 LOW 优先级：pixi-live2d-display 每帧先跑 动作→表情→呼吸→物理，
  *   之后我们再叠加（addParameterValueById）或覆盖，否则会被动作覆盖掉。
  * ★ 口型包络的起落时间（40ms / 90ms）与"补片阈值"决定了嘴是"抖"还是"说"，改之前看 protocol.ts 的注释。
+ * ★★ 全站只允许一个实例、一个 WebGL 上下文（acquire / attach / detach）：Cubism 框架把编译好的着色器缓存在
+ *   单例里，第一次用的是哪个 WebGL 上下文就绑死了；组件卸载再挂载时如果新建 pixi Application，
+ *   第二个上下文拿到的是旧程序 —— 控制台刷 "useProgram: object does not belong to this context"，画布一片空白
+ *   （2026-09-04 在 App 客服页切「我的工单」再切回来实测）。所以画布是模型自己造的、跟着模型活一辈子，
+ *   组件只负责把它挂进/摘出自己的容器。
  */
 
 import { loadLive2DRuntime, type Live2DModelInstance, type PixiApplication, type PixiRuntime } from "./loader";
@@ -36,7 +41,13 @@ function clamp01(v: number) {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
+let singleton: CompanionModel | null = null;
+let pending: Promise<CompanionModel> | null = null;
+
 export class CompanionModel {
+  /** 模型自己的画布：由 attach() 挂进容器、detach() 摘出来，从不销毁（见文件头 ★★） */
+  readonly canvas: HTMLCanvasElement;
+  readonly modelUrl: string;
   private readonly pixi: PixiRuntime;
   private readonly app: PixiApplication;
   private readonly model: Live2DModelInstance;
@@ -61,10 +72,12 @@ export class CompanionModel {
   private fitOptions = { heightRatio: 1.2, xBias: 0.5 };
   private readonly tick = () => this.onTick();
 
-  private constructor(pixi: PixiRuntime, app: PixiApplication, model: Live2DModelInstance) {
+  private constructor(pixi: PixiRuntime, app: PixiApplication, model: Live2DModelInstance, canvas: HTMLCanvasElement, modelUrl: string) {
     this.pixi = pixi;
     this.app = app;
     this.model = model;
+    this.canvas = canvas;
+    this.modelUrl = modelUrl;
     const core = model.internalModel.coreModel;
     const rawParts = core.getModel ? Array.from(core.getModel().parts.ids) : [];
     for (const id of EXPRESSION_PARTS) {
@@ -77,27 +90,63 @@ export class CompanionModel {
     app.ticker.add(this.tick, undefined, pixi.UPDATE_PRIORITY.LOW);
   }
 
-  static async create(canvas: HTMLCanvasElement, modelUrl: string) {
-    const pixi = await loadLive2DRuntime();
-    const app = new pixi.Application({
-      view: canvas,
-      backgroundAlpha: 0,
-      antialias: true,
-      autoDensity: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 1.5),
-      width: Math.max(1, canvas.clientWidth),
-      height: Math.max(1, canvas.clientHeight),
+  /**
+   * 取全站唯一的模型实例；第一次调用才真正加载运行时与模型，之后原样复用。
+   * 换了 modelUrl 才会销毁重建（同一页面里不会发生，留作将来换装）。
+   */
+  static acquire(modelUrl: string): Promise<CompanionModel> {
+    if (singleton && !singleton.disposed && singleton.modelUrl === modelUrl) return Promise.resolve(singleton);
+    if (pending) return pending;
+    pending = (async () => {
+      if (singleton) {
+        singleton.destroy();
+        singleton = null;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.style.display = "block";
+      canvas.setAttribute("aria-hidden", "true");
+      const pixi = await loadLive2DRuntime();
+      const app = new pixi.Application({
+        view: canvas,
+        backgroundAlpha: 0,
+        antialias: true,
+        autoDensity: true,
+        resolution: Math.min(window.devicePixelRatio || 1, 1.5),
+        width: 2,
+        height: 2,
+      });
+      let model: Live2DModelInstance;
+      try {
+        model = await pixi.live2d.Live2DModel.from(modelUrl, { autoInteract: false, idleMotionGroup: "Idle" });
+      } catch (error) {
+        app.destroy(false);
+        throw error;
+      }
+      app.stage.addChild(model);
+      model.anchor.set(0.5, 0.5);
+      singleton = new CompanionModel(pixi, app, model, canvas, modelUrl);
+      return singleton;
+    })().finally(() => {
+      pending = null;
     });
-    let model: Live2DModelInstance;
-    try {
-      model = await pixi.live2d.Live2DModel.from(modelUrl, { autoInteract: false, idleMotionGroup: "Idle" });
-    } catch (error) {
-      app.destroy(false);
-      throw error;
-    }
-    app.stage.addChild(model);
-    model.anchor.set(0.5, 0.5);
-    return new CompanionModel(pixi, app, model);
+    return pending;
+  }
+
+  /** 把画布挂进容器并恢复渲染循环。容器需要 position:relative/absolute + overflow:hidden */
+  attach(container: HTMLElement) {
+    if (this.disposed) return;
+    if (this.canvas.parentElement !== container) container.appendChild(this.canvas);
+    this.lastFrame = performance.now();
+    this.app.ticker.start();
+  }
+
+  /** 组件卸载：摘出画布、停掉渲染循环，模型本体留着给下一次 attach */
+  detach() {
+    if (this.disposed) return;
+    this.stopSpeaking();
+    this.lookForward();
+    this.app.ticker.stop();
+    this.canvas.remove();
   }
 
   /** 舞台（canvas）尺寸变化时调用；随后会按上次的锚点矩形重新摆位 */
@@ -176,6 +225,7 @@ export class CompanionModel {
     this.mouthTarget = 0;
   }
 
+  /** 彻底销毁（换模型时用；正常卸载走 detach） */
   destroy() {
     if (this.disposed) return;
     this.disposed = true;
@@ -186,8 +236,9 @@ export class CompanionModel {
     } catch {
       // 模型已经被 pixi 回收
     }
-    // canvas 是 React 的，不能让 pixi 删 DOM（removeView=false）
     this.app.destroy(false, { children: true });
+    this.canvas.remove();
+    if (singleton === this) singleton = null;
   }
 
   private setPartOpacity(id: ExpressionPart, value: number) {

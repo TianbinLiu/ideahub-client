@@ -56,6 +56,8 @@ export type PixiApplication = {
   ticker: {
     add(fn: (delta: number) => void, context?: unknown, priority?: number): void;
     remove(fn: (delta: number) => void, context?: unknown): void;
+    start(): void;
+    stop(): void;
     deltaMS: number;
   };
   destroy(removeView?: boolean, options?: { children?: boolean }): void;
