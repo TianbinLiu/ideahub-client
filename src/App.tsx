@@ -33,6 +33,7 @@ const FeedPage = lazy(() => import("./pages/FeedPage"));
 const CompanyPage = lazy(() => import("./pages/CompanyPage"));
 const DownloadPage = lazy(() => import("./pages/DownloadPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const ChildSafetyPage = lazy(() => import("./pages/ChildSafetyPage"));
 const VideoPreviewPage = lazy(() => import("./pages/VideoPreviewPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
@@ -309,6 +310,10 @@ export default function App() {
           {/* 隐私政策。★同样**必须不登录可访问**：应用市场与开放平台（微信/QQ/Play）
               审核的人没有账号，这一页正是给他们看的 */}
           <Route path="/privacy" element={<PrivacyPage />} />
+          {/* 儿童安全标准（CSAE）。★ Google Play 对 Social 类的**硬门禁**：
+              Play Console 里要填这个网址，审核会核"打得开、讲的是儿童安全、
+              出现商店上的应用名"三条。★同样必须不登录可访问 —— 审核的人没有账号。 */}
+          <Route path="/child-safety" element={<ChildSafetyPage />} />
           {/* App 作品的站外预览页（App 分享链接的落地页）。★不登录可访问：
               链接就是发给没装 App 的陌生人的，看完引导去 /download */}
           <Route path="/v/:id" element={<VideoPreviewPage />} />
