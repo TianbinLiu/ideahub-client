@@ -8,6 +8,44 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      ★★ 这段 noscript 不是"照顾关掉 JS 的人"，它是为 **Google Play 的儿童安全标准检查** 存在的。
+        Play 会去核 /child-safety 这个网址三条：打得开、内容确实在讲 CSAE / 儿童安全、
+        **出现商店条目上的应用名**。而本站是纯 CSR 的懒加载路由 —— 不跑 JS 的抓取器
+        （审核侧的自动检查、以及各种爬虫）拿到的 HTML 里**一个字都没有**，
+        三条判据里有两条对它不成立，而页面在浏览器里看起来完全正常（2026-09-03 复核抓到）。
+      ★ 这里只放**摘要 + 指路**，不抄全文：标准正文只有 src/pages/ChildSafetyPage.tsx
+        与 locales 里那一份（同一份对外承诺抄两遍，改一处漏一处零报错）。
+        所以下面这几句必须是**长期成立的最小事实**，别写会随产品变的细节。
+      ★ 中英都写：审核方与用户两边都可能只拿到这一段。
+    -->
+    <noscript>
+      <div style="max-width: 44rem; margin: 2rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; line-height: 1.7">
+        <h1>启梦 / QiMeng</h1>
+        <p>
+          启梦（QiMeng）是一款用 AI 生成短视频并公开发布的应用，由个人开发者刘天彬运营。
+          我们<strong>绝对禁止一切儿童性虐待与性剥削（CSAE）内容与行为</strong>，
+          包括由 AI 生成或改绘的。应用内的作品、评论、弹幕都带举报入口，
+          其中有专门的「涉及未成年人」一项，这一类举报优先进入人工复核。
+          儿童安全联系人：刘天彬，<a href="mailto:support@ideahubs.org">support@ideahubs.org</a>。
+        </p>
+        <p>
+          QiMeng (启梦) is an app for generating and publishing short videos with AI, operated by
+          Tianbin Liu, an individual developer. We
+          <strong>prohibit all child sexual abuse and exploitation (CSAE) content and conduct</strong>,
+          including AI-generated and AI-edited material. Works, comments and danmaku each carry an
+          in-app report entry with a dedicated reason for content involving a minor, and those
+          reports are reviewed by a human ahead of all others. Child safety point of contact:
+          Tianbin Liu, <a href="mailto:support@ideahubs.org">support@ideahubs.org</a>.
+        </p>
+        <p>
+          完整的儿童安全标准 / Full child safety standards:
+          <a href="https://ideahubs.org/child-safety">https://ideahubs.org/child-safety</a>
+          （需要开启 JavaScript / requires JavaScript）。
+          隐私政策 / Privacy policy: <a href="https://ideahubs.org/privacy">https://ideahubs.org/privacy</a>
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

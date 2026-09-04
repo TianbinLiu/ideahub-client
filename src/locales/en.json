@@ -2225,7 +2225,8 @@
   "siteFooter": {
     "operator": "Operated by Tianbin Liu (individual developer)",
     "contact": "Contact:",
-    "privacy": "Privacy Policy"
+    "privacy": "Privacy Policy",
+    "childSafety": "Child Safety Standards"
   },
   "videoPreview": {
     "appName": "QiMeng",
@@ -2240,5 +2241,39 @@
     "doneSub": "In QiMeng, one written idea becomes a short film — scene by scene.",
     "plays": "{{count}} plays",
     "replay": "Watch again"
+  },
+  "childSafety": {
+    "title": "Child Safety Standards",
+    "updated": "Last updated: September 3, 2026",
+    "scopeTitle": "Scope",
+    "scopeBody": "These are the child safety standards for the QiMeng (启梦) Android app and the QiMeng website (ideahubs.org), both operated by Tianbin Liu, an individual developer. QiMeng is an app for generating short videos with AI and publishing them: users can upload material, generate footage, publish work, and comment on one another's. These standards apply to all of it.",
+    "stanceTitle": "Our position: zero tolerance",
+    "stanceBody": "We prohibit all child sexual abuse and exploitation (CSAE) content and conduct, without exception. The prohibition does not depend on the medium — photographed, drawn, composited, and AI-generated or AI-edited material are all treated the same. As an AI generation tool we take that last category especially seriously: the absence of a real victim does not make a piece of content acceptable.",
+    "bannedTitle": "Explicitly prohibited",
+    "banned1": "Child sexual abuse material (CSAM) in any form, including material produced with AI generation, AI editing, face-swapping, or undressing tools;",
+    "banned2": "Content that sexualizes minors, including suggestive imagery, poses, or descriptions centered on a minor;",
+    "banned3": "Sexual solicitation, grooming, sextortion, or offline meeting requests directed at minors;",
+    "banned4": "Trading, soliciting, requesting, or distributing such material, and the use of coded language to evade moderation;",
+    "banned5": "Uploading another person's likeness or voice — a minor's above all — for generation without the explicit authorization of that person and their guardian.",
+    "detectTitle": "How we find it",
+    "detectGen": "At generation time: every generation request passes through the content moderation of our upstream model providers (Volcano Engine Ark, MiniMax). Requests involving the sexualization of minors are rejected outright, and we offer no switch that bypasses that moderation. Marking material as depicting a real person requires confirming that consent has been lawfully obtained from that person before the card can be created, and most generation tiers additionally require a completed portrait authorization and a verified asset ID before anything is produced. Note that we do not run face recognition over uploads, so whether material depicts a real person rests on the uploader declaring it — undeclared material is covered by upstream moderation and by reports after the fact.",
+    "detectReport": "After publication: works, comments, and danmaku each carry a report entry, including a dedicated reason for content involving a minor. Reports of that kind are reviewed by a human ahead of all other reports.",
+    "detectHonest": "We state the limits of our capability honestly: we do not currently run automated hash matching (PhotoDNA, CSAI Match, or similar) over all uploads. Detection rests on the three paths above — upstream model moderation, user reports, and human review. We do not claim detection capabilities we have not built.",
+    "reportTitle": "How to report to us",
+    "reportInApp": "In the app: open any work, comment, or danmaku, tap Report, choose the reason for content involving a minor, and add details. This never requires leaving the app and never puts you in contact with the person you are reporting.",
+    "reportEmail": "By email (open to anyone — no account and no app install needed): write to {{email}} with “child safety” in the subject line, and include a link or username where you can.",
+    "reportContact": "Child safety point of contact: Tianbin Liu (the operator), {{email}}. This is a real, monitored inbox.",
+    "reportUrgent": "If a minor is in immediate danger, contact your local law enforcement first (110 in mainland China), then tell us.",
+    "actTitle": "What we do once a violation is confirmed",
+    "act1": "Take down or delete the content immediately;",
+    "act2": "Ban the account — a ban blocks sign-in and every action that requires being signed in, and the reason is shown to the person banned;",
+    "act3": "Keep the record of the report and of what we did about it — the reason given, the reporter's description, the identifier of what was acted on, and who acted and when. Taking the content down or deleting it, and deletion of the account involved, do not remove that record. We do not keep a copy of the reported content itself; where we must supply material to the authorities, it is based on what we held before acting and on our upstream providers' own records.",
+    "act4": "Report to the competent authorities and cooperate with their investigation, as applicable law requires.",
+    "lawTitle": "Legal compliance",
+    "lawBody": "We comply with the child safety laws of the jurisdictions we operate in, including the Law on the Protection of Minors and the Cybersecurity Law of the People's Republic of China, and we cooperate with lawful requests for investigation and data from the competent authorities. Where these standards conflict with a stricter legal requirement, the law governs.",
+    "minorsTitle": "Minors using this app",
+    "minorsBody": "The app does not knowingly collect personal information from minors. Minors should use it with the consent and guidance of a guardian; any spending requires guardian consent. A guardian who finds that a minor registered or provided personal information without consent may write to us to have the account and its data deleted.",
+    "changesTitle": "Changes to these standards",
+    "changesBody": "We update this page as the product changes; the last-updated date above identifies the current version."
   }
 }
