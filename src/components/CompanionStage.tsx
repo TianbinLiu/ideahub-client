@@ -75,9 +75,24 @@ export default function CompanionStage({ anchorRef, className }: Props) {
       model.lookAtClient(event.clientX, event.clientY, { left: wr.left, top: wr.top });
     };
     const onLeave = () => model?.lookForward();
+    // 轻点（按下到抬起 < 350ms、位移 < 12px）= 摸了看板娘：问模型点到哪个命中区，交给对话框演一句（protocol.ts 的 TOUCH_REACTIONS）
+    let pressed: { x: number; y: number; at: number } | null = null;
+    const onDown = (event: PointerEvent) => {
+      pressed = { x: event.clientX, y: event.clientY, at: performance.now() };
+    };
+    const onUp = (event: PointerEvent) => {
+      const p = pressed;
+      pressed = null;
+      if (!model || !p) return;
+      if (performance.now() - p.at > 350 || Math.hypot(event.clientX - p.x, event.clientY - p.y) > 12) return;
+      const wr = wrap.getBoundingClientRect();
+      companionBus.hit(model.hitTest(event.clientX, event.clientY, { left: wr.left, top: wr.top }));
+    };
     window.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerleave", onLeave);
     window.addEventListener("resize", fit);
+    wrap.addEventListener("pointerdown", onDown);
+    wrap.addEventListener("pointerup", onUp);
 
     void CompanionModel.acquire(modelUrl)
       .then((created) => {
@@ -104,6 +119,8 @@ export default function CompanionStage({ anchorRef, className }: Props) {
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("resize", fit);
+      wrap.removeEventListener("pointerdown", onDown);
+      wrap.removeEventListener("pointerup", onUp);
       if (model) {
         model.detach();
         if (companionBus.model === model) companionBus.setModel(null);

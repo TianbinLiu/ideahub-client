@@ -36,7 +36,7 @@ import AuthDialog from "./AuthDialog";
 import PersonaPickerModal from "./PersonaPickerModal";
 import { companionBus } from "../companion/bus";
 import { SpeechPlayer } from "../companion/speech";
-import { estimateSpeechMs, normalizeAction, normalizeFace, type CompanionSentence } from "../companion/protocol";
+import { estimateSpeechMs, normalizeAction, normalizeFace, pickTouchReaction, type CompanionSentence } from "../companion/protocol";
 import { humanizeError } from "../utils/humanizeError";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -133,6 +133,46 @@ export default function CompanionChat({ onOpenScene }: Props) {
     if (!playerRef.current) playerRef.current = new SpeechPlayer();
     return playerRef.current;
   }
+
+  // 触摸反应：舞台（CompanionStage）报上来的命中区 → 演一句预置台词（不进 LLM、不进历史）；说话/思考中不打断，1.8s 内只理一次
+  const phaseRef = useRef<Phase>("idle");
+  phaseRef.current = phase;
+  const lastTouchRef = useRef(0);
+  useEffect(
+    () =>
+      companionBus.onHit((areas) => {
+        const nowMs = Date.now();
+        if (phaseRef.current !== "idle" || nowMs - lastTouchRef.current < 1800) return;
+        const pick = pickTouchReaction(areas, i18n.language.startsWith("zh") ? "zh" : "en");
+        if (!pick) return;
+        lastTouchRef.current = nowMs;
+        stopAll();
+        const run = runRef.current;
+        const controller = new AbortController();
+        const sentence: CompanionSentence = { index: 0, text: pick.text, emotion: pick.emotion, face: pick.face, action: pick.action, tts: { emotion: pick.emotion, instruct: "" } };
+        const vs = config?.voiceSettings;
+        const audio: Promise<Blob | null> =
+          voiceOn && Boolean(config?.tts)
+            ? synthesizeSpeech(
+                {
+                  text: sentence.text,
+                  voice: vs?.voiceId || config?.voice || undefined,
+                  rate: vs?.rate ?? undefined,
+                  pitch: vs?.pitch ?? undefined,
+                  expressive: vs ? vs.expressive : true,
+                  emotion: sentence.tts.emotion,
+                },
+                controller.signal,
+              ).catch(() => null)
+            : Promise.resolve(null);
+        setPhase("speaking");
+        void enqueue(run, () => perform(run, sentence, audio, controller.signal)).then(() => {
+          if (runRef.current === run) setPhase("idle");
+        });
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stopAll/enqueue/perform 是组件内的函数声明，随渲染同步
+    [config, voiceOn, i18n.language],
+  );
 
   function stopAll() {
     runRef.current += 1;
