@@ -280,7 +280,9 @@ export default function Navbar() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-gray-800 bg-gray-950/88 backdrop-blur" data-tour="top-nav">
-      <div className="mx-auto grid max-w-7xl grid-cols-[auto,1fr,auto] items-center gap-4 px-4 py-3">
+      {/* ★ 小屏（<640px）：间距收紧、搜索整块收起换成右边一个图标 —— 这一行原来最窄 660px，
+          手机上会把整个文档撑宽、浏览器把页面缩小到看不清（2026-09-05 从 App 分享链实测） */}
+      <div className="mx-auto grid max-w-7xl grid-cols-[auto,1fr,auto] items-center gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
         <div className="flex items-center gap-3">
           <Link to="/" className="font-bold text-xl text-white">{t("common.brand")}</Link>
           <NavLink to="/" title={t("nav.home")} aria-label={t("nav.home")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
@@ -302,7 +304,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="relative mx-auto w-full max-w-xl">
+        <div className="relative mx-auto hidden w-full max-w-xl sm:block">
           <form onSubmit={submitNavSearch} className="flex w-full items-center overflow-hidden rounded-full border border-gray-800 bg-gray-900/80 focus-within:border-cyan-500">
             <select
               value={navGroup}
@@ -409,6 +411,15 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 text-sm">
+          {/* 小屏上搜索框收起了，给一个入口进 /search（那一页自带搜索框） */}
+          <NavLink
+            to="/search"
+            title={t("common.search")}
+            aria-label={t("common.search")}
+            className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900 sm:hidden`}
+          >
+            <Search className="h-5 w-5" />
+          </NavLink>
           {user && <NotificationsDropdown unreadCount={unread} />}
 
           <button

@@ -2473,7 +2473,8 @@
     "doneTruncated": "The rest lives in the QiMeng app",
     "doneSub": "In QiMeng, one written idea becomes a short film — scene by scene.",
     "plays": "{{count}} plays",
-    "replay": "Watch again"
+    "replay": "Watch again",
+    "stickyNote": "Full video · make your own"
   },
   "voiceMixer": {
     "previewText": "Hi, I'm {{name}} — this is my new voice.",

@@ -2473,7 +2473,8 @@
     "doneTruncated": "后面的还在启梦 App 里",
     "doneSub": "在启梦 App 里，你也可以写一句创意，让 AI 帮你拍成短片。",
     "plays": "{{count}} 次播放",
-    "replay": "再看一遍"
+    "replay": "再看一遍",
+    "stickyNote": "看完整版 · 一句话做同款"
   },
   "voiceMixer": {
     "previewText": "你好，我是{{name}}，这是我的新声音。",
