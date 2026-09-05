@@ -56,7 +56,8 @@
    **每层必须裁到自身 alpha 包围盒**，否则 Cubism 自动生成脸部变形器会失败（"rect is invalid"）。
 3. Cubism Editor 5.3（PRO 试用）：导入 PSD → 参数面板「自动生成脸部动作」→ 4096 贴图集 → 以 SDK 4.2 兼容格式导出 moc3。
 4. mascot13（2026-09-05）：手臂切成上臂/前臂/手三段并加肘/腕旋转（ParamForearmL/R、ParamHandL/R），眼球/眉毛补键，头 Angle X/Y 自动生成，披风加摆动参数（physics3 第 5 组）；动作库 9 段带前臂曲线（wave/shy/surprised/bow 新增），HitAreas 加了双手。细节见 App 仓 `docs/live2d-model-roadmap.md` §5。
-5. 残影清理（2026-09-05，贴图 mascot12）：See-through 补全区带着上层轮廓/阴影的印子，上层一动就露出来；用 LaMa（IOPaint）逐层重画被遮挡的边带后贴回贴图集，moc3 不动。脚本与说明见 App 仓 `docs/live2d-model-roadmap.md` §2。
+5. mascot14（2026-09-05）：头转时眼/口/前发/后发/发夹一起平移（Shift X/Y 旋转变形器），Angle Z 头歪 ±12°，腮红网格由 ParamCheek 控不透明度；眯眼仍未做。
+6. 残影清理（2026-09-05，贴图 mascot12）：See-through 补全区带着上层轮廓/阴影的印子，上层一动就露出来；用 LaMa（IOPaint）逐层重画被遮挡的边带后贴回贴图集，moc3 不动。脚本与说明见 App 仓 `docs/live2d-model-roadmap.md` §2。
 4. 手写 exp3 / motion3（idle/nod/shake/think/excited），合并进 model3.json 的 FileReferences 与 Groups（EyeBlink/LipSync）。
 
 工作目录在仓库外：`C:/Users/tliu7/live2d-lab/`（脚本、cmo3 工程、验证页 `stage-test/`）。
