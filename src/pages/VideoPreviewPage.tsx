@@ -25,6 +25,8 @@ interface Segment {
   title?: string;
   videoUrl?: string;
   durationSec?: number;
+  /** App 出片时记的画幅（新作品才有；老作品缺 → 播起来按元数据现测） */
+  aspect?: "landscape" | "portrait";
 }
 
 interface PreviewVideo {
@@ -39,6 +41,16 @@ interface PreviewVideo {
 
 type Phase = "loading" | "error" | "poster" | "playing" | "done";
 
+/**
+ * 画框比例。★ 此前写死 9:16：横屏片在手机上只占画框中间一条，上下全是黑；竖屏片在
+ * 375 宽的屏上画框高 610px，标题与下载入口整个被顶出首屏。现在：段上记了画幅就用它，
+ * 没记的等 `loadedmetadata` 按真实宽高定；再用 max-height 保证画框永远留出下面那一截。
+ */
+const PORTRAIT = 9 / 16;
+const LANDSCAPE = 16 / 9;
+/** 画框最多占视口高度的这一比例（手机）：留出标题一行 + 底部下载条 */
+const FRAME_MAX_VH = 0.62;
+
 export default function VideoPreviewPage() {
   const { id } = useParams();
   const { t } = useTranslation();
@@ -46,6 +58,8 @@ export default function VideoPreviewPage() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [segIdx, setSegIdx] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** 实测到的画幅（宽/高）。null = 还不知道，退回段上记的 aspect，再退回竖屏 */
+  const [measured, setMeasured] = useState<number | null>(null);
 
   // 只取有真实地址的段：断头（付费锁住）之后的段一律不进列表
   const playable = useMemo(() => {
@@ -101,9 +115,16 @@ export default function VideoPreviewPage() {
   }
 
   const author = video?.author?.displayName || video?.author?.username || "";
+  const declared = video?.segments?.[segIdx]?.aspect ?? video?.segments?.[0]?.aspect;
+  const ratio = measured ?? (declared === "landscape" ? LANDSCAPE : PORTRAIT);
+  const landscape = ratio > 1;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col p-4">
+    <div
+      className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-md flex-col p-4 md:min-h-[calc(100vh-4rem)] md:max-w-lg"
+      // 底部常驻下载条（手机）会盖住最后一截正文：给正文留出它的高度 + 安全区
+      style={{ paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom, 0px))" }}
+    >
       {/* 顶栏：品牌 + 常驻下载入口。弹层只在看完出现，顶栏管「没看完就想装」的人 */}
       <header className="mb-3 flex items-center gap-3">
         <img src="/app-icon.png" alt="" className="h-9 w-9 rounded-xl" />
@@ -134,9 +155,18 @@ export default function VideoPreviewPage() {
 
       {video && phase !== "loading" && phase !== "error" && (
         <>
-          {/* 竖屏画框：9:16，圆角黑底。段间切换靠 key 强制重建 <video>，
-              复用同一节点的话 iOS WebView 会带着上一段的 currentTime 起播 */}
-          <div className="relative mx-auto w-full overflow-hidden rounded-2xl bg-black" style={{ aspectRatio: "9 / 16" }}>
+          {/* 画框：按画幅定比例（见 ratio 的 ★），高度封顶在视口的一截之内，竖片居中、横片铺满宽。
+              段间切换靠 key 强制重建 <video>，复用同一节点的话 iOS WebView 会带着上一段的
+              currentTime 起播 */}
+          <div
+            className="relative mx-auto w-full overflow-hidden rounded-2xl bg-black"
+            style={{
+              aspectRatio: String(ratio),
+              maxHeight: `${Math.round(FRAME_MAX_VH * 100)}dvh`,
+              // 限高之后宽度也要跟着收（aspect-ratio 只在宽度自由时才起作用）
+              maxWidth: landscape ? undefined : `calc(${Math.round(FRAME_MAX_VH * 100)}dvh * ${ratio.toFixed(4)})`,
+            }}
+          >
             {phase === "poster" || phase === "done" ? (
               <>
                 {video.cover && (
@@ -163,6 +193,10 @@ export default function VideoPreviewPage() {
                 playsInline
                 controls
                 onEnded={onEnded}
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget;
+                  if (v.videoWidth > 0 && v.videoHeight > 0) setMeasured(v.videoWidth / v.videoHeight);
+                }}
               />
             )}
             {phase === "playing" && playable.length > 1 && (
@@ -203,6 +237,27 @@ export default function VideoPreviewPage() {
           </div>
         </>
       )}
+
+      {/* 手机底部常驻下载条：分享链的访客多半没装 App，「下载」必须在拇指够得到的地方、
+          且不随内容滚走。桌面有顶栏那颗，不重复。★ fixed + 安全区：刘海屏底部手势条会盖住按钮 */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-800 bg-gray-950/95 px-4 pt-3 backdrop-blur md:hidden"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="mx-auto flex max-w-md items-center gap-3">
+          <img src="/app-icon.png" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{t("videoPreview.appName")}</p>
+            <p className="truncate text-xs text-gray-400">{t("videoPreview.stickyNote")}</p>
+          </div>
+          <Link
+            to="/download"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-white active:bg-cyan-400"
+          >
+            <Download className="h-4 w-4" /> {t("videoPreview.getApp")}
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

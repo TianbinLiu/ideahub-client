@@ -257,6 +257,13 @@ export default function SiteLive2D() {
   // 首页有自己的看板娘舞台（CompanionStage + CompanionChat），右下角挂件在首页不出现，免得两个模型打架
   const { pathname } = useLocation();
   const onHome = pathname === "/";
+  // ★ 手机上的落地页（App 分享链 /v/:id、下载、隐私、儿童安全）不挂看板娘：那几页的访客是
+  //   点链接进来的陌生人，屏幕本来就只有一巴掌宽，模型会压在正文和底部下载条上
+  //   （2026-09-05 实测），还要多拉一套 Live2D 运行时。桌面上照旧。
+  const onLandingPhone =
+    /^\/(v\/|download$|child-safety$|privacy$)/.test(pathname) &&
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 767px)").matches;
   const latestConfigKeyRef = useRef("");
   const waifuConfigUrlRef = useRef<string | null>(null);
   // 缓存已拉取的组件数据（按 userId 归属），显隐切换时复用，避免每次都重新请求 getMyComponents()
@@ -267,7 +274,9 @@ export default function SiteLive2D() {
 
   useEffect(() => {
     const live2dWindow = window as Live2DWindow;
-    if (onHome) {
+    // ★ 看板娘是这个 effect 直接挂进 document 的，下面 return null 只管 React 那一小块 ——
+    //   所以"不出现"的门必须开在这里，不能只靠渲染分支
+    if (onHome || onLandingPhone) {
       teardownLive2D(live2dWindow);
       latestConfigKeyRef.current = "";
       return;
@@ -382,7 +391,7 @@ export default function SiteLive2D() {
       teardownLive2D(live2dWindow);
       void disposeRuntimeConfig();
     };
-  }, [authLoading, isVisible, onHome, user?._id]);
+  }, [authLoading, isVisible, onHome, onLandingPhone, user?._id]);
 
   function hideLive2D() {
     const nextSide = getReopenSideFromWidget();
@@ -397,7 +406,7 @@ export default function SiteLive2D() {
     setIsVisible(true);
   }
 
-  if (!isEnabled || onHome) {
+  if (!isEnabled || onHome || onLandingPhone) {
     return null;
   }
 
