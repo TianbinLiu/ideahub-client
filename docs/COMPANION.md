@@ -69,6 +69,15 @@
 
 已知限制：`ExprSmile/ExprAngry` 仍是整块补片（笑眼/怒目盖在真眼上）；贴图 4096 一张。头发/裙摆 2026-09-05 起走 `mascot.physics3.json`（手写 4 组摆锤，运行时只吹微风；没物理的市场包仍走弹簧兜底），细节见 App 仓 `docs/live2d-model-roadmap.md` §5。
 
+### 第三方模型的协议映射 companion.json（2026-09-05）
+市场包的动作组不叫 nod/wave、表情是 exp3 文件、命中区不叫 Head/Body、参数 id 可能是旧式 `PARAM_ANGLE_X`。服务器上传时按能力档案生成 / 校验一份
+`companion.json` 放在 model3.json 旁边（`server/services/live2dCapabilities.service.js`，形状见 App 仓 `docs/digital-human-creator-center.md` §3.4），
+`src/live2d/mapping.ts` 在 `CompanionModel.acquire()` 里读它（只对绝对 URL 发请求；官方 mascot 是相对路径、没这个文件 → 一切照旧）：
+- `playAction(action)`：动作槽 → 模型自己的动作组（null = 不演）；刚 `hitTest` 命中的触摸区若映射了自己的动作（nizima 的 `Tap@Head`），1.5s 内的这一下 `playAction` 播它。
+- `setFace(face)`：表情槽 → `model.expression(名)`（到期 / 回 normal 时 `resetExpression`），或一组参数；没映射的表情退到 protocol.ts 的参数版。
+- `hitTest()`：模型自己的 HitAreas 名 → 我们的触摸区名（按 TOUCH_AREAS 优先级），页面照旧用 `pickTouchReaction`。
+- 每帧读写的参数 id（口型 / 眨眼 / 视线 / 身体角度 / 呼吸）按映射解析，null = 跳过那一行；待机动作组名 `idle` 在加载前就传给 `Live2DModel.from`。
+
 ## 人格 / 音频 / 模型市场
 
 数字人由三层叠加而成，每一层都能单独换、也都能「不设置」让下一层生效：
