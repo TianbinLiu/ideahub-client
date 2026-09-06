@@ -1288,7 +1288,9 @@
       "next": "Next",
       "pageInfo": "Page {{page}} of {{total}}",
       "platformDouyin": "Douyin",
-      "platformXiaohongshu": "Xiaohongshu"
+      "platformXiaohongshu": "Xiaohongshu",
+      "platformWechat": "WeChat",
+      "platformQq": "QQ"
     },
     "meme": {
       "tabLibrary": "Public Library",

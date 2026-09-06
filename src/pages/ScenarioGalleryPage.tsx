@@ -41,6 +41,9 @@ const PLATFORM_META: Record<string, { labelKey: string; className: string }> = {
   douyin: { labelKey: "platformDouyin", className: "border-cyan-600/60 bg-cyan-950/30 text-cyan-200" },
   xiaohongshu: { labelKey: "platformXiaohongshu", className: "border-red-600/60 bg-red-950/30 text-red-200" },
   generic: { labelKey: "platformGeneric", className: "border-gray-600/60 bg-gray-900 text-gray-300" },
+  // 聊天类平台（sceneKind==='chat'），皮肤在 components/chatSkins/
+  wechat: { labelKey: "platformWechat", className: "border-green-600/60 bg-green-950/30 text-green-200" },
+  qq: { labelKey: "platformQq", className: "border-sky-600/60 bg-sky-950/30 text-sky-200" },
 };
 
 function platformMeta(platform: string) {
