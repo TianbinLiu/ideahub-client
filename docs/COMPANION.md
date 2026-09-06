@@ -67,7 +67,7 @@
    闭眼补片 `eyes_closed_L/R` 的不透明度也钉在同一参数上），以及披风(550)>双臂(500)、前发/头饰(600) 的绘制顺序。
    运行时因此改成参数驱动：`ExprClosed/ExprMouthOpen` 两个 Part 常开，眨眼是 70/40/120ms 的曲线，口型 = 包络^0.7 × 0.85。
 
-已知限制：`ExprSmile/ExprAngry` 仍是整块补片（笑眼/怒目盖在真眼上）；贴图 4096 一张。头发/裙摆 2026-09-05 起走 `mascot.physics3.json`（手写 4 组摆锤，运行时只吹微风；没物理的市场包仍走弹簧兜底），细节见 App 仓 `docs/live2d-model-roadmap.md` §5。
+已知限制：`ExprSmile/ExprAngry` 仍是整块补片（笑眼/怒目盖在真眼上）；贴图 4096 一张。头发/裙摆/披风 2026-09-05 起走 `mascot.physics3.json`（手写 5 组摆锤，运行时只吹微风，开场前 6 帧多迭代让摆锤收敛防大甩；没物理的市场包仍走弹簧兜底），细节见 App 仓 `docs/live2d-model-roadmap.md` §5。
 
 ## 人格 / 音频 / 模型市场
 
