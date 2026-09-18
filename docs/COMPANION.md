@@ -149,5 +149,5 @@
 - "停止"= runId 递增 + abort 请求 + 停播放：所有排队中的旧句子自动放弃。
 - 移动端（<lg）不挂舞台（省 700KB 运行时），对话框照常。
 - 首页不显示右下角的旧 Live2D 挂件（`SiteLive2D` 在 `/` 上主动卸载），其他页面不受影响。
-- 旧挂件的默认模型也是**官方看板娘小梦**（2026-09-18 起，此前是 Live2D 官方示例 Hiyori）：组件设置的 `modelJsonUrl` 留空串，由 `live2d/sampleCredit.activeLive2dModelUrl` 解析成 `OFFICIAL_MODEL_URL`，与上面「官方模型的 modelJsonUrl 是空串」同一约定。换的原因是 Live2D Free Material License：营收达到 1,000 万日元的运营方不能把示例数据放在公开网站上。旧挂件是另一套运行时（live2d-widget 内置的官方 Cubism 框架），开场物理收敛在 `SiteLive2D.settleWidgetPhysicsOnOpen` 里另做了一份（覆盖 1.5 秒、力度逐渐衰减，比 companionModel 的 6 帧长——那里的待机动作起步有淡入，这里没有）。用户自己填示例地址或上传示例包时，挂件照样挂 Live2D 要求的版权声明（`LIVE2D_SAMPLE_CREDIT`，现行条款 v1.7 的长版三句）。
+- 旧挂件的默认模型也是**官方看板娘小梦**（2026-09-18 起，此前是 Live2D 官方示例 Hiyori）：服务端对「用官方的」回根相对路径 `/live2d/mascot/mascot.model3.json`（库里存空串），游客默认也是这个路径；`live2d/sampleCredit.activeLive2dModelUrl` 另把空串解析成 `OFFICIAL_MODEL_URL`。回路径而不回空串，是为了还开着的老版本页面拿到它也能直接加载。换的原因是 Live2D Free Material License：营收达到 1,000 万日元的运营方不能把示例数据放在公开网站上。旧挂件是另一套运行时（live2d-widget 内置的官方 Cubism 框架），开场物理收敛在 `SiteLive2D.settleWidgetPhysicsOnOpen` 里另做了一份（覆盖 1.5 秒、力度逐渐衰减，比 companionModel 的 6 帧长——那里的待机动作起步有淡入，这里没有；每帧最多记 1/20 秒，后台加载完切回来时不会一帧用完窗口；多跑的步只推进摆锤状态、不往参数里写）。用户自己填示例地址或上传示例包时，挂件照样挂 Live2D 要求的版权声明（`LIVE2D_SAMPLE_CREDIT`，现行条款 v1.7 的长版三句）。
 - 模型市场路由不在 `/arena` 下（那一片有浏览器插件门禁），游客也能逛；new / edit 走 `ProtectedRoute`。

@@ -3,6 +3,7 @@ import { useLocation } from "react-router";
 import "./SiteLive2D.css";
 import { getMyComponents, type Live2DComponentSettings } from "../api";
 import { activeLive2dModelUrl, isLive2dSampleModel, LIVE2D_SAMPLE_CREDIT } from "../live2d/sampleCredit";
+import { OFFICIAL_MODEL_URL } from "../companion/modelSource";
 import { useAuth } from "../authContext";
 
 type WaifuTipsConfig = {
@@ -37,14 +38,14 @@ const LIVE2D_SCRIPT_VERSION = "20260421-live2d-fix";
 const LIVE2D_VISIBILITY_KEY = "ideahub-live2d-visible";
 const LIVE2D_REOPEN_SIDE_KEY = "ideahub-live2d-reopen-side";
 const LIVE2D_CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>';
-// ★ 游客（以及服务端没存过地址的用户）看到的是**官方看板娘小梦**：modelJsonUrl 留空串，由
-//   live2d/sampleCredit.activeLive2dModelUrl 解析成随站点打包的那份（与模型市场 official-mascot 同一约定）。
+// ★ 游客看到的是**官方看板娘小梦**（随站点打包的那份），与服务端给登录用户的默认值是同一个地址 ——
+//   两边一致，登录前后配置键不变、挂件不必重建。
 //   2026-09-18 之前这里是 Live2D 官方示例 Hiyori（从 jsDelivr 直链 CubismWebSamples）——按 Live2D 的
 //   Free Material License，营收达到门槛的运营方不能把示例数据放在公开网站上，所以换成我们自己的模型。
 const DEFAULT_LIVE2D_SETTINGS: Live2DComponentSettings = {
   enabled: true,
   source: "remote",
-  modelJsonUrl: "",
+  modelJsonUrl: OFFICIAL_MODEL_URL,
   uploadedModelJsonUrl: "",
   uploadedBundleName: "",
 };
@@ -163,6 +164,21 @@ type CubismPhysicsLike = {
   __ideahubSettled?: boolean;
 };
 
+/**
+ * 收敛那段只该推进物理的**内部状态**（摆锤各节的位置/速度），不该往参数里写东西 —— 取出参数数组，
+ * 多跑的每一步之前都把它恢复成本帧物理之前的样子，最后那一次正常 evaluate 才真正写输出。
+ * ★ 为什么（2026-09-18 评审抓到）：CubismPhysics.evaluate 结尾的 interpolate 会把输出按 Weight 混进参数
+ *   （cur×(1−w) + out×w）并写回。同一帧里连调 60 次，权重 <100 的输出会被反复混合、几乎盖掉动作对它的贡献；
+ *   输出参数同时又是别的摆锤输入的装配，还会读到上一步刚写进去的输出，自我反馈。小梦不受影响
+ *   （5 个输出权重都是 100、输入输出不重叠），但用户可以在设置页填任意 model3.json。
+ * 取不到参数数组（形状对不上）就返回 null —— 那时宁可不收敛，也不冒险改坏参数。
+ */
+function parameterValuesOf(model: unknown): Float32Array | null {
+  const core = (model as { getModel?: () => { parameters?: { values?: unknown } } } | null)?.getModel?.();
+  const values = core?.parameters?.values;
+  return values instanceof Float32Array ? values : null;
+}
+
 function widgetPhysics(live2dWindow: Live2DWindow): CubismPhysicsLike | null {
   type Vec<T> = { _ptr?: T[] };
   const manager = live2dWindow.__ideahubLive2dManager as
@@ -185,13 +201,22 @@ function settleWidgetPhysicsOnOpen(live2dWindow: Live2DWindow, isDisposed: () =>
       const evaluate = physics.evaluate;
       let elapsed = 0;
       physics.evaluate = function (model, deltaTimeSeconds) {
-        if (elapsed < WIDGET_PHYSICS_SETTLE_SECONDS) {
+        const values = elapsed < WIDGET_PHYSICS_SETTLE_SECONDS ? parameterValuesOf(model) : null;
+        if (values) {
           // 力度随时间二次衰减到 0，而不是到点突然撤掉：实测突然撤掉那一下（链被松开时身体正在转）
           // 会让裙摆在 1–3 秒又甩到 1.3；逐渐放手则让自然摆动一点点接回来
           const left = 1 - elapsed / WIDGET_PHYSICS_SETTLE_SECONDS;
           const steps = Math.ceil(WIDGET_PHYSICS_SETTLE_STEPS * left * left);
-          elapsed += Math.max(0, deltaTimeSeconds);
-          for (let i = 0; i < steps; i++) evaluate.call(this, model, 1 / 30);
+          // ★ 每帧最多记 1/20 秒（2026-09-18 评审抓到）：挂件库的 deltaTime 没有上限，标签页在后台时模型加载完、
+          //   切回来的第一帧 dt 就是整段后台时长 —— 不封顶的话 1.5 秒的窗口一帧就用完，开场甩原样回来。
+          //   按「真正画出来的动画时长」计，封顶 1/20 秒相当于假设至少 20fps。
+          elapsed += Math.min(Math.max(0, deltaTimeSeconds), 1 / 20);
+          const before = values.slice();
+          for (let i = 0; i < steps; i++) {
+            values.set(before); // 见 parameterValuesOf 的 ★：多跑的每一步都从本帧物理之前的参数出发
+            evaluate.call(this, model, 1 / 30);
+          }
+          values.set(before);
         }
         evaluate.call(this, model, deltaTimeSeconds);
       };

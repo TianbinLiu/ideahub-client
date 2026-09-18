@@ -68,9 +68,10 @@ function decodeSegment(s: string): string {
 /**
  * 挂件此刻显示的是哪个模型地址 —— **唯一实现**（SiteLive2D 启动挂件、设置页判断要不要提示声明，都问这一句）。
  * 选了「上传的包」但还没传成功时退回远程地址，与挂件实际加载的那个一致。
- * ★ 远程地址是**空串 = 官方看板娘小梦**（随站点打包的 `OFFICIAL_MODEL_URL`）。与模型市场 `official-mascot`
- *   的约定同一个：服务端不知道官网的域名，所以不存地址，只存"用官方的"（2026-09-18 起，默认模型从 Live2D
- *   官方示例 Hiyori 换成小梦——示例数据对营收达到门槛的企业不许放在公开网站上，见 LIVE2D_SAMPLE_CREDIT 上方）。
+ * ★ 默认 = 官方看板娘小梦（随站点打包的 `OFFICIAL_MODEL_URL`，2026-09-18 起；此前是 Live2D 官方示例 Hiyori——
+ *   示例数据对营收达到门槛的运营方不许放在公开网站上，见 LIVE2D_SAMPLE_CREDIT 上方）。服务端对「用官方的」回的是
+ *   **根相对路径**本身（不是空串），这样还开着的老版本页面拿到它直接交给挂件也能加载；空串这里照样解析成小梦
+ *   （老数据 / 防御），与模型市场 `official-mascot` 的空串约定一致。
  */
 export function activeLive2dModelUrl(s: { source: string; modelJsonUrl: string; uploadedModelJsonUrl: string }): string {
   if (s.source === "uploaded" && s.uploadedModelJsonUrl) return s.uploadedModelJsonUrl;
