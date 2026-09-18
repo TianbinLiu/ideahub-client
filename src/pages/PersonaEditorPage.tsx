@@ -260,7 +260,11 @@ export default function PersonaEditorPage() {
       summary: summary.trim(),
       catchphrases: parsedCatchphrases,
       stats,
-      stanceHint: stanceHint.trim() || undefined,
+      // ★ 清空时发 ""，**不要**写成 `|| undefined`（2026-09-18 改）：服务端 PUT 的 style 改成了
+      //   PATCH 语义（没带的键保持原值），`undefined` 会被 JSON.stringify 整个丢掉 ⇒ 这个键没发 ⇒
+      //   用户在这里清空「立场/倾向」、点保存，服务端照旧留着上一版，而界面上什么都不说。
+      //   在老服务端上发 "" 与原来效果一样（它本来就给没带的键补空值），所以这一行可以先于服务端上线。
+      stanceHint: stanceHint.trim(),
     };
 
     // 价格归一：非法/负数→0；上限与后端 schema 一致
