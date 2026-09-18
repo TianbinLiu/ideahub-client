@@ -5,9 +5,14 @@
 //   必须带下面这句声明，而官网全仓此前**一处都没有**。
 // ⚠ 声明原文**逐字照抄、不翻译**：它是条款要求的固定文本，改一个词就不再是那句声明了。
 //   界面上要解释它时另写一句本地化的说明，原文照放。
+// ★ 用的是**长版**（三句）。出处：Live2D Cubism Sample Data Terms（https://www.live2d.com/eula/live2d-sample-model-terms_en.html），
+//   Version 1.7 / Last update: January 29th, 2026。条款给了两版：能放长文字的地方（原文举例 YouTube、Bilibili、
+//   "description of game/application"）用长版；放不下的（Twitter、TikTok 等）才用只有第一句的短版。网页放得下，用长版。
+//   ⚠ 2026-09-18 之前这里是**两句**——那是旧版条款的写法，现行 v1.7 的长版多了第三句；条款再更新时照原文改这里。
 export const LIVE2D_SAMPLE_CREDIT =
   "This content uses sample data owned and copyrighted by Live2D Inc. " +
-  "The sample data are utilized in accordance with terms and conditions set by Live2D Inc.";
+  "The sample data are utilized in accordance with terms and conditions set by Live2D Inc. " +
+  "This content itself is created at the author's sole discretion.";
 
 /** Live2D 官方发布示例数据的两个仓库（Web 版与 Native 版） */
 const SAMPLE_REPO = /\/Live2D\/Cubism(?:Web|Native)Samples\//i;

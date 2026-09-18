@@ -39,9 +39,9 @@ describe("isLive2dSampleModel", () => {
 });
 
 describe("LIVE2D_SAMPLE_CREDIT", () => {
-  it("是条款要求的那句原文，一个字都不能改", () => {
+  it("是现行条款（Sample Data Terms v1.7，2026-01-29）的长版原文，一个字都不能改", () => {
     expect(LIVE2D_SAMPLE_CREDIT).toBe(
-      "This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc.",
+      "This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion.",
     );
   });
 });
