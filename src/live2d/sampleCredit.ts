@@ -14,15 +14,25 @@ const SAMPLE_REPO = /\/Live2D\/Cubism(?:Web|Native)Samples\//i;
 
 /**
  * 官方示例模型的名字（Cubism 3~5 的 Web/Native 示例 + Cubism 2 时代的示例）。
- * 按**目录名或文件名的第一段**比（`Hiyori/Hiyori.model3.json`、`hiyori_pro_zh/…`、`natori_pro_t06` 都认）——
- * 用户把示例包下载下来再传到我们自己的服务器，地址里就没有 CubismWebSamples 了，只剩名字。
+ * 按**目录名或文件名的第一段、去掉尾部版本号**比（`Hiyori/Hiyori.model3.json`、`hiyori_pro_zh/…`、
+ * `natori_pro_t06`、`epsilon2_1/`、`Epsilon2.1.model.json` 都认）——
+ * 用户把示例包下载下来再传到我们自己的服务器，或者填 npm 上 `live2d-widget-model-*` 那批镜像的地址，
+ * 地址里就没有 CubismWebSamples 了，只剩名字。
  * ★ 宁可多认也别漏认：多认的代价是一个自制模型碰巧叫 `mark/` 时多显示一句声明；
- *   漏认的代价是示例数据在站上露出却没有声明。
+ *   漏认的代价是示例数据在站上露出却没有声明（2026-09-18 评审抓到 Epsilon2.1 / hijiki / izumi 漏认）。
  */
 const SAMPLE_NAMES = new Set([
+  // Cubism 3~5
   "hiyori", "haru", "mao", "mark", "natori", "rice", "wanko", "ren",
+  // Cubism 2 时代（live2d-widget-model-* 那批镜像里常见的官方示例）
   "shizuku", "epsilon", "hibiki", "koharu", "haruto", "chitose",
+  "hijiki", "izumi", "tororo", "miku", "nico", "nito", "nipsilon", "tsumiki",
 ]);
+
+/** 路径的一段 → 用来比名单的那个名字：第一段（按 . _ - 切）、小写、去掉尾部数字（`epsilon2` → `epsilon`） */
+function sampleKeyOf(seg: string): string {
+  return decodeSegment(seg).toLowerCase().split(/[._-]/)[0].replace(/\d+$/, "");
+}
 
 /** 这个模型地址指的是不是 Live2D 官方示例（是 → 露出的地方必须带 LIVE2D_SAMPLE_CREDIT） */
 export function isLive2dSampleModel(url: string | null | undefined): boolean {
@@ -37,7 +47,7 @@ export function isLive2dSampleModel(url: string | null | undefined): boolean {
   return path
     .split("/")
     .filter(Boolean)
-    .some((seg) => SAMPLE_NAMES.has(decodeSegment(seg).toLowerCase().split(/[._-]/)[0]));
+    .some((seg) => SAMPLE_NAMES.has(sampleKeyOf(seg)));
 }
 
 function decodeSegment(s: string): string {

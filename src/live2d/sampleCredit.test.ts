@@ -14,6 +14,16 @@ describe("isLive2dSampleModel", () => {
     expect(isLive2dSampleModel("https://cdn.example.com/models/mao_pro/mao_pro.model3.json")).toBe(true);
   });
 
+  it("Cubism 2 的示例：名字后面带版本号、或者来自 npm 上 live2d-widget-model-* 镜像，也认得出来", () => {
+    expect(
+      isLive2dSampleModel("https://cdn.jsdelivr.net/npm/live2d-widget-model-epsilon2_1@1.0.5/assets/Epsilon2.1.model.json"),
+    ).toBe(true);
+    expect(isLive2dSampleModel("/uploads/live2d-models/u1/pkg/epsilon2_1/Epsilon2.1.model.json")).toBe(true);
+    expect(isLive2dSampleModel("https://cdn.jsdelivr.net/npm/live2d-widget-model-hijiki@1.0.5/assets/hijiki.model.json")).toBe(true);
+    expect(isLive2dSampleModel("https://cdn.example.com/izumi/izumi.model.json")).toBe(true);
+    expect(isLive2dSampleModel("https://cdn.example.com/shizuku/shizuku.model.json")).toBe(true);
+  });
+
   it("我们自己的看板娘与普通自制模型不误认", () => {
     expect(isLive2dSampleModel("/live2d/mascot/mascot.model3.json")).toBe(false);
     expect(isLive2dSampleModel("https://api.ideahubs.org/uploads/live2d-market/u1/abc/my-girl.model3.json")).toBe(false);
