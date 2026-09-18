@@ -37,11 +37,14 @@ const LIVE2D_SCRIPT_VERSION = "20260421-live2d-fix";
 const LIVE2D_VISIBILITY_KEY = "ideahub-live2d-visible";
 const LIVE2D_REOPEN_SIDE_KEY = "ideahub-live2d-reopen-side";
 const LIVE2D_CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>';
-const DEFAULT_REMOTE_MODEL_URL = "https://fastly.jsdelivr.net/gh/Live2D/CubismWebSamples/Samples/Resources/Hiyori/Hiyori.model3.json";
+// ★ 游客（以及服务端没存过地址的用户）看到的是**官方看板娘小梦**：modelJsonUrl 留空串，由
+//   live2d/sampleCredit.activeLive2dModelUrl 解析成随站点打包的那份（与模型市场 official-mascot 同一约定）。
+//   2026-09-18 之前这里是 Live2D 官方示例 Hiyori（从 jsDelivr 直链 CubismWebSamples）——按 Live2D 的
+//   Free Material License，营收达到门槛的运营方不能把示例数据放在公开网站上，所以换成我们自己的模型。
 const DEFAULT_LIVE2D_SETTINGS: Live2DComponentSettings = {
   enabled: true,
   source: "remote",
-  modelJsonUrl: DEFAULT_REMOTE_MODEL_URL,
+  modelJsonUrl: "",
   uploadedModelJsonUrl: "",
   uploadedBundleName: "",
 };
@@ -131,7 +134,77 @@ function mountCloseToolButton(onHide: () => void) {
 }
 
 /**
- * 用到 Live2D 官方示例（默认就是 Hiyori）时，把版权声明挂进 `#waifu` 里 ——
+ * 开场物理收敛（旧挂件版）。
+ *
+ * ★★ 为什么要有（2026-09-18 量出来的）：默认模型换成小梦之后，小梦的物理摆锤链在旧挂件里开场会甩 ——
+ *   无头 Chromium 逐帧采样，后发（VertexIndex 2，×24）头 0.5 秒**顶满量程 ±1**、1 秒后才回落，
+ *   裙摆（×240）头 1 秒到 3.5（量程 ±10）。根因与首页 / App 客服那次一模一样：链尾输出是相邻两节的夹角 ×Scale，
+ *   摆锤链初始笔直下垂，头几帧输入从 0 跳到当前姿态就瞬间弯折。首页运行时的修法在
+ *   live2d/companionModel.ts（PHYSICS_SETTLE_STEPS / FRAMES），但旧挂件是另一套运行时（live2d-widget 内置的
+ *   官方 Cubism 框架），那份修法够不着它 —— 这里对**同一个框架类 CubismPhysics** 用同一套参数：
+ *   开场 SECONDS 秒内每次 evaluate 先按 1/30 秒多跑 STEPS 步，让链一直贴着当前姿态的平衡位置。
+ * ⚠ 没有共用 companionModel 那两个常量：那个文件与 App 仓逐字同步（改它就得两仓一起改）；而且两边的覆盖时长
+ *   本来就该不同（首页运行时的待机动作起步有淡入，6 帧就够；这里不够，见 WIDGET_PHYSICS_SETTLE_SECONDS）。
+ * ⚠ 取物理对象走的是挂件包（public/live2d-widget/chunk/index2.js，随仓库一起提交的固定版本）里官方 Cubism
+ *   示例框架的字段名（LAppDelegate._subdelegates → _live2dManager._models → 模型的 _physics）。换挂件包版本时要重新核对。
+ *   取不到（Cubism 2 模型没有 physics3、模型加载失败）就什么都不做 —— 那不是这里该响的事。
+ */
+const WIDGET_PHYSICS_SETTLE_STEPS = 60;
+/**
+ * 收敛覆盖多久。★ 按**时间**不按帧数，而且比首页那份（6 帧）长得多：旧挂件里待机动作从第 0 帧起就在转头
+ * （idle.motion3 的 AngleX 以约 4°/s 爬升），摆锤链在「从静止到开始动」这一下受到冲击 —— 只收敛 6 帧（约 0.1 秒）时
+ * 实测头 0.5 秒是稳的，但 0.6–1.3 秒裙摆又甩到 3（量程 ±10）、后发到 0.55。覆盖到 1.5 秒，这段里每一帧都把链
+ * 收敛到当前姿态的平衡位置，起步冲击就被吸收掉；之后恢复正常物理（稳态裙摆约 0.3）。
+ */
+const WIDGET_PHYSICS_SETTLE_SECONDS = 1.5;
+
+type CubismPhysicsLike = {
+  evaluate: (model: unknown, deltaTimeSeconds: number) => void;
+  __ideahubSettled?: boolean;
+};
+
+function widgetPhysics(live2dWindow: Live2DWindow): CubismPhysicsLike | null {
+  type Vec<T> = { _ptr?: T[] };
+  const manager = live2dWindow.__ideahubLive2dManager as
+    | { cubism5model?: { _subdelegates?: Vec<{ _live2dManager?: { _models?: Vec<{ _physics?: unknown }> } }> } }
+    | null
+    | undefined;
+  const physics = manager?.cubism5model?._subdelegates?._ptr?.[0]?._live2dManager?._models?._ptr?.[0]?._physics;
+  if (!physics || typeof (physics as CubismPhysicsLike).evaluate !== "function") return null;
+  return physics as CubismPhysicsLike;
+}
+
+function settleWidgetPhysicsOnOpen(live2dWindow: Live2DWindow, isDisposed: () => boolean) {
+  const startedAt = Date.now();
+  const poll = () => {
+    if (isDisposed()) return;
+    const physics = widgetPhysics(live2dWindow);
+    if (physics) {
+      if (physics.__ideahubSettled) return;
+      physics.__ideahubSettled = true;
+      const evaluate = physics.evaluate;
+      let elapsed = 0;
+      physics.evaluate = function (model, deltaTimeSeconds) {
+        if (elapsed < WIDGET_PHYSICS_SETTLE_SECONDS) {
+          // 力度随时间二次衰减到 0，而不是到点突然撤掉：实测突然撤掉那一下（链被松开时身体正在转）
+          // 会让裙摆在 1–3 秒又甩到 1.3；逐渐放手则让自然摆动一点点接回来
+          const left = 1 - elapsed / WIDGET_PHYSICS_SETTLE_SECONDS;
+          const steps = Math.ceil(WIDGET_PHYSICS_SETTLE_STEPS * left * left);
+          elapsed += Math.max(0, deltaTimeSeconds);
+          for (let i = 0; i < steps; i++) evaluate.call(this, model, 1 / 30);
+        }
+        evaluate.call(this, model, deltaTimeSeconds);
+      };
+      return;
+    }
+    // 物理对象在模型 setup 时同步建好、贴图还在异步加载 —— 这时第一帧还没画，16ms 一轮足够赶在它前面
+    if (Date.now() - startedAt < 20_000) window.setTimeout(poll, 16);
+  };
+  poll();
+}
+
+/**
+ * 用到 Live2D 官方示例时（用户自己填了示例地址、或上传了示例包），把版权声明挂进 `#waifu` 里 ——
  * 放在挂件自己的 DOM 里而不是 React 这一侧：挂件能拖动（`drag: true`），声明要跟着模型走；
  * 挂件被 teardown 时整个 `#waifu` 一起移除，声明也跟着消失，不会留一句孤零零的字。
  * 样式见 SiteLive2D.css 的 `#waifu-credit`。判据与原文见 live2d/sampleCredit。
@@ -386,6 +459,7 @@ export default function SiteLive2D() {
           logLevel: "error",
         });
         document.getElementById("waifu-toggle")?.remove();
+        settleWidgetPhysicsOnOpen(live2dWindow, () => disposed);
         window.requestAnimationFrame(() => {
           if (disposed) return;
           mountCloseToolButton(hideLive2D);

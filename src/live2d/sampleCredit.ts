@@ -1,3 +1,5 @@
+import { OFFICIAL_MODEL_URL } from "../companion/modelSource";
+
 // Live2D 官方示例模型的版权声明 —— **全站唯一一份**（右下角挂件与 Live2D 设置页共用，铁律六）。
 //
 // ★★ 为什么必须有（2026-09-18 核查抓到）：全站挂件 SiteLive2D 与服务端组件设置的默认模型，
@@ -66,7 +68,11 @@ function decodeSegment(s: string): string {
 /**
  * 挂件此刻显示的是哪个模型地址 —— **唯一实现**（SiteLive2D 启动挂件、设置页判断要不要提示声明，都问这一句）。
  * 选了「上传的包」但还没传成功时退回远程地址，与挂件实际加载的那个一致。
+ * ★ 远程地址是**空串 = 官方看板娘小梦**（随站点打包的 `OFFICIAL_MODEL_URL`）。与模型市场 `official-mascot`
+ *   的约定同一个：服务端不知道官网的域名，所以不存地址，只存"用官方的"（2026-09-18 起，默认模型从 Live2D
+ *   官方示例 Hiyori 换成小梦——示例数据对营收达到门槛的企业不许放在公开网站上，见 LIVE2D_SAMPLE_CREDIT 上方）。
  */
 export function activeLive2dModelUrl(s: { source: string; modelJsonUrl: string; uploadedModelJsonUrl: string }): string {
-  return s.source === "uploaded" && s.uploadedModelJsonUrl ? s.uploadedModelJsonUrl : s.modelJsonUrl;
+  if (s.source === "uploaded" && s.uploadedModelJsonUrl) return s.uploadedModelJsonUrl;
+  return s.modelJsonUrl.trim() || OFFICIAL_MODEL_URL;
 }

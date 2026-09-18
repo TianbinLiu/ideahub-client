@@ -1044,7 +1044,7 @@
     "uploadedModel": "My uploaded bundle",
     "uploadedModelHint": "Upload a zip bundle containing the model JSON, textures, and related assets, then load it from this site.",
     "modelJsonUrl": "Model JSON URL",
-    "modelJsonUrlHint": "If you use an external model, enter the full http(s) URL of the model entry json here.",
+    "modelJsonUrlHint": "Leave it empty to use our official mascot, Xiaomeng. To use an external model, enter the full http(s) URL of the model entry JSON.",
     "uploadBundle": "Upload local Live2D bundle",
     "uploadBundleHint": "Upload a zip file. It should include a `.model3.json` or `index.json` plus every asset referenced by that model.",
     "uploadingBundle": "Uploading bundle...",

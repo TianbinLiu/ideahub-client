@@ -135,7 +135,7 @@ export default function Live2DSettingsPage() {
             value={modelJsonUrl}
             onChange={(e) => setModelJsonUrl(e.target.value)}
             disabled={source !== "remote"}
-            placeholder="https://example.com/Hiyori.model3.json"
+            placeholder="https://example.com/your-model.model3.json"
             className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white disabled:opacity-50"
           />
           <p className="text-xs text-gray-500">{t("components.modelJsonUrlHint")}</p>
@@ -163,7 +163,7 @@ export default function Live2DSettingsPage() {
           )}
         </div>
 
-        {/* ★ 选中的是 Live2D 官方示例（默认的 Hiyori 就是）时当场说清：它在站上露出会带这句版权声明。
+        {/* ★ 选中的是 Live2D 官方示例（用户自己填了示例地址或传了示例包）时当场说清：它在站上露出会带这句版权声明。
             判据与原文都在 live2d/sampleCredit —— 这里只是提前告诉用户，真正挂声明的是 SiteLive2D。 */}
         {isLive2dSampleModel(activeLive2dModelUrl({ source, modelJsonUrl, uploadedModelJsonUrl })) && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-100/90">

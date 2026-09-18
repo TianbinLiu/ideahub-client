@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isLive2dSampleModel, LIVE2D_SAMPLE_CREDIT } from "./sampleCredit";
+import { activeLive2dModelUrl, isLive2dSampleModel, LIVE2D_SAMPLE_CREDIT } from "./sampleCredit";
+import { OFFICIAL_MODEL_URL } from "../companion/modelSource";
 
 describe("isLive2dSampleModel", () => {
   it("全站挂件的默认地址（jsDelivr 上的 CubismWebSamples/Hiyori）认得出来", () => {
@@ -43,5 +44,20 @@ describe("LIVE2D_SAMPLE_CREDIT", () => {
     expect(LIVE2D_SAMPLE_CREDIT).toBe(
       "This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion.",
     );
+  });
+});
+
+describe("activeLive2dModelUrl", () => {
+  it("远程地址留空 = 官方看板娘小梦（游客默认、服务端没存过地址的用户都走这条）", () => {
+    expect(activeLive2dModelUrl({ source: "remote", modelJsonUrl: "", uploadedModelJsonUrl: "" })).toBe(OFFICIAL_MODEL_URL);
+    expect(activeLive2dModelUrl({ source: "remote", modelJsonUrl: "   ", uploadedModelJsonUrl: "" })).toBe(OFFICIAL_MODEL_URL);
+    // 默认模型不能是 Live2D 官方示例（2026-09-18 起），也就不该挂示例声明
+    expect(isLive2dSampleModel(OFFICIAL_MODEL_URL)).toBe(false);
+  });
+
+  it("填了远程地址就用它；选了上传且传成功了就用上传的；选了上传但还没传成功退回远程", () => {
+    expect(activeLive2dModelUrl({ source: "remote", modelJsonUrl: "https://x.com/a.model3.json", uploadedModelJsonUrl: "/u/b.model3.json" })).toBe("https://x.com/a.model3.json");
+    expect(activeLive2dModelUrl({ source: "uploaded", modelJsonUrl: "https://x.com/a.model3.json", uploadedModelJsonUrl: "/u/b.model3.json" })).toBe("/u/b.model3.json");
+    expect(activeLive2dModelUrl({ source: "uploaded", modelJsonUrl: "", uploadedModelJsonUrl: "" })).toBe(OFFICIAL_MODEL_URL);
   });
 });
