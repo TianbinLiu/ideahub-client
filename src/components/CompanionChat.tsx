@@ -15,20 +15,28 @@
  *   TTS 请求按 voiceSettings 发（buildTtsRequest：有混音配方传 mix，否则传 voice —— 分叉只在那一处）；
  *   「人格」按钮开 PersonaPickerModal → PUT /api/companion/settings，「声音」按钮开 CompanionVoiceModal（模板市场 / 自定义），
  *   「换装」跳模型市场。谁改了设置都会广播 ideahub:companion-updated，这里监听它重拉 config（人格名 chip、音色都跟着变）。
+ * ★ 对话记忆（2026-09-18，docs/COMPANION.md「对话记忆」）：历史在服务端，这里只发新的一句 + threadId。
+ *   登录后接着上一次的会话聊（listChatThreads 取最近一个）；输入框左边的用量环 = 上下文用量，点开是
+ *   CompanionMemoryPanel（整理记忆 / 新对话 / 删对话 / 「记得的事」）。用量 ≥75% 时服务端在回复后自动整理，
+ *   这里过几秒回头刷一次用量。老服务端不认新写法（isLegacyChatRejection）→ 退回旧写法：本地带最近 12 条。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import toast from "react-hot-toast";
-import { AudioLines, Drama, ImageIcon, Send, Shirt, Square, Volume2, VolumeX, X } from "lucide-react";
+import { AudioLines, Brain, Drama, ImageIcon, Send, Shirt, Square, Volume2, VolumeX, X } from "lucide-react";
 import {
   COMPANION_UPDATED_EVENT,
   companionForbiddenReason,
+  getChatMessages,
   getCompanionConfig,
+  listChatThreads,
   streamCompanionChat,
   synthesizeSpeech,
   updateCompanionSettings,
+  type ChatContext,
+  type CompanionChatHandlers,
   type CompanionConfig,
   type Persona,
 } from "../api";
@@ -36,6 +44,8 @@ import { useAuth } from "../authContext";
 import AuthDialog from "./AuthDialog";
 import CompanionVoiceModal from "./CompanionVoiceModal";
 import PersonaPickerModal from "./PersonaPickerModal";
+import CompanionMemoryPanel from "./CompanionMemoryPanel";
+import { contextPercent, contextTone, isLegacyChatRejection } from "../companion/chatContext";
 import { companionBus } from "../companion/bus";
 import { buildTtsRequest } from "../companion/voiceMix";
 import { SpeechPlayer } from "../companion/speech";
@@ -46,8 +56,11 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 type Phase = "idle" | "thinking" | "speaking";
 
 const VOICE_STORAGE_KEY = "ideahub-companion-voice";
-/** 发给服务端的历史条数上限（服务端 zod 上限 20，这里留余量） */
+/** 旧写法（老服务端）发给服务端的历史条数上限（服务端 zod 上限 20，这里留余量）；按会话聊天时历史在服务端 */
 const MAX_HISTORY = 12;
+/** 用量到了「自动整理」档：回复后隔这么久回头刷一次用量，最多刷这么多次 */
+const COMPACT_POLL_MS = 5000;
+const COMPACT_POLL_TIMES = 3;
 const MAX_INPUT_CHARS = 1000;
 
 function readVoicePreference() {
@@ -91,6 +104,25 @@ export default function CompanionChat({ onOpenScene }: Props) {
   const [personaOpen, setPersonaOpen] = useState(false);
   const [personaBusy, setPersonaBusy] = useState(false);
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [threadId, setThreadIdState] = useState<string | null>(null);
+  const [context, setContext] = useState<ChatContext | null>(null);
+
+  // threadId 在 send() 的异步回调里要读最新值 → 同时放一份在 ref 里
+  const threadIdRef = useRef<string | null>(null);
+  /** 服务端还不认按会话的写法（老服务端）→ 一直用旧写法 */
+  const legacyRef = useRef(false);
+  const pollRef = useRef(0);
+  function setThreadId(id: string | null) {
+    threadIdRef.current = id;
+    setThreadIdState(id);
+  }
+  function resetThread() {
+    setThreadId(null);
+    setContext(null);
+    setMessages([]);
+    pollRef.current += 1;
+  }
 
   const playerRef = useRef<SpeechPlayer | null>(null);
   const runRef = useRef(0);
@@ -120,6 +152,53 @@ export default function CompanionChat({ onOpenScene }: Props) {
       window.removeEventListener(COMPANION_UPDATED_EVENT, load);
     };
   }, [userId]);
+
+  // 登录后接着最近一次会话聊（她记得上次聊到哪）；退出登录 / 换账号先清掉。老服务端没有 /api/chat → 静默不接
+  useEffect(() => {
+    let mounted = true;
+    setThreadId(null);
+    setContext(null);
+    if (!userId) return;
+    listChatThreads("companion", 1)
+      .then((r) => {
+        const latest = r.threads[0];
+        if (!mounted || !latest || threadIdRef.current) return;
+        setThreadId(latest.id);
+        setContext(latest.context);
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
+
+  // 卸载时停掉回头刷用量的轮询
+  useEffect(
+    () => () => {
+      pollRef.current += 1;
+    },
+    [],
+  );
+
+  /** 用量到了自动整理档：服务端在回复后整理，隔几秒回头刷一次，降下来或刷够次数为止 */
+  function pollContextAfterCompact(id: string) {
+    const token = ++pollRef.current;
+    let left = COMPACT_POLL_TIMES;
+    const tick = () => {
+      window.setTimeout(() => {
+        if (pollRef.current !== token || threadIdRef.current !== id) return;
+        getChatMessages(id, { limit: 1 })
+          .then((r) => {
+            if (pollRef.current !== token || threadIdRef.current !== id) return;
+            setContext(r.thread.context);
+            left -= 1;
+            if (left > 0 && (r.thread.compacting || r.thread.context.level === "compact")) tick();
+          })
+          .catch(() => undefined);
+      }, COMPACT_POLL_MS);
+    };
+    tick();
+  }
 
   // 卸载（离开首页）时把还在播的声音、排队的演出全部掐掉
   useEffect(
@@ -276,36 +355,62 @@ export default function CompanionChat({ onOpenScene }: Props) {
     setSubtitle("");
 
     const wantVoice = voiceOn && Boolean(config?.tts);
+    const lang: "zh" | "en" = i18n.language.startsWith("zh") ? "zh" : "en";
     let reply = "";
+    let doneContext: ChatContext | undefined;
     try {
-      await streamCompanionChat(
-        { messages: history, lang: i18n.language.startsWith("zh") ? "zh" : "en" },
-        {
-          onSentence: (sentence) => {
-            // 音色三层（用户覆盖 > 人格自带 > 模型推荐 > 默认）服务端已合并进 voiceSettings，buildTtsRequest 负责展开：
-            // 有混音配方就传 mix（不传 voice / instruct），否则传 voice；情绪与语调指令按句来
-            // （sentence.tts.instruct 已是「人设语调；情绪语调」合并后的串）。
-            // 老服务端没有 voiceSettings 时回落到老字段 voice + expressive=true，行为与改造前一致。
-            const audio: Promise<Blob | null> = wantVoice
-              ? synthesizeSpeech(
-                  buildTtsRequest({
-                    text: sentence.text,
-                    settings: config?.voiceSettings,
-                    fallbackVoiceId: config?.voice,
-                    emotion: sentence.tts?.emotion,
-                    instruct: sentence.tts?.instruct,
-                  }),
-                  controller.signal,
-                ).catch(() => null)
-              : Promise.resolve(null);
-            void enqueue(run, () => perform(run, sentence, audio, controller.signal));
-          },
-          onDone: (fullText) => {
-            reply = fullText;
-          },
+      const handlers: CompanionChatHandlers = {
+        onThread: ({ threadId: id }) => {
+          if (id && runRef.current === run) setThreadId(id);
         },
-        controller.signal,
-      );
+        onSentence: (sentence) => {
+          // 音色三层（用户覆盖 > 人格自带 > 模型推荐 > 默认）服务端已合并进 voiceSettings，buildTtsRequest 负责展开：
+          // 有混音配方就传 mix（不传 voice / instruct），否则传 voice；情绪与语调指令按句来
+          // （sentence.tts.instruct 已是「人设语调；情绪语调」合并后的串）。
+          // 老服务端没有 voiceSettings 时回落到老字段 voice + expressive=true，行为与改造前一致。
+          const audio: Promise<Blob | null> = wantVoice
+            ? synthesizeSpeech(
+                buildTtsRequest({
+                  text: sentence.text,
+                  settings: config?.voiceSettings,
+                  fallbackVoiceId: config?.voice,
+                  emotion: sentence.tts?.emotion,
+                  instruct: sentence.tts?.instruct,
+                }),
+                controller.signal,
+              ).catch(() => null)
+            : Promise.resolve(null);
+          void enqueue(run, () => perform(run, sentence, audio, controller.signal));
+        },
+        onDone: (fullText, meta) => {
+          reply = fullText;
+          doneContext = meta.context;
+          if (meta.context && runRef.current === run) setContext(meta.context);
+        },
+      };
+      const legacyBody = { messages: history, lang };
+      if (legacyRef.current) {
+        await streamCompanionChat(legacyBody, handlers, controller.signal);
+      } else {
+        try {
+          const current = threadIdRef.current;
+          await streamCompanionChat({ message: text, ...(current ? { threadId: current } : {}), lang }, handlers, controller.signal);
+        } catch (error) {
+          const e = error as { status?: number; code?: string };
+          if (isLegacyChatRejection(error)) {
+            legacyRef.current = true;
+            await streamCompanionChat(legacyBody, handlers, controller.signal);
+          } else if (e?.status === 404 && e?.code === "CHAT_THREAD_NOT_FOUND") {
+            // 这段对话在别处被删了（另一个标签页 / 过期清扫）→ 开个新会话把这句话发出去
+            setThreadId(null);
+            setContext(null);
+            await streamCompanionChat({ message: text, lang }, handlers, controller.signal);
+          } else {
+            throw error;
+          }
+        }
+      }
+      if (doneContext?.level === "compact" && threadIdRef.current) pollContextAfterCompact(threadIdRef.current);
       // 等演出队列排空，再把整段回复写进历史、回到待命
       await enqueue(run, async () => undefined);
       if (runRef.current !== run) return;
@@ -408,6 +513,18 @@ export default function CompanionChat({ onOpenScene }: Props) {
         >
           <Shirt className="h-4 w-4" />
         </Link>
+        {/* 记忆：外圈是上下文用量环，点开记忆面板（只给登录用户） */}
+        {user ? (
+          <button
+            type="button"
+            onClick={() => setMemoryOpen(true)}
+            className="relative rounded-full p-1.5 text-gray-300 transition hover:bg-gray-800 hover:text-white"
+            title={t("companion.memory.ringTitle", { percent: contextPercent(context) })}
+            aria-label={t("companion.memory.title")}
+          >
+            <ContextRing context={context} />
+          </button>
+        ) : null}
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
@@ -448,10 +565,55 @@ export default function CompanionChat({ onOpenScene }: Props) {
         )}
       </form>
       {phase === "thinking" ? <p className="mt-1 px-2 text-xs text-gray-400">{t("companion.thinking", { name })}</p> : null}
+      {phase === "idle" && user && (context?.level === "compact" || context?.level === "full") ? (
+        <button
+          type="button"
+          onClick={() => setMemoryOpen(true)}
+          className={`mt-1 px-2 text-left text-xs ${contextTone(context.level).text} hover:underline`}
+        >
+          {t(context.level === "full" ? "companion.memory.fullHint" : "companion.memory.compactingHint", { name })}
+        </button>
+      ) : null}
 
       {authOpen ? <AuthDialog initialMode="login" next="/" onClose={() => setAuthOpen(false)} /> : null}
       <PersonaPickerModal open={personaOpen} onClose={() => setPersonaOpen(false)} onSelect={(persona) => void handlePickPersona(persona)} />
       <CompanionVoiceModal open={voiceModalOpen} onClose={() => setVoiceModalOpen(false)} config={config} />
+      <CompanionMemoryPanel
+        open={memoryOpen}
+        onClose={() => setMemoryOpen(false)}
+        name={name}
+        threadId={threadId}
+        context={context}
+        onContextChange={setContext}
+        onResetThread={resetThread}
+      />
     </div>
+  );
+}
+
+/** 上下文用量环：外圈按用量描边（颜色随档位），中间是记忆图标 */
+function ContextRing({ context }: { context: ChatContext | null }) {
+  const r = 10;
+  const c = 2 * Math.PI * r;
+  const percent = contextPercent(context);
+  const tone = contextTone(context?.level);
+  return (
+    <span className="relative flex h-6 w-6 items-center justify-center">
+      <svg viewBox="0 0 24 24" className="absolute inset-0 h-6 w-6 -rotate-90" aria-hidden="true">
+        <circle cx="12" cy="12" r={r} fill="none" strokeWidth="2" className="stroke-gray-700" />
+        <circle
+          cx="12"
+          cy="12"
+          r={r}
+          fill="none"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className={`${tone.stroke} transition-all`}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - percent / 100)}
+        />
+      </svg>
+      <Brain className="h-3 w-3" />
+    </span>
   );
 }
