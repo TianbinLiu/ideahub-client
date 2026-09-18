@@ -1531,7 +1531,17 @@
       "statsHint": "能力数值（雷达图）来自「从我的发言风格面板导入」；当前已带入 {{count}} 项能力。",
       "panelPreview": "面板预览",
       "voiceSection": "音频（可选）",
-      "voiceHint": "给这个人格配一把嗓子：数字人装上它时按这里的音色说话。不设置就跟随模型推荐或默认音色。"
+      "voiceHint": "给这个人格配一把嗓子：数字人装上它时按这里的音色说话。不设置就跟随模型推荐或默认音色。",
+      "wizardFieldsKept": "这个人格还带有{{fields}}（在 App 的人格向导里设置）。官网暂时不能编辑这几项，保存不会改动它们。",
+      "wizardFieldsFromGenerate": "生成结果里还有{{fields}}，保存时会一并写入，替换掉原来的。官网暂时不能编辑这几项。",
+      "wizardFieldSep": "、",
+      "wizardField": {
+        "tone": "语气",
+        "addressUser": "对用户的称呼",
+        "greeting": "开场白",
+        "examples": "示例对话",
+        "boundaries": "边界"
+      }
     },
     "gateModal": {
       "close": "关闭",

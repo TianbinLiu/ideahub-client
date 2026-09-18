@@ -1988,6 +1988,13 @@ export type PersonaStyle = {
   catchphrases: string[];
   stats: StyleStat[];
   stanceHint?: string;
+  // 人格向导（App 7 步 / 服务端 generate）写进来的五格，2026-09-05 起。官网编辑器暂时不能编辑它们，
+  // 但必须知道它们存在：PUT 的 style 是 PATCH 语义，没带的键服务端保持原值（见 PersonaEditorPage 的 wizardStyle）
+  tone?: string;
+  addressUser?: string;
+  greeting?: string;
+  examples?: { user: string; reply: string }[];
+  boundaries?: string[];
 };
 
 /** 一个可分享/下载/装备的发言人格 */
