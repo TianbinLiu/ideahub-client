@@ -1040,6 +1040,7 @@
     "modelSource": "Model source",
     "remoteModel": "Remote model URL",
     "remoteModelHint": "Use a publicly accessible `.model3.json` or `index.json` URL.",
+    "sampleCreditNote": "This is an official Live2D sample model. Under Live2D's terms, the notice below is shown wherever it appears on the site:",
     "uploadedModel": "My uploaded bundle",
     "uploadedModelHint": "Upload a zip bundle containing the model JSON, textures, and related assets, then load it from this site.",
     "modelJsonUrl": "Model JSON URL",

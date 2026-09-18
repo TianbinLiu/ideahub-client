@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import "./SiteLive2D.css";
 import { getMyComponents, type Live2DComponentSettings } from "../api";
+import { activeLive2dModelUrl, isLive2dSampleModel, LIVE2D_SAMPLE_CREDIT } from "../live2d/sampleCredit";
 import { useAuth } from "../authContext";
 
 type WaifuTipsConfig = {
@@ -127,6 +128,29 @@ function mountCloseToolButton(onHide: () => void) {
   closeButton.title = "Hide Live2D assistant";
   closeButton.addEventListener("click", onHide);
   toolContainer.appendChild(closeButton);
+}
+
+/**
+ * 用到 Live2D 官方示例（默认就是 Hiyori）时，把版权声明挂进 `#waifu` 里 ——
+ * 放在挂件自己的 DOM 里而不是 React 这一侧：挂件能拖动（`drag: true`），声明要跟着模型走；
+ * 挂件被 teardown 时整个 `#waifu` 一起移除，声明也跟着消失，不会留一句孤零零的字。
+ * 样式见 SiteLive2D.css 的 `#waifu-credit`。判据与原文见 live2d/sampleCredit。
+ */
+function mountSampleCredit(modelUrl: string) {
+  document.getElementById("waifu-credit")?.remove();
+  if (!isLive2dSampleModel(modelUrl)) return;
+  const waifu = document.getElementById("waifu");
+  if (!waifu) {
+    // 与 mountCloseToolButton 同一拍、同一个前提（initWidget 同步插入 #waifu）。真走到这里说明
+    // 挂件库的时序变了 —— 示例数据会在没有声明的情况下露出，必须响（铁律八）
+    console.warn("[IdeaHub] #waifu 不在，Live2D 示例模型的版权声明没挂上");
+    return;
+  }
+  const credit = document.createElement("div");
+  credit.id = "waifu-credit";
+  credit.lang = "en"; // 原文照放、不翻译（见 sampleCredit.ts 的 ⚠）
+  credit.textContent = LIVE2D_SAMPLE_CREDIT;
+  waifu.appendChild(credit);
 }
 
 async function buildWaifuConfigUrl(activeModelUrl: string) {
@@ -345,9 +369,7 @@ export default function SiteLive2D() {
           throw new Error("initWidget is not available after loading Live2D assets.");
         }
 
-        const activeModelUrl = live2d.source === "uploaded" && live2d.uploadedModelJsonUrl
-          ? live2d.uploadedModelJsonUrl
-          : live2d.modelJsonUrl;
+        const activeModelUrl = activeLive2dModelUrl(live2d);
         await disposeRuntimeConfig();
         waifuConfigUrlRef.current = await buildWaifuConfigUrl(activeModelUrl);
         if (disposed) return;
@@ -367,6 +389,7 @@ export default function SiteLive2D() {
         window.requestAnimationFrame(() => {
           if (disposed) return;
           mountCloseToolButton(hideLive2D);
+          mountSampleCredit(activeModelUrl);
         });
 
         live2dWindow.__ideahubLive2dBootstrapped = true;

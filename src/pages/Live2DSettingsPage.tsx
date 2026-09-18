@@ -4,6 +4,7 @@ import { getMyComponents, updateMyComponents, uploadLive2dBundle } from "../api"
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
+import { activeLive2dModelUrl, isLive2dSampleModel, LIVE2D_SAMPLE_CREDIT } from "../live2d/sampleCredit";
 
 type SourceMode = "remote" | "uploaded";
 
@@ -161,6 +162,17 @@ export default function Live2DSettingsPage() {
             </div>
           )}
         </div>
+
+        {/* ★ 选中的是 Live2D 官方示例（默认的 Hiyori 就是）时当场说清：它在站上露出会带这句版权声明。
+            判据与原文都在 live2d/sampleCredit —— 这里只是提前告诉用户，真正挂声明的是 SiteLive2D。 */}
+        {isLive2dSampleModel(activeLive2dModelUrl({ source, modelJsonUrl, uploadedModelJsonUrl })) && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-100/90">
+            <p>{t("components.sampleCreditNote")}</p>
+            <p lang="en" className="mt-1 text-amber-100/70">
+              {LIVE2D_SAMPLE_CREDIT}
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button onClick={save} disabled={saving} className="rounded-lg bg-white px-4 py-2 font-semibold text-black hover:bg-gray-200 disabled:opacity-60">
