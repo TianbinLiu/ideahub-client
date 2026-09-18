@@ -37,6 +37,7 @@ import {
 import StyleStandCard from "../components/StyleStandCard";
 import VoiceSettingsFields from "../components/VoiceSettingsFields";
 import { humanizeError } from "../utils/humanizeError";
+import { filledWizardKeys, pickWizardStyle, type WizardKey } from "../utils/personaWizardStyle";
 import { ocrImageToText } from "../utils/ocrImage";
 
 const EMOJI_PRESETS = ["🎭", "🔥", "🧠", "😈", "🛡️", "💧", "🎯", "⚔️", "🌟", "🤡", "👑", "🐍"];
@@ -85,6 +86,15 @@ export default function PersonaEditorPage() {
   const [catchphrasesText, setCatchphrasesText] = useState("");
   const [stanceHint, setStanceHint] = useState("");
   const [stats, setStats] = useState<StyleStat[]>([]);
+  /**
+   * 向导那五格（语气 / 称呼 / 开场白 / 示例对话 / 边界）这一次要不要写。
+   * ★★ null = **不发这几个键**，服务端按 PATCH 语义保持库里的值（普通编辑走这条：改个价格不许把它们清掉）；
+   *   对象 = 用它**整体替换**（「从文本生成」走这条：换了一个角色，旧角色的开场白和示例对话必须跟着换掉，
+   *   否则新名字配旧开场白，数字人还会拿旧的 few-shot 示例说话 —— 2026-09-18 评审抓到）。
+   */
+  const [wizardStyle, setWizardStyle] = useState<Pick<PersonaStyle, WizardKey> | null>(null);
+  /** 编辑态读到的那份里，向导五格哪几格有内容（只用来提示用户"它们还在"） */
+  const [storedWizardKeys, setStoredWizardKeys] = useState<WizardKey[]>([]);
   // 人格自带的嗓子；null = 不设置（提交时也发 null，服务端语义是「清掉」，编辑态取消音频靠它）
   const [voice, setVoice] = useState<VoiceSettings | null>(null);
 
@@ -113,6 +123,7 @@ export default function PersonaEditorPage() {
         setCatchphrasesText((p.style?.catchphrases || []).join("，"));
         setStanceHint(p.style?.stanceHint || "");
         setStats(p.style?.stats || []);
+        setStoredWizardKeys(filledWizardKeys(p.style));
         setVoice(p.voice ?? null);
       } catch (e) {
         if (mounted) toast.error(humanizeError(e));
@@ -209,6 +220,7 @@ export default function PersonaEditorPage() {
       setSummary(d.style?.summary || "");
       setCatchphrasesText((d.style?.catchphrases || []).join("，"));
       setStanceHint(d.style?.stanceHint || "");
+      setWizardStyle(pickWizardStyle(d.style));
       toast.success(t("arena.personaEditor.importGenerated"));
       setImportOpen(false);
     } catch (err) {
@@ -265,6 +277,7 @@ export default function PersonaEditorPage() {
       //   用户在这里清空「立场/倾向」、点保存，服务端照旧留着上一版，而界面上什么都不说。
       //   在老服务端上发 "" 与原来效果一样（它本来就给没带的键补空值），所以这一行可以先于服务端上线。
       stanceHint: stanceHint.trim(),
+      ...(wizardStyle ?? {}),
     };
 
     // 价格归一：非法/负数→0；上限与后端 schema 一致
@@ -590,6 +603,24 @@ export default function PersonaEditorPage() {
         <p className="text-xs text-gray-500">
           {t("arena.personaEditor.statsHint", { count: stats.length })}
         </p>
+        {/* 向导五格官网还不能编辑，但不许让用户对它们一无所知（见 wizardStyle 的 ★★） */}
+        {wizardStyle ? (
+          filledWizardKeys(wizardStyle).length > 0 && (
+            <p className="text-xs leading-relaxed text-cyan-200/80">
+              {t("arena.personaEditor.wizardFieldsFromGenerate", {
+                fields: filledWizardKeys(wizardStyle).map((k) => t(`arena.personaEditor.wizardField.${k}`)).join(t("arena.personaEditor.wizardFieldSep")),
+              })}
+            </p>
+          )
+        ) : (
+          storedWizardKeys.length > 0 && (
+            <p className="text-xs leading-relaxed text-gray-400">
+              {t("arena.personaEditor.wizardFieldsKept", {
+                fields: storedWizardKeys.map((k) => t(`arena.personaEditor.wizardField.${k}`)).join(t("arena.personaEditor.wizardFieldSep")),
+              })}
+            </p>
+          )
+        )}
       </section>
 
       {/* 音频（可选）：人格自带的嗓子。试听句子用第一条口头禅，没有就用组件的默认问候 */}
