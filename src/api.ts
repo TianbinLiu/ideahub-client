@@ -2307,6 +2307,26 @@ export type CompanionConfig = {
   model?: Live2dModel | null;
 };
 
+/**
+ * 提交 NCII 移除请求（TAKE IT DOWN Act §3）。**免登录**：需要它的人通常不是我们的用户。
+ * apiFetch 带上 token 也无妨——服务端这条路由不看鉴权。
+ */
+export function submitTakedownRequest(body: {
+  signature: string;
+  onBehalf: "self" | "authorized";
+  contactEmail: string;
+  contactPhone?: string;
+  urls: string[];
+  locationNote?: string;
+  statement?: string;
+  affirmedNotConsensual: true;
+}) {
+  return apiFetch<{ ok: boolean; id: string; receivedAt: string; dueAt: string; slaHours: number }>("/api/takedown", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function getCompanionConfig() {
   return apiFetch<CompanionConfig>("/api/companion/config");
 }

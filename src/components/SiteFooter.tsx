@@ -26,6 +26,8 @@ export default function SiteFooter() {
     // ★ 这条是 Google Play 对 Social 类应用的硬要求（见 pages/ChildSafetyPage 顶注）。
     //   页脚挂它不只是为了好看：Play 审核就是从站外点进来的，页脚是站内唯一的入口。
     { to: "/child-safety", label: t("siteFooter.childSafety") },
+    // ★ 法定要求「clear and conspicuous notice」：页脚是全站每一页都有的位置
+    { to: "/takedown", label: t("siteFooter.takedown") },
   ].filter((l) => l.to !== here);
   return (
     <footer className="mt-8 border-t border-gray-800 pt-5 text-xs text-gray-500">
