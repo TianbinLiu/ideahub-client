@@ -34,6 +34,7 @@ const CompanyPage = lazy(() => import("./pages/CompanyPage"));
 const DownloadPage = lazy(() => import("./pages/DownloadPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ChildSafetyPage = lazy(() => import("./pages/ChildSafetyPage"));
+const AiSafetyPage = lazy(() => import("./pages/AiSafetyPage"));
 const VideoPreviewPage = lazy(() => import("./pages/VideoPreviewPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
@@ -340,6 +341,9 @@ export default function App() {
               Play Console 里要填这个网址，审核会核"打得开、讲的是儿童安全、
               出现商店上的应用名"三条。★同样必须不登录可访问 —— 审核的人没有账号。 */}
           <Route path="/child-safety" element={<ChildSafetyPage />} />
+          {/* AI 聊天安全说明（自伤危机协议）。★ 加州 SB 243 §22602(b)(2) 要求把协议细节**公布在网站上**，
+              所以它必须**不登录可访问** —— 出事的时候没人会先去登录，监管与商店审核也没有账号。 */}
+          <Route path="/safety/ai-chat" element={<AiSafetyPage />} />
           {/* App 作品的站外预览页（App 分享链接的落地页）。★不登录可访问：
               链接就是发给没装 App 的陌生人的，看完引导去 /download */}
           <Route path="/v/:id" element={<VideoPreviewPage />} />

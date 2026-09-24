@@ -2305,7 +2305,40 @@ export type CompanionConfig = {
   personaSource?: "user" | "model" | "";
   /** 登录时才有：当前使用的市场模型；null = 官方内置 */
   model?: Live2dModel | null;
+  /** 自伤危机协议与 AI 告知（加州 SB 243 / 纽约 GBL）；老服务端没有这一项 */
+  safety?: CompanionSafetyConfig;
 };
+
+/** 一条求助方式：电话、短信或网址（按地区给，见服务端 chatSafety.service） */
+export type CrisisResource = { label: string; tel?: string; sms?: string; url?: string };
+
+export type CompanionSafetyConfig = {
+  /** 公开的安全说明页 */
+  policyUrl: string;
+  /** 协议版本（与同意版本同源） */
+  version: string;
+  consentVersion: string;
+  /** 服务端是否要求先同意才能聊 */
+  consentRequired: boolean;
+  consented: boolean;
+  region: "US" | "CN" | "OTHER";
+  resources: CrisisResource[];
+};
+
+/** SSE 的 safety 事件：危机求助卡。**不念出来**、不算小梦说的话 */
+export type CompanionSafetyCard = {
+  kind: "crisis";
+  trigger: "input" | "output";
+  region: "US" | "CN" | "OTHER";
+  title: string;
+  body: string;
+  resources: CrisisResource[];
+  policyUrl: string;
+  version: string;
+};
+
+/** SSE 的 notice 事件：AI 身份告知（新会话 / 空闲 30 分钟 / 每 3 小时） */
+export type CompanionNotice = { kind: string; text: string };
 
 export function getCompanionConfig() {
   return apiFetch<CompanionConfig>("/api/companion/config");
@@ -2368,6 +2401,11 @@ export type ChatMemoryItem = {
   updatedAt: string;
 };
 
+/** 记下「我已了解」（加州 SB 243 的告知同意）；老服务端没有这个路由 → 404，调用方忽略即可 */
+export function acceptCompanionConsent() {
+  return apiFetch<{ ok: boolean; consent: { version: string; at: string }; consented: boolean }>("/api/companion/consent", { method: "PUT", body: "{}" });
+}
+
 export function listChatThreads(scene: ChatScene, limit = 20) {
   return apiFetch<{ ok: boolean; threads: ChatThreadSummary[] }>(`/api/chat/threads?scene=${scene}&limit=${limit}`);
 }
@@ -2421,6 +2459,10 @@ export function clearChatMemories(scene: ChatScene) {
 export type CompanionChatHandlers = {
   /** 按会话聊天时最先到：新会话的 id 在第一句话之前就拿到，中途断开也不丢 */
   onThread?: (info: { threadId: string; title: string }) => void;
+  /** 危机求助卡：用户这句命中（trigger=input，服务端没调模型）或模型输出被拦下（trigger=output） */
+  onSafety?: (card: CompanionSafetyCard) => void;
+  /** AI 身份告知（纽约 GBL §1702） */
+  onNotice?: (notice: CompanionNotice) => void;
   /** 服务端切好的一句（含表情/动作标签与 TTS 参数），按 index 递增到达 */
   onSentence?: (sentence: CompanionSentence) => void;
   /** 原始增量文本，只适合做"打字机"展示 */
@@ -2435,8 +2477,11 @@ export type CompanionChatHandlers = {
  *   · 旧写法 { messages[] } —— 客户端自带最近几条，服务端不存（老服务端只认这个）。
  */
 export type CompanionChatBody =
-  | { message: string; threadId?: string; lang?: "zh" | "en" }
-  | { messages: Array<{ role: "user" | "assistant"; content: string }>; lang?: "zh" | "en" };
+  | { message: string; threadId?: string; lang?: "zh" | "en"; caps?: Array<"safety" | "notice"> }
+  | { messages: Array<{ role: "user" | "assistant"; content: string }>; lang?: "zh" | "en"; caps?: Array<"safety" | "notice"> };
+
+/** 本端认识的新事件。带上它，服务端才会发结构化的求助卡；不带则退化成一句台词（老客户端兼容） */
+export const COMPANION_CAPS: Array<"safety" | "notice"> = ["safety", "notice"];
 
 /**
  * 流式对话。resolve = 流正常结束；服务端发 `error` 事件或 HTTP 非 2xx 都 reject。
@@ -2456,6 +2501,8 @@ export async function streamCompanionChat(body: CompanionChatBody, handlers: Com
       return;
     }
     if (event === "thread") handlers.onThread?.({ threadId: String(payload.threadId ?? ""), title: String(payload.title ?? "") });
+    else if (event === "safety") handlers.onSafety?.(payload as unknown as CompanionSafetyCard);
+    else if (event === "notice") handlers.onNotice?.(payload as unknown as CompanionNotice);
     else if (event === "sentence") handlers.onSentence?.(payload as unknown as CompanionSentence);
     else if (event === "token") handlers.onToken?.(String(payload.t ?? ""));
     else if (event === "done")

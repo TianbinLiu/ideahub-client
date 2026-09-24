@@ -19,6 +19,12 @@
  *   登录后接着上一次的会话聊（listChatThreads 取最近一个）；输入框左边的用量环 = 上下文用量，点开是
  *   CompanionMemoryPanel（整理记忆 / 新对话 / 删对话 / 「记得的事」）。用量 ≥75% 时服务端在回复后自动整理，
  *   这里过几秒回头刷一次用量。老服务端不认新写法（isLegacyChatRejection）→ 退回旧写法：本地带最近 12 条。
+ * ★ 安全协议（2026-09-24，加州 SB 243 / 纽约 GBL，详见官网 /safety/ai-chat）：
+ *   · `safety` 事件 → 求助卡（CompanionSafetyCard）。**先 stopAll、不合成语音、不进字幕**——
+ *     把热线念成台词既轻佻又会盖住用户要看的号码；
+ *   · `notice` 事件 → 居中一行「你在和 AI 聊天」（新会话 / 空闲 30 分钟 / 每 3 小时）；
+ *   · 输入框下常驻一行「{name} 是 AI，不是真人」，游客也看得到（§22602(a)）；
+ *   · 第一次发言前弹 CompanionConsentDialog，同意记在服务端。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -26,6 +32,8 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import toast from "react-hot-toast";
 import { AudioLines, Brain, Drama, ImageIcon, Send, Shirt, Square, Volume2, VolumeX, X } from "lucide-react";
+import CompanionSafetyCard from "./CompanionSafetyCard";
+import CompanionConsentDialog from "./CompanionConsentDialog";
 import {
   COMPANION_UPDATED_EVENT,
   companionForbiddenReason,
@@ -35,7 +43,10 @@ import {
   streamCompanionChat,
   synthesizeSpeech,
   updateCompanionSettings,
+  COMPANION_CAPS,
   type ChatContext,
+  type CompanionNotice,
+  type CompanionSafetyCard as SafetyCard,
   type CompanionChatHandlers,
   type CompanionConfig,
   type Persona,
@@ -105,6 +116,11 @@ export default function CompanionChat({ onOpenScene }: Props) {
   const [personaBusy, setPersonaBusy] = useState(false);
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [safetyCard, setSafetyCard] = useState<SafetyCard | null>(null);
+  const [notice, setNotice] = useState<CompanionNotice | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
+  /** 弹同意框时暂存这句话，同意之后接着发出去 */
+  const pendingTextRef = useRef("");
   const [threadId, setThreadIdState] = useState<string | null>(null);
   const [context, setContext] = useState<ChatContext | null>(null);
 
@@ -331,8 +347,9 @@ export default function CompanionChat({ onOpenScene }: Props) {
     }
   }
 
-  async function send() {
-    const text = input.trim().slice(0, MAX_INPUT_CHARS);
+  /** @param override 同意框确认后把暂存的那句直接传进来 —— 这时 input 状态还没刷新，读它会读到空串 */
+  async function send(override?: string) {
+    const text = (override ?? input).trim().slice(0, MAX_INPUT_CHARS);
     if (!text) return;
     if (!user) {
       setAuthOpen(true);
@@ -340,6 +357,14 @@ export default function CompanionChat({ onOpenScene }: Props) {
     }
     if (!enabled) {
       toast.error(t("companion.unavailable", { name }));
+      return;
+    }
+
+    // 第一次聊天前要先看过告知（加州 SB 243）。服务端没要求时不打扰用户。
+    if (config?.safety && config.safety.consentRequired && !config.safety.consented) {
+      pendingTextRef.current = text;
+      setInput("");
+      setConsentOpen(true);
       return;
     }
 
@@ -362,6 +387,16 @@ export default function CompanionChat({ onOpenScene }: Props) {
       const handlers: CompanionChatHandlers = {
         onThread: ({ threadId: id }) => {
           if (id && runRef.current === run) setThreadId(id);
+        },
+        // 求助卡：先把正在演的停掉（表情回到 normal、不再念），再把卡片显示出来。卡片不念、不进字幕。
+        onSafety: (card) => {
+          if (runRef.current !== run) return;
+          stopAll();
+          setSubtitle("");
+          setSafetyCard(card);
+        },
+        onNotice: (n) => {
+          if (runRef.current === run) setNotice(n);
         },
         onSentence: (sentence) => {
           // 音色三层（用户覆盖 > 人格自带 > 模型推荐 > 默认）服务端已合并进 voiceSettings，buildTtsRequest 负责展开：
@@ -388,13 +423,13 @@ export default function CompanionChat({ onOpenScene }: Props) {
           if (meta.context && runRef.current === run) setContext(meta.context);
         },
       };
-      const legacyBody = { messages: history, lang };
+      const legacyBody = { messages: history, lang, caps: COMPANION_CAPS };
       if (legacyRef.current) {
         await streamCompanionChat(legacyBody, handlers, controller.signal);
       } else {
         try {
           const current = threadIdRef.current;
-          await streamCompanionChat({ message: text, ...(current ? { threadId: current } : {}), lang }, handlers, controller.signal);
+          await streamCompanionChat({ message: text, ...(current ? { threadId: current } : {}), lang, caps: COMPANION_CAPS }, handlers, controller.signal);
         } catch (error) {
           const e = error as { status?: number; code?: string };
           if (isLegacyChatRejection(error)) {
@@ -404,7 +439,7 @@ export default function CompanionChat({ onOpenScene }: Props) {
             // 这段对话在别处被删了（另一个标签页 / 过期清扫）→ 开个新会话把这句话发出去
             setThreadId(null);
             setContext(null);
-            await streamCompanionChat({ message: text, lang }, handlers, controller.signal);
+            await streamCompanionChat({ message: text, lang, caps: COMPANION_CAPS }, handlers, controller.signal);
           } else {
             throw error;
           }
@@ -418,14 +453,40 @@ export default function CompanionChat({ onOpenScene }: Props) {
       setPhase("idle");
     } catch (error) {
       if (controller.signal.aborted) return;
+      // 服务端要求先同意（428）：弹同意框，把这句话留着，同意后接着发
+      if ((error as { status?: number })?.status === 428) {
+        pendingTextRef.current = text;
+        setConsentOpen(true);
+        setPhase("idle");
+        return;
+      }
       toast.error(humanizeError(error));
       setSubtitle(t("companion.failed", { name }));
       setPhase("idle");
     }
   }
 
+  function sendPending() {
+    const text = pendingTextRef.current;
+    pendingTextRef.current = "";
+    setConsentOpen(false);
+    // 同意状态在服务端，重新拉一次 config（否则下一句又会被 428 拦），然后把那句话发出去
+    getCompanionConfig()
+      .then((next) => setConfig(next))
+      .catch(() => undefined)
+      .finally(() => {
+        if (text) void send(text);
+      });
+  }
+
   return (
     <div className="relative" data-tour="home-companion">
+      {safetyCard ? <CompanionSafetyCard card={safetyCard} onClose={() => setSafetyCard(null)} /> : null}
+      {notice ? (
+        <p className="mb-1 w-fit max-w-xl rounded-full border border-gray-700 bg-gray-950/70 px-3 py-1 text-[11px] text-gray-400 backdrop-blur">
+          {notice.text}
+        </p>
+      ) : null}
       {subtitle ? (
         <div className="mb-2 w-fit max-w-xl rounded-2xl rounded-bl-sm border border-cyan-900/60 bg-gray-950/85 px-4 py-2.5 text-sm leading-6 text-gray-100 shadow-lg backdrop-blur">
           <span className="mr-2 text-xs font-semibold text-cyan-300">{name}</span>
@@ -564,6 +625,14 @@ export default function CompanionChat({ onOpenScene }: Props) {
           </button>
         )}
       </form>
+      {/* 常驻告知（加州 SB 243 §22602(a)）：游客也要看得到，所以放在表单下面而不是聊天记录里 */}
+      <p className="mt-1 px-2 text-[11px] leading-5 text-gray-500">
+        {t("companion.aiNotice", { name })}
+        {" · "}
+        <Link to={config?.safety?.policyUrl || "/safety/ai-chat"} className="underline hover:text-gray-300">
+          {t("companion.safety.policyLink")}
+        </Link>
+      </p>
       {phase === "thinking" ? <p className="mt-1 px-2 text-xs text-gray-400">{t("companion.thinking", { name })}</p> : null}
       {phase === "idle" && user && (context?.level === "compact" || context?.level === "full") ? (
         <button
@@ -578,6 +647,16 @@ export default function CompanionChat({ onOpenScene }: Props) {
       {authOpen ? <AuthDialog initialMode="login" next="/" onClose={() => setAuthOpen(false)} /> : null}
       <PersonaPickerModal open={personaOpen} onClose={() => setPersonaOpen(false)} onSelect={(persona) => void handlePickPersona(persona)} />
       <CompanionVoiceModal open={voiceModalOpen} onClose={() => setVoiceModalOpen(false)} config={config} />
+      <CompanionConsentDialog
+        open={consentOpen}
+        name={name}
+        safety={config?.safety}
+        onAccepted={sendPending}
+        onCancel={() => {
+          pendingTextRef.current = "";
+          setConsentOpen(false);
+        }}
+      />
       <CompanionMemoryPanel
         open={memoryOpen}
         onClose={() => setMemoryOpen(false)}

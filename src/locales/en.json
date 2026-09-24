@@ -705,6 +705,26 @@
     "voiceSaved": "Voice saved",
     "voiceFollow": "Follow persona / model again",
     "voiceFollowed": "Back to the persona / model voice",
+"aiNotice": "{{name}} is an AI, not a real person, and can be wrong",
+    "safety": {
+      "call": "Call {{number}}",
+      "text": "Text {{number}}",
+      "open": "Open page",
+      "policyLink": "Safety notes",
+      "dismiss": "Dismiss"
+    },
+    "consent": {
+      "title": "Before you chat with {{name}}",
+      "isAi": "{{name}} is an AI, not a real person. You can ask at any time, and she must tell you the truth.",
+      "mayErr": "She can be wrong, and is not a substitute for a doctor, lawyer or therapist.",
+      "minors": "A companion AI may not be suitable for some minors.",
+      "data": "Your chats are stored on our server so she can remember what you talked about; they are deleted 180 days after your last chat, and you can delete them yourself at any time.",
+      "crisisTitle": "If you are in crisis",
+      "policyLink": "Read the AI chat safety notes",
+      "accept": "I understand",
+      "accepting": "Saving…",
+      "cancel": "Not now"
+    },
     "memory": {
       "title": "Memory",
       "ringTitle": "Memory and context usage: {{percent}}%",
@@ -2502,7 +2522,8 @@
     "operator": "Operated by Tianbin Liu (individual developer)",
     "contact": "Contact:",
     "privacy": "Privacy Policy",
-    "childSafety": "Child Safety Standards"
+    "childSafety": "Child Safety Standards",
+    "aiSafety": "AI chat safety"
   },
   "videoPreview": {
     "appName": "QiMeng",
@@ -2609,6 +2630,57 @@
       "saved": "Saved"
     }
   },
+    "aiSafety": {
+      "title": "AI chat safety notes",
+      "updated": "Updated: 2026-09-24",
+      "version": "Protocol version {{version}}",
+      "scopeTitle": "Scope",
+      "scopeBody": "These notes cover the AI companion Xiaomeng on the home page of QiMeng / 启梦创作 (ideahubs.org), and describe how we handle self-harm and suicide topics in chat. Other AI entry points in the app will adopt the same protocol; this page will be updated when they do.",
+      "detectTitle": "How we detect",
+      "detectBody": "Every message is checked on our server before it is sent to the model, and every sentence the model produces is checked before it is shown to you.",
+      "detectItems": [
+        "We check both what you write and what the AI is about to say.",
+        "Chinese and English are covered, across wishing to die, suicide, self-harm and specific methods; the categories follow the C-SSRS scale.",
+        "Text is normalised first, so spaced or punctuated spellings are still recognised.",
+        "Everyday Chinese phrases that merely sound alarming are not treated as a crisis."
+      ],
+      "responseTitle": "What happens on a match",
+      "responseItems": [
+        "If your message matches: it is not sent to the AI model. You get a help card with crisis lines for your region instead, and you can keep chatting. Nothing is locked.",
+        "If the AI's reply matches: that sentence is never shown, generation stops immediately, and you get the same help card. Blocked content does not enter your chat history.",
+        "The help card is never read aloud and is not presented as something the AI said."
+      ],
+      "resourcesTitle": "Where to get help (shown by your region)",
+      "resourcesFallback": [
+        "United States: 988 Suicide & Crisis Lifeline (call or text 988); chat at https://chat.988lifeline.org/; in an emergency call 911",
+        "Mainland China: 12356 national psychological support line; in an emergency call 110 or 120",
+        "Elsewhere: find a local line at https://findahelpline.com/; in an emergency call your local emergency number"
+      ],
+      "limitsTitle": "Limits of this approach",
+      "limitsItems": [
+        "It is a keyword check: it will miss things, and it will sometimes flag the wrong thing.",
+        "No human monitors your chats in real time.",
+        "It does not call emergency services for you, and it does not pass your words to any third party or emergency contact.",
+        "An AI is not a counsellor and cannot replace professional help."
+      ],
+      "disclosureTitle": "Telling you it is an AI",
+      "disclosureItems": [
+        "A line under the chat box always states that you are talking to an AI that can be wrong.",
+        "We repeat the notice when a conversation starts, when you come back after 30 minutes away, and every 3 hours of continued chatting.",
+        "If you ask whether it is a real person, it must say it is an AI. This rule overrides any persona."
+      ],
+      "minorsTitle": "Minors",
+      "minorsBody": "A companion AI may not be suitable for some minors. We show this notice before first use.",
+      "dataTitle": "Data",
+      "dataItems": [
+        "We keep only an anonymous count by date, surface, direction and region, for statistical reporting required by law.",
+        "That count contains no account, IP, conversation id or message text.",
+        "What you wrote stays in your own conversation and you can delete it at any time; this kind of content is never turned into long-term memories."
+      ],
+      "privacyLink": "Read the privacy policy",
+      "contactTitle": "Contact",
+      "contactBody": "Questions about these notes, or a miss or false alarm to report? Email"
+    },
   "childSafety": {
     "title": "Child Safety Standards",
     "updated": "Last updated: September 3, 2026",
