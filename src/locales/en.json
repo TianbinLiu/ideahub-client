@@ -2635,7 +2635,7 @@
       "updated": "Updated: 2026-09-24",
       "version": "Protocol version {{version}}",
       "scopeTitle": "Scope",
-      "scopeBody": "These notes cover the AI companion Xiaomeng on the home page of QiMeng / 启梦创作 (ideahubs.org), and describe how we handle self-harm and suicide topics in chat. Other AI entry points in the app will adopt the same protocol; this page will be updated when they do.",
+      "scopeBody": "These notes cover the AI companion Xiaomeng on the home page of QiMeng / 启梦创作 (ideahubs.org) and the persona marketplace’s preview chat, and describe how we handle self-harm and suicide topics in chat. The in-app support assistant has not adopted this protocol yet; this page will be updated when it does.",
       "detectTitle": "How we detect",
       "detectBody": "Every message is checked on our server before it is sent to the model, and every sentence the model produces is checked before it is shown to you.",
       "detectItems": [
