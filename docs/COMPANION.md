@@ -20,6 +20,9 @@
 | `src/components/VoiceTemplateBrowser.tsx` | 模板紧凑浏览器（搜索 + 全部/我的 + 最热/最新），首页声音面板与选择器弹窗共用 |
 | `src/components/VoiceTemplatePickerModal.tsx` | 「声音市场模板」选择器弹窗（音频表单用） |
 | `src/components/CompanionVoiceModal.tsx` | 首页对话框「声音」面板：当前生效的声音 + 模板市场 tab + 自定义 tab（保存 / 恢复跟随） |
+| `src/components/CompanionSafetyCard.tsx` | 危机求助卡（琥珀色系统卡片，热线按地区给，tel:/sms: 一键拨打）。**不念、不进字幕、不算小梦说的话** |
+| `src/components/CompanionConsentDialog.tsx` | 第一次聊天前的告知同意（是 AI / 可能出错 / 可能不适合部分未成年人 / 数据怎么存），同意记在服务端 |
+| `src/pages/AiSafetyPage.tsx` | 公开的 AI 聊天安全说明 `/safety/ai-chat`（加州 SB 243 §22602(b)(2) 要求公开协议细节），**不登录可访问** |
 | `src/components/CompanionMemoryPanel.tsx` | 首页对话框「记忆」面板：上下文用量、整理记忆（可写重点）、新对话、删对话（两步确认）、「小梦记得的事」（改 / 置顶 / 回到上一版 / 删 / 清空） |
 | `src/companion/chatContext.ts` | 对话记忆纯逻辑：token 数显示、用量百分比、档位颜色、老服务端识别（`isLegacyChatRejection`） |
 | `src/pages/VoiceMarketPage.tsx` | 声音市场列表 `/voices/market`：设为我的声音 / 点赞 / 试听 |
@@ -151,6 +154,15 @@
 - 输入框左边的用量环：颜色随档位（ok 青 / warn 黄 / compact 橙 / full 红），点开记忆面板。用量 ≥75% 时服务端在回复后自动整理，网站隔 5 秒回头刷一次用量（最多 3 次）。
 - 会话被别处删了（另一个标签页、过期清扫）→ 服务端回 404 `CHAT_THREAD_NOT_FOUND`，网站自动开新会话把这句话发出去。
 - **部署顺序**：服务端先上。网站碰到老服务端（400 且 zod 抱怨缺 `messages`）会自动退回旧写法（本地带最近 12 条），不会坏。
+
+## 安全协议（2026-09-24）
+
+法条：加州 SB 243（B&P §22602 告知是 AI、防止产出自伤内容并转介危机服务；§22604 未成年人提示）、纽约 GBL §1701/§1702。协议细节公开在 `/safety/ai-chat`，版本号来自服务端 `config.safety.version`。
+
+- **求助卡**（SSE `safety` 事件）：用户这句命中（服务端不调模型）或模型输出被拦下时下发。收到先 `stopAll()`、**不调 `/api/tts`**、不进字幕；热线按访问者所在地区给，不按界面语言。
+- **AI 身份告知**：常驻一行在输入框下方（游客也看得到）；`notice` 事件在新会话、空闲 30 分钟、每 3 小时各提示一次。
+- **首次同意**：`config.safety.consentRequired && !consented` 时先弹 `CompanionConsentDialog`，把那句话暂存，同意后再发；服务端也会用 428 兜底（老前端 / 直连 API）。同意记在服务端而不是 localStorage —— 换设备也算数，而且它是我们履行告知义务的证据。
+- **请求带 `caps: ["safety","notice"]`**：不带的老客户端会收到退化形式（求助文字走 `sentence`），所以先上服务端不会把旧前端打坏。
 
 ## 运行时行为速查
 
