@@ -2600,6 +2600,8 @@
       "submitting": "Submitting…",
       "orEmail": "If a form does not work for you, email us at {{email}}.",
       "errUrls": "Please give at least one link or address so we can find the content.",
+    "errTooMany": "At most {{max}} links at a time. Send the rest in a second request — we will treat them as the same matter.",
+    "errBadUrl": "This does not look like a complete address: {{url}}. One per line, and do not wrap them.",
       "errAffirm": "Please tick the last box — that confirmation is required by law.",
       "errGeneric": "That did not go through. Please try again, or email us directly.",
       "doneTitle": "Received",
@@ -2613,7 +2615,7 @@
       "falseTitle": "About false requests",
       "falseBody": "This channel exists for people who genuinely need it. Knowingly false requests may cost you your account, and we reserve the right to go further in serious cases.",
       "privacyTitle": "What you enter here",
-      "privacyBody": "We keep only what handling the request requires: your signature, contact details, the links and statement you gave, and our record of what we did. We do not log your IP address. These records exist to show we handled the request within the legal deadline; they are not used for anything else and are not made public."
+      "privacyBody": "We keep only what handling the request requires: your signature, contact details, the links and statement you gave, and our record of what we did. This request does not store your IP address in our database. Like any website, our server's access log does record the request with an IP for abuse prevention, rotated on the usual schedule; we do not tie that log to this request. These records exist to show we handled the request within the legal deadline; they are not used for anything else and are not made public."
     },
   "childSafety": {
     "title": "Child Safety Standards",

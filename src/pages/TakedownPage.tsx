@@ -37,6 +37,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/** 与服务端 `createBody` 的 `urls` 上限逐字相等（改一边必须改另一边） */
+const MAX_URLS = 30;
+
 const inputCls =
   "mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none placeholder:text-gray-600 focus:border-cyan-700";
 
@@ -66,11 +69,25 @@ export default function TakedownPage() {
     // 一行一个链接。★ 在这里拆而不是让用户填 N 个输入框：需要用这张表的人往往手上
     //   有一串链接，逐个加输入框只会让她多点十几下。
     const urls = form.urls
-      .split(/[\n,]/)
+      // 只按换行拆，**不能按逗号**：Cloudinary 的变换段里就有逗号
+      // （.../upload/w_400,c_fill/...），按逗号拆会把一个地址拆成两条都 >=4 字符的坏 URL，
+      // 然后静默落库 201 —— 我们照着坏地址去找，当然什么都找不到。
+      .split(/\n/)
       .map((s) => s.trim())
       .filter(Boolean);
     if (!urls.length) {
       setError(t("takedown.errUrls"));
+      return;
+    }
+    // 服务端的上下限在这里镜像一份：不镜像的话超限只会得到一句英文 "Validation error"，
+    // 而页面上从没提过有 30 条这个上限 —— 用户无从修正，48 小时的钟也就没开始走。
+    if (urls.length > MAX_URLS) {
+      setError(t("takedown.errTooMany", { max: MAX_URLS }));
+      return;
+    }
+    const tooShort = urls.find((u) => u.length < 4);
+    if (tooShort) {
+      setError(t("takedown.errBadUrl", { url: tooShort.slice(0, 40) }));
       return;
     }
     if (!form.affirmed) {
@@ -148,7 +165,7 @@ export default function TakedownPage() {
               {t("takedown.fSignature")} <span className="text-amber-400">*</span>
             </label>
             <p className="text-xs text-gray-500">{t("takedown.fSignatureHint")}</p>
-            <input id="td-sig" className={inputCls} value={form.signature} onChange={(e) => set("signature", e.target.value)} required maxLength={120} />
+            <input id="td-sig" className={inputCls} value={form.signature} onChange={(e) => set("signature", e.target.value)} required minLength={2} maxLength={120} />
           </div>
 
           <fieldset>
@@ -204,13 +221,24 @@ export default function TakedownPage() {
           </div>
 
           <label className="flex items-start gap-2 text-sm text-gray-200">
-            <input type="checkbox" className="mt-1" checked={form.affirmed} onChange={(e) => set("affirmed", e.target.checked)} />
+            <input
+              type="checkbox"
+              className="mt-1"
+              required
+              aria-invalid={Boolean(error) && !form.affirmed}
+              checked={form.affirmed}
+              onChange={(e) => set("affirmed", e.target.checked)}
+            />
             <span>
               {t("takedown.fAffirm")} <span className="text-amber-400">*</span>
             </span>
           </label>
 
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
+          {/* role="alert" + aria-live：读屏用户看不见红字，不播报等于没有反馈。
+              仓里既有的 PageLoading / ExtensionGateModal 用的是同一套写法。 */}
+          <p role="alert" aria-live="assertive" className="text-sm text-red-300">
+            {error}
+          </p>
 
           <div className="flex items-center gap-3">
             <button
