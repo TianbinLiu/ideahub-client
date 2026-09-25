@@ -1574,7 +1574,17 @@
       "statsHint": "Ability stats (radar chart) come from \"Import from my speaking style panel\"; {{count}} abilities currently loaded.",
       "panelPreview": "Panel preview",
       "voiceSection": "Voice (optional)",
-      "voiceHint": "Give this persona a voice: the companion speaks with it whenever this persona is on. Leave unset to inherit the model's recommendation or the default."
+      "voiceHint": "Give this persona a voice: the companion speaks with it whenever this persona is on. Leave unset to inherit the model's recommendation or the default.",
+      "wizardFieldsKept": "This persona also has {{fields}} (set in the App's persona wizard). The site can't edit these yet, and saving here leaves them unchanged.",
+      "wizardFieldsFromGenerate": "The generated result also includes {{fields}}. Saving writes them too, replacing the old ones. The site can't edit these yet.",
+      "wizardFieldSep": ", ",
+      "wizardField": {
+        "tone": "tone",
+        "addressUser": "how it addresses you",
+        "greeting": "greeting",
+        "examples": "example dialogues",
+        "boundaries": "boundaries"
+      }
     },
     "gateModal": {
       "close": "Close",
