@@ -20,6 +20,11 @@
 | `src/components/VoiceTemplateBrowser.tsx` | 模板紧凑浏览器（搜索 + 全部/我的 + 最热/最新），首页声音面板与选择器弹窗共用 |
 | `src/components/VoiceTemplatePickerModal.tsx` | 「声音市场模板」选择器弹窗（音频表单用） |
 | `src/components/CompanionVoiceModal.tsx` | 首页对话框「声音」面板：当前生效的声音 + 模板市场 tab + 自定义 tab（保存 / 恢复跟随） |
+| `src/components/CompanionSafetyCard.tsx` | 危机求助卡（琥珀色系统卡片，热线按地区给，tel:/sms: 一键拨打）。**不念、不进字幕、不算小梦说的话** |
+| `src/components/CompanionConsentDialog.tsx` | 第一次聊天前的告知同意（是 AI / 可能出错 / 可能不适合部分未成年人 / 数据怎么存），同意记在服务端 |
+| `src/pages/AiSafetyPage.tsx` | 公开的 AI 聊天安全说明 `/safety/ai-chat`（加州 SB 243 §22602(b)(2) 要求公开协议细节），**不登录可访问** |
+| `src/components/CompanionMemoryPanel.tsx` | 首页对话框「记忆」面板：上下文用量、整理记忆（可写重点）、新对话、删对话（两步确认）、「小梦记得的事」（改 / 置顶 / 回到上一版 / 删 / 清空） |
+| `src/companion/chatContext.ts` | 对话记忆纯逻辑：token 数显示、用量百分比、档位颜色、老服务端识别（`isLegacyChatRejection`） |
 | `src/pages/VoiceMarketPage.tsx` | 声音市场列表 `/voices/market`：设为我的声音 / 点赞 / 试听 |
 | `src/pages/VoiceTemplateDetailPage.tsx` | 模板详情 `/voices/market/:id`：配方表 / 语速音调 / 统计 / 作者编辑删除 |
 | `src/pages/VoiceTemplateEditorPage.tsx` | 创建 / 编辑模板 `/voices/market/new`、`/voices/market/:id/edit` |
@@ -41,11 +46,11 @@
 | `src/companion/speech.ts` | 播放 TTS Blob，同时用 AnalyserNode 算响度包络喂口型 |
 | `src/companion/bus.ts` | 舞台与对话框之间的模块级单例（兄弟组件，不用 context 免得整页重渲染） |
 | `src/companion/scenes.ts` | 场景清单 + localStorage 偏好 |
-| `src/api.ts` | `getCompanionConfig` / `streamCompanionChat` / `synthesizeSpeech`；`getCompanionSettings` / `updateCompanionSettings`；`listLive2dModels` 等模型市场接口；`listVoiceTemplates` 等声音市场接口 |
+| `src/api.ts` | `getCompanionConfig` / `streamCompanionChat` / `synthesizeSpeech`；对话记忆 `listChatThreads` / `getChatMessages` / `compactChatThread` / `deleteChatThread` / `listChatMemories` 等；`getCompanionSettings` / `updateCompanionSettings`；`listLive2dModels` 等模型市场接口；`listVoiceTemplates` 等声音市场接口 |
 | `public/live2d/mascot/` | 官方看板娘模型（moc3 + 4096 webp 贴图 + exp3/motion3） |
 | `public/backgrounds/` | 场景背景 webp（1920×1080）与缩略图 |
 
-服务端契约见 ideahub-server `src/routes/companion.routes.js`（SSE 事件 `sentence`/`token`/`done`/`error`）
+服务端契约见 ideahub-server `src/routes/companion.routes.js`（SSE 事件 `thread`/`sentence`/`token`/`done`/`error`）、`src/routes/chatThreads.routes.js`（`/api/chat`）
 与 `src/routes/tts.routes.js`；人格 / 音频 / 模型市场见下面那节。
 
 ## 模型是怎么来的（要改形象时看这里）
@@ -139,6 +144,25 @@
   「自定义」tab 绑定 `settings.settings.voice`（用户覆盖那一层，**不是**合并结果，否则人格自带的音色会被当成用户改过的存回去），
   「恢复跟随人格 / 模型」= `{ voice: null }`。
 - 路由 `/voices/market`、`/voices/market/:id`（游客可看可试听）、`/voices/market/new`、`/voices/market/:id/edit`（`ProtectedRoute`）。
+
+## 对话记忆（2026-09-18）
+
+设计见 app 仓 `docs/character-art-privacy-context.md` §B / §C，契约见 app 仓 `docs/api-contract.md`「对话记忆」。
+
+- 历史在服务端：`streamCompanionChat({ message, threadId? })`，不再由网站带最近 12 条。第一个事件 `thread` 给出会话 id（新会话也能在第一句话之前拿到），`done` 带 `context` 用量。
+- 登录后接着最近一次会话聊（`listChatThreads("companion", 1)`）；「新对话」只是清掉本地 threadId，下一句自然开新会话；删对话后同样。
+- 输入框左边的用量环：颜色随档位（ok 青 / warn 黄 / compact 橙 / full 红），点开记忆面板。用量 ≥75% 时服务端在回复后自动整理，网站隔 5 秒回头刷一次用量（最多 3 次）。
+- 会话被别处删了（另一个标签页、过期清扫）→ 服务端回 404 `CHAT_THREAD_NOT_FOUND`，网站自动开新会话把这句话发出去。
+- **部署顺序**：服务端先上。网站碰到老服务端（400 且 zod 抱怨缺 `messages`）会自动退回旧写法（本地带最近 12 条），不会坏。
+
+## 安全协议（2026-09-24）
+
+法条：加州 SB 243（B&P §22602 告知是 AI、防止产出自伤内容并转介危机服务；§22604 未成年人提示）、纽约 GBL §1701/§1702。协议细节公开在 `/safety/ai-chat`，版本号来自服务端 `config.safety.version`。
+
+- **求助卡**（SSE `safety` 事件）：用户这句命中（服务端不调模型）或模型输出被拦下时下发。收到先 `stopAll()`、**不调 `/api/tts`**、不进字幕；热线按访问者所在地区给，不按界面语言。
+- **AI 身份告知**：常驻一行在输入框下方（游客也看得到）；`notice` 事件在新会话、空闲 30 分钟、每 3 小时各提示一次。
+- **首次同意**：`config.safety.consentRequired && !consented` 时先弹 `CompanionConsentDialog`，把那句话暂存，同意后再发；服务端也会用 428 兜底（老前端 / 直连 API）。同意记在服务端而不是 localStorage —— 换设备也算数，而且它是我们履行告知义务的证据。
+- **请求带 `caps: ["safety","notice"]`**：不带的老客户端会收到退化形式（求助文字走 `sentence`），所以先上服务端不会把旧前端打坏。
 
 ## 运行时行为速查
 

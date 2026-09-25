@@ -2305,6 +2305,8 @@ export type CompanionConfig = {
   personaSource?: "user" | "model" | "";
   /** 登录时才有：当前使用的市场模型；null = 官方内置 */
   model?: Live2dModel | null;
+  /** 自伤危机协议与 AI 告知（加州 SB 243 / 纽约 GBL）；老服务端没有这一项 */
+  safety?: CompanionSafetyConfig;
 };
 
 /**
@@ -2327,8 +2329,46 @@ export function submitTakedownRequest(body: {
   });
 }
 
-export function getCompanionConfig() {
-  return apiFetch<CompanionConfig>("/api/companion/config");
+/** 一条求助方式：电话、短信或网址（按地区给，见服务端 chatSafety.service） */
+export type CrisisResource = { label: string; tel?: string; sms?: string; url?: string };
+
+export type CompanionSafetyConfig = {
+  /** 公开的安全说明页 */
+  policyUrl: string;
+  /** 协议版本（与同意版本同源） */
+  version: string;
+  consentVersion: string;
+  /** 服务端是否要求先同意才能聊 */
+  consentRequired: boolean;
+  consented: boolean;
+  region: "US" | "CN" | "OTHER";
+  resources: CrisisResource[];
+};
+
+/** SSE 的 safety 事件：危机求助卡。**不念出来**、不算小梦说的话 */
+export type CompanionSafetyCard = {
+  kind: "crisis";
+  trigger: "input" | "output";
+  region: "US" | "CN" | "OTHER";
+  title: string;
+  body: string;
+  resources: CrisisResource[];
+  policyUrl: string;
+  version: string;
+};
+
+/** SSE 的 notice 事件：AI 身份告知（新会话 / 空闲 30 分钟 / 每 3 小时） */
+export type CompanionNotice = { kind: string; text: string };
+
+/**
+ * ★ 一定要带 `lang`（2026-09-25 评审）：服务端默认 `zh`，不带的话**英文界面**的
+ *   公开安全说明页与同意框里的危机热线标签全是中文（「988 自杀与危机生命线（电话 / 短信）」），
+ *   而 SSE 的求助卡因为请求体带了 lang 是英文的 —— 同一套话两处不一致。
+ *   ⚠ 热线**按地区给**（服务端读 CF-IPCountry），这里只决定**文案语言**。
+ */
+export function getCompanionConfig(lang?: string) {
+  const q = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+  return apiFetch<CompanionConfig>(`/api/companion/config${q}`);
 }
 
 function authOnlyHeaders(init?: HeadersInit) {
@@ -2344,24 +2384,137 @@ async function throwHttpError(res: Response, hadToken: boolean): Promise<never> 
   throw createApiError(json?.message || `HTTP ${res.status}`, { code: json?.code, details: json?.details, status: res.status });
 }
 
+// ── 对话记忆（服务端 /api/chat，2026-09-18）──────────────────────────────
+// 历史由服务端持有：/api/companion/chat 只发新的一句 + threadId；会话、上下文用量、「记得的事」都在这里查 / 改 / 删。
+// 契约见 app 仓 docs/api-contract.md「对话记忆」一节。
+
+export type ChatScene = "companion" | "support";
+/** ok；warn ≥60%；compact ≥75%（回复后服务端自动整理）；full（自动整理连续失败，建议开新对话） */
+export type ChatContextLevel = "ok" | "warn" | "compact" | "full";
+export type ChatContext = { used: number; budget: number; ratio: number; level: ChatContextLevel };
+
+export type ChatThreadSummary = {
+  id: string;
+  scene: ChatScene;
+  title: string;
+  messageCount: number;
+  lastActiveAt: string;
+  createdAt: string;
+  summary: { text: string; version: number };
+  compacting: boolean;
+  context: ChatContext;
+};
+
+export type ChatMessageItem = {
+  seq: number;
+  role: "user" | "assistant" | "system";
+  /** divider = 「已整理前 N 轮…」分隔提示 */
+  kind: "msg" | "divider";
+  text: string;
+  /** 已整理进摘要、不再发给模型（原文照样给人看） */
+  compacted: boolean;
+  /** 回复中途断开存下的半截 */
+  partial: boolean;
+  createdAt: string;
+};
+
+export type ChatMemoryItem = {
+  id: string;
+  scene: ChatScene;
+  text: string;
+  category: string;
+  pinned: boolean;
+  canRevert: boolean;
+  updatedAt: string;
+};
+
+/** 记下「我已了解」（加州 SB 243 的告知同意）；老服务端没有这个路由 → 404，调用方忽略即可 */
+export function acceptCompanionConsent() {
+  return apiFetch<{ ok: boolean; consent: { version: string; at: string }; consented: boolean }>("/api/companion/consent", { method: "PUT", body: "{}" });
+}
+
+export function listChatThreads(scene: ChatScene, limit = 20) {
+  return apiFetch<{ ok: boolean; threads: ChatThreadSummary[] }>(`/api/chat/threads?scene=${scene}&limit=${limit}`);
+}
+
+export function getChatMessages(threadId: string, opts: { before?: number; limit?: number } = {}) {
+  const q = new URLSearchParams();
+  if (opts.before) q.set("before", String(opts.before));
+  if (opts.limit) q.set("limit", String(opts.limit));
+  const qs = q.toString();
+  return apiFetch<{ ok: boolean; thread: ChatThreadSummary; messages: ChatMessageItem[]; hasMore: boolean }>(
+    `/api/chat/threads/${encodeURIComponent(threadId)}/messages${qs ? `?${qs}` : ""}`
+  );
+}
+
+/** 手动「整理记忆」：409 = 正在整理；502 = 模型失败；focus = 想重点记住的事 */
+export function compactChatThread(threadId: string, focus?: string) {
+  return apiFetch<{ ok: boolean; compacted: number; context: ChatContext }>(`/api/chat/threads/${encodeURIComponent(threadId)}/compact`, {
+    method: "POST",
+    body: JSON.stringify(focus ? { focus } : {}),
+  });
+}
+
+/** 删会话：消息、摘要以及从它整理出的记忆卡立即彻底删除 */
+export function deleteChatThread(threadId: string) {
+  return apiFetch<{ ok: boolean; deletedMemories: number }>(`/api/chat/threads/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+}
+
+export function listChatMemories(scene: ChatScene) {
+  return apiFetch<{ ok: boolean; memories: ChatMemoryItem[] }>(`/api/chat/memories?scene=${scene}`);
+}
+
+export function updateChatMemory(id: string, patch: { text?: string; pinned?: boolean }) {
+  return apiFetch<{ ok: boolean; memory: ChatMemoryItem }>(`/api/chat/memories/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function revertChatMemory(id: string) {
+  return apiFetch<{ ok: boolean; memory: ChatMemoryItem }>(`/api/chat/memories/${encodeURIComponent(id)}/revert`, { method: "POST" });
+}
+
+export function deleteChatMemory(id: string) {
+  return apiFetch<{ ok: boolean }>(`/api/chat/memories/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function clearChatMemories(scene: ChatScene) {
+  return apiFetch<{ ok: boolean; deleted: number }>(`/api/chat/memories?scene=${scene}`, { method: "DELETE" });
+}
+
 export type CompanionChatHandlers = {
+  /** 按会话聊天时最先到：新会话的 id 在第一句话之前就拿到，中途断开也不丢 */
+  onThread?: (info: { threadId: string; title: string }) => void;
+  /** 危机求助卡：用户这句命中（trigger=input，服务端没调模型）或模型输出被拦下（trigger=output） */
+  onSafety?: (card: CompanionSafetyCard) => void;
+  /** AI 身份告知（纽约 GBL §1702） */
+  onNotice?: (notice: CompanionNotice) => void;
   /** 服务端切好的一句（含表情/动作标签与 TTS 参数），按 index 递增到达 */
   onSentence?: (sentence: CompanionSentence) => void;
   /** 原始增量文本，只适合做"打字机"展示 */
   onToken?: (token: string) => void;
-  /** 整段回复（已剥掉标签） */
-  onDone?: (text: string) => void;
+  /** 整段回复（已剥掉标签）；按会话聊天时 meta 带 threadId 与上下文用量 */
+  onDone?: (text: string, meta: { threadId?: string; context?: ChatContext }) => void;
 };
+
+/**
+ * 请求体两种写法：
+ *   · 按会话 { message, threadId? } —— 历史在服务端（不给 threadId 就开新会话）；
+ *   · 旧写法 { messages[] } —— 客户端自带最近几条，服务端不存（老服务端只认这个）。
+ */
+export type CompanionChatBody =
+  | { message: string; threadId?: string; lang?: "zh" | "en"; caps?: Array<"safety" | "notice"> }
+  | { messages: Array<{ role: "user" | "assistant"; content: string }>; lang?: "zh" | "en"; caps?: Array<"safety" | "notice"> };
+
+/** 本端认识的新事件。带上它，服务端才会发结构化的求助卡；不带则退化成一句台词（老客户端兼容） */
+export const COMPANION_CAPS: Array<"safety" | "notice"> = ["safety", "notice"];
 
 /**
  * 流式对话。resolve = 流正常结束；服务端发 `error` 事件或 HTTP 非 2xx 都 reject。
  * 传 signal 可随时中断（服务端收到断开会 abort 上游模型，不白烧 token）。
  */
-export async function streamCompanionChat(
-  body: { messages: Array<{ role: "user" | "assistant"; content: string }>; lang?: "zh" | "en" },
-  handlers: CompanionChatHandlers,
-  signal?: AbortSignal
-) {
+export async function streamCompanionChat(body: CompanionChatBody, handlers: CompanionChatHandlers, signal?: AbortSignal) {
   const { headers, hadToken } = authOnlyHeaders({ "Content-Type": "application/json", Accept: "text/event-stream" });
   const res = await fetch(`${API_BASE}/api/companion/chat`, { method: "POST", headers, body: JSON.stringify(body), signal });
   if (!res.ok) await throwHttpError(res, hadToken);
@@ -2374,9 +2527,16 @@ export async function streamCompanionChat(
     } catch {
       return;
     }
-    if (event === "sentence") handlers.onSentence?.(payload as unknown as CompanionSentence);
+    if (event === "thread") handlers.onThread?.({ threadId: String(payload.threadId ?? ""), title: String(payload.title ?? "") });
+    else if (event === "safety") handlers.onSafety?.(payload as unknown as CompanionSafetyCard);
+    else if (event === "notice") handlers.onNotice?.(payload as unknown as CompanionNotice);
+    else if (event === "sentence") handlers.onSentence?.(payload as unknown as CompanionSentence);
     else if (event === "token") handlers.onToken?.(String(payload.t ?? ""));
-    else if (event === "done") handlers.onDone?.(String(payload.text ?? ""));
+    else if (event === "done")
+      handlers.onDone?.(String(payload.text ?? ""), {
+        threadId: payload.threadId ? String(payload.threadId) : undefined,
+        context: (payload.context as ChatContext | undefined) ?? undefined,
+      });
     else if (event === "error") state.failure = String(payload.message || "companion upstream failed");
   });
 
