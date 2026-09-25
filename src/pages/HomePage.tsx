@@ -23,6 +23,7 @@ import { formatRelativeTime } from "../utils/relativeTime";
 import { getPlatformIcon } from "../utils/platformConfig";
 import { useAuth } from "../authContext";
 import { ChevronDown, ChevronUp, Flame, Radio } from "lucide-react";
+import SiteFooter from "../components/SiteFooter";
 import CompanionStage from "../components/CompanionStage";
 import CompanionChat from "../components/CompanionChat";
 import SceneBackgroundPicker from "../components/SceneBackgroundPicker";
@@ -834,6 +835,12 @@ export default function HomePage() {
               </div>
             </section>
           </aside>
+        </div>
+        {/* ★ 首页也挂页脚：TAKE IT DOWN Act §3(a) 要的是「clear and conspicuous notice」，
+            只挂在 /privacy、/child-safety 这些站外来的人才会打开的页面上够不着这个标准。
+            页脚本身只有几行字，不改首页的观感。 */}
+        <div className="mx-auto max-w-7xl px-4 pb-6">
+          <SiteFooter />
         </div>
       </div>
 

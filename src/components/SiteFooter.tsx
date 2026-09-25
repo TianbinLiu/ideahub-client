@@ -28,6 +28,8 @@ export default function SiteFooter() {
     { to: "/child-safety", label: t("siteFooter.childSafety") },
     // ★ 加州 SB 243 §22602(b)(2)：自伤危机协议要公布在网站上。页脚是站内唯一入口（同上一条的理由）。
     { to: "/safety/ai-chat", label: t("siteFooter.aiSafety") },
+    // ★ 法定要求「clear and conspicuous notice」：页脚是全站每一页都有的位置
+    { to: "/takedown", label: t("siteFooter.takedown") },
   ].filter((l) => l.to !== here);
   return (
     <footer className="mt-8 border-t border-gray-800 pt-5 text-xs text-gray-500">

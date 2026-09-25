@@ -2309,6 +2309,26 @@ export type CompanionConfig = {
   safety?: CompanionSafetyConfig;
 };
 
+/**
+ * 提交 NCII 移除请求（TAKE IT DOWN Act §3）。**免登录**：需要它的人通常不是我们的用户。
+ * apiFetch 带上 token 也无妨——服务端这条路由不看鉴权。
+ */
+export function submitTakedownRequest(body: {
+  signature: string;
+  onBehalf: "self" | "authorized";
+  contactEmail: string;
+  contactPhone?: string;
+  urls: string[];
+  locationNote?: string;
+  statement?: string;
+  affirmedNotConsensual: true;
+}) {
+  return apiFetch<{ ok: boolean; id: string; receivedAt: string; dueAt: string; slaHours: number }>("/api/takedown", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 /** 一条求助方式：电话、短信或网址（按地区给，见服务端 chatSafety.service） */
 export type CrisisResource = { label: string; tel?: string; sms?: string; url?: string };
 
