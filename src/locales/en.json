@@ -2636,7 +2636,7 @@
       "updated": "Updated: 2026-09-24",
       "version": "Protocol version {{version}}",
       "scopeTitle": "Scope",
-      "scopeBody": "These notes cover the AI companion Xiaomeng on the home page of QiMeng / 启梦创作 (ideahubs.org) and the persona marketplace’s preview chat, and describe how we handle self-harm and suicide topics in chat. The in-app support assistant has not adopted this protocol yet; this page will be updated when it does.",
+      "scopeBody": "These notes cover the AI companion Xiaomeng on the home page of QiMeng / 启梦创作 (ideahubs.org), the persona marketplace’s preview chat, and the in-app support assistant — all three run the same checks on our server — and describe how we handle self-harm and suicide topics in chat.",
       "detectTitle": "How we detect",
       "detectBody": "Every message is checked on our server before it is sent to the model, and every sentence the model produces is checked before it is shown to you.",
       "detectItems": [
@@ -2649,7 +2649,7 @@
       "responseItems": [
         "If your message matches: it is not sent to the AI model. You get a help card with crisis lines for your region instead, and you can keep chatting. Nothing is locked.",
         "If the AI's reply matches: that sentence is never shown, generation stops immediately, and you get the same help card. Blocked content does not enter your chat history.",
-        "On the website the help card is never read aloud and is not presented as something the AI said. The persona preview chat in the app has not adopted the card yet; there it currently appears as an ordinary reply."
+        "On the website the help card is never read aloud and is not presented as something the AI said. The in-app support assistant and persona preview chat have not adopted the card yet; there it currently appears as an ordinary reply — the checks still run, only the presentation differs."
       ],
       "resourcesTitle": "Where to get help (shown by your region)",
       "resourcesFallback": [
