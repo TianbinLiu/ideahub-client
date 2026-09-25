@@ -121,6 +121,8 @@ export default function CompanionChat({ onOpenScene }: Props) {
   const [consentOpen, setConsentOpen] = useState(false);
   /** 弹同意框时暂存这句话，同意之后接着发出去 */
   const pendingTextRef = useRef("");
+  /** 「还需要先同意吗」——与 config 同步，但 send 读它而不是读 config（见 send 里的 ★★） */
+  const consentNeededRef = useRef(false);
   const [threadId, setThreadIdState] = useState<string | null>(null);
   const [context, setContext] = useState<ChatContext | null>(null);
 
@@ -153,9 +155,13 @@ export default function CompanionChat({ onOpenScene }: Props) {
   useEffect(() => {
     let mounted = true;
     const load = () => {
-      getCompanionConfig()
+      getCompanionConfig(i18n.language?.startsWith("zh") ? "zh" : "en")
         .then((next) => {
-          if (mounted) setConfig(next);
+          if (mounted) {
+            setConfig(next);
+            // 判据同步进 ref —— send 读的是它（见 send 里的 ★★）
+            consentNeededRef.current = Boolean(next?.safety?.consentRequired && !next.safety.consented);
+          }
         })
         .catch(() => {
           if (mounted) setConfig({ ok: true, name: "", enabled: false, tts: false, voice: "", loginRequired: true });
@@ -167,7 +173,9 @@ export default function CompanionChat({ onOpenScene }: Props) {
       mounted = false;
       window.removeEventListener(COMPANION_UPDATED_EVENT, load);
     };
-  }, [userId]);
+    // ★ 语言进依赖是**语义需要**不是为了消警告：config.safety.resources 的文案由服务端按 lang 给，
+    //   切了语言不重拉，页面上就会留着上一门语言的热线标签。
+  }, [userId, i18n.language]);
 
   // 登录后接着最近一次会话聊（她记得上次聊到哪）；退出登录 / 换账号先清掉。老服务端没有 /api/chat → 静默不接
   useEffect(() => {
@@ -361,7 +369,12 @@ export default function CompanionChat({ onOpenScene }: Props) {
     }
 
     // 第一次聊天前要先看过告知（加州 SB 243）。服务端没要求时不打扰用户。
-    if (config?.safety && config.safety.consentRequired && !config.safety.consented) {
+    // ★★ 判据读 **ref** 而不是 config（2026-09-25 评审）：`sendPending` 在 .finally 里调的
+    //   `send` 是**本次渲染的闭包**，`setConfig` 还没生效 —— 于是点一次「我已了解」之后
+    //   这一发又撞回这道闸，弹窗原地弹回、`acceptCompanionConsent` 被 PUT 第二遍，
+    //   要点第二次才发得出去。这不是时序竞态，是词法闭包，**必现**。
+    //   开关默认关着所以线上看不见；而 SB 243 要求打开它，届时每个新用户第一句都撞。
+    if (consentNeededRef.current) {
       pendingTextRef.current = text;
       setInput("");
       setConsentOpen(true);
@@ -455,6 +468,7 @@ export default function CompanionChat({ onOpenScene }: Props) {
       if (controller.signal.aborted) return;
       // 服务端要求先同意（428）：弹同意框，把这句话留着，同意后接着发
       if ((error as { status?: number })?.status === 428) {
+        consentNeededRef.current = true;
         pendingTextRef.current = text;
         setConsentOpen(true);
         setPhase("idle");
@@ -470,9 +484,13 @@ export default function CompanionChat({ onOpenScene }: Props) {
     const text = pendingTextRef.current;
     pendingTextRef.current = "";
     setConsentOpen(false);
-    // 同意状态在服务端，重新拉一次 config（否则下一句又会被 428 拦），然后把那句话发出去
+    // 已经同意过了：先把 ref 放下（send 读的是它），再拉一次 config 把镜像对齐
+    consentNeededRef.current = false;
     getCompanionConfig()
-      .then((next) => setConfig(next))
+      .then((next) => {
+        setConfig(next);
+        consentNeededRef.current = Boolean(next?.safety?.consentRequired && !next.safety.consented);
+      })
       .catch(() => undefined)
       .finally(() => {
         if (text) void send(text);

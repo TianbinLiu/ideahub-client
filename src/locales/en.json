@@ -705,7 +705,7 @@
     "voiceSaved": "Voice saved",
     "voiceFollow": "Follow persona / model again",
     "voiceFollowed": "Back to the persona / model voice",
-"aiNotice": "{{name}} is an AI, not a real person, and can be wrong",
+"aiNotice": "{{name}} is an AI, not a real person, and can be wrong; a companion AI may not suit some minors",
     "safety": {
       "call": "Call {{number}}",
       "text": "Text {{number}}",
@@ -2648,7 +2648,7 @@
       "responseItems": [
         "If your message matches: it is not sent to the AI model. You get a help card with crisis lines for your region instead, and you can keep chatting. Nothing is locked.",
         "If the AI's reply matches: that sentence is never shown, generation stops immediately, and you get the same help card. Blocked content does not enter your chat history.",
-        "The help card is never read aloud and is not presented as something the AI said."
+        "On the website the help card is never read aloud and is not presented as something the AI said. The persona preview chat in the app has not adopted the card yet; there it currently appears as an ordinary reply."
       ],
       "resourcesTitle": "Where to get help (shown by your region)",
       "resourcesFallback": [
@@ -2670,7 +2670,7 @@
         "If you ask whether it is a real person, it must say it is an AI. This rule overrides any persona."
       ],
       "minorsTitle": "Minors",
-      "minorsBody": "A companion AI may not be suitable for some minors. We show this notice before first use.",
+      "minorsBody": "A companion AI may not be suitable for some minors. That notice sits under the chat box where everyone sees it on arrival; where first-use consent is enabled, we also confirm it once before your first message.",
       "dataTitle": "Data",
       "dataItems": [
         "We keep only an anonymous count by date, surface, direction and region, for statistical reporting required by law.",

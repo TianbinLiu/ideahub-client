@@ -2340,8 +2340,15 @@ export type CompanionSafetyCard = {
 /** SSE 的 notice 事件：AI 身份告知（新会话 / 空闲 30 分钟 / 每 3 小时） */
 export type CompanionNotice = { kind: string; text: string };
 
-export function getCompanionConfig() {
-  return apiFetch<CompanionConfig>("/api/companion/config");
+/**
+ * ★ 一定要带 `lang`（2026-09-25 评审）：服务端默认 `zh`，不带的话**英文界面**的
+ *   公开安全说明页与同意框里的危机热线标签全是中文（「988 自杀与危机生命线（电话 / 短信）」），
+ *   而 SSE 的求助卡因为请求体带了 lang 是英文的 —— 同一套话两处不一致。
+ *   ⚠ 热线**按地区给**（服务端读 CF-IPCountry），这里只决定**文案语言**。
+ */
+export function getCompanionConfig(lang?: string) {
+  const q = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+  return apiFetch<CompanionConfig>(`/api/companion/config${q}`);
 }
 
 function authOnlyHeaders(init?: HeadersInit) {

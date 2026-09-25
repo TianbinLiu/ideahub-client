@@ -48,12 +48,13 @@ function Bullets({ items }: { items: string[] }) {
 }
 
 export default function AiSafetyPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [safety, setSafety] = useState<CompanionSafetyConfig | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    getCompanionConfig()
+    // ★ 带上界面语言：不带的话服务端按 zh 给，英文页面上会冒出整段中文热线
+    getCompanionConfig(i18n.language?.startsWith("en") ? "en" : "zh")
       .then((cfg) => {
         if (mounted && cfg.safety) setSafety(cfg.safety);
       })
@@ -61,7 +62,8 @@ export default function AiSafetyPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+    // 同上：切语言要重拉，否则热线标签停在上一门语言
+  }, [i18n.language]);
 
   const resources = safety?.resources?.length
     ? safety.resources.map((r) => `${r.label}${r.tel ? `（${r.tel}）` : ""}${r.url ? `：${r.url}` : ""}`)
