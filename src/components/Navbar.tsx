@@ -64,6 +64,7 @@ import {
   CircleUserRound,
   FileText,
   Flame,
+  GraduationCap,
   Home,
   LogIn,
   LogOut,
@@ -296,6 +297,10 @@ export default function Navbar() {
           */}
           <NavLink to="/arena" title={t("nav.arena")} aria-label={t("nav.arena")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
             <Bomb className="h-5 w-5" />
+          </NavLink>
+          {/* 老师人格入口（tutor 仓 docs/04 C6）：手机行宽一颗图标就是 48px，小屏先藏起来，落地页仍可直达 /tutor */}
+          <NavLink to="/tutor" title={t("nav.tutor")} aria-label={t("nav.tutor")} className={({ isActive }) => `${cls(isActive)} hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
+            <GraduationCap className="h-5 w-5" />
           </NavLink>
           {user && (
             <NavLink to="/groups" title={t("nav.groups")} aria-label={t("nav.groups")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
