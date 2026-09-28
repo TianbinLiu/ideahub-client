@@ -94,6 +94,9 @@ const TutorNewPage = lazy(() => import("./pages/tutor/new/TutorNewPage").then((m
 const TutorCoursePage = lazy(() => import("./pages/tutor/TutorCoursePage").then((m) => ({ default: m.TutorCoursePage })));
 const TutorRunPage = lazy(() => import("./pages/tutor/TutorRunPage").then((m) => ({ default: m.TutorRunPage })));
 const TutorRevisionsPage = lazy(() => import("./pages/tutor/TutorRevisionsPage").then((m) => ({ default: m.TutorRevisionsPage })));
+// 市场两页游客可逛（分享链落地不被登录墙挡），动作（开始学 / 举报）在页内判登录
+const TutorMarketPage = lazy(() => import("./pages/tutor/TutorMarketPage").then((m) => ({ default: m.TutorMarketPage })));
+const TutorDetailPage = lazy(() => import("./pages/tutor/TutorDetailPage").then((m) => ({ default: m.TutorDetailPage })));
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -378,6 +381,8 @@ export default function App() {
           <Route path="/tutor/new" element={<ProtectedRoute><TutorNewPage /></ProtectedRoute>} />
           <Route path="/tutor/courses/:id" element={<ProtectedRoute><TutorCoursePage /></ProtectedRoute>} />
           <Route path="/tutor/personas/:id/review" element={<ProtectedRoute><TutorRevisionsPage /></ProtectedRoute>} />
+          <Route path="/tutor/market" element={<TutorMarketPage />} />
+          <Route path="/tutor/market/:id" element={<TutorDetailPage />} />
         </Route>
         <Route element={<TutorLayout bare />}>
           <Route path="/tutor/run/:id" element={<ProtectedRoute><TutorRunPage /></ProtectedRoute>} />

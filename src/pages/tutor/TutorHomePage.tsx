@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { GraduationCap, Plus, Languages, FileUp } from "lucide-react";
+import { GraduationCap, Plus, Languages, FileUp, Store } from "lucide-react";
 import { API_BASE, declareAdult, importPersona, listCourses, type CourseSummary } from "../../api/tutor";
 import { adultDeclared, assertAdultDeclared, cacheAdult } from "./adultGate";
 
@@ -48,6 +48,7 @@ export function TutorHomePage() {
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-lg font-bold">{t("course.back")}</h1>
           <div className="flex items-center gap-2">
+            <Link to="/tutor/market" data-testid="home-market" className="flex items-center gap-1 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700"><Store size={14} />{t("home.market")}</Link>
             <button type="button" data-testid="home-import" disabled={importing} onClick={() => importRef.current?.click()} className="flex items-center gap-1 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700 disabled:opacity-40"><FileUp size={14} />{importing ? t("home.importing") : t("home.import")}</button>
             <input ref={importRef} data-testid="home-import-input" type="file" accept=".md,.json,text/markdown,application/json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); }} />
             <Link to="/tutor/new" data-testid="home-new" className="flex items-center gap-1 rounded-full bg-cyan-600 px-4 py-1.5 text-sm font-semibold text-white"><Plus size={16} />{t("home.new")}</Link>

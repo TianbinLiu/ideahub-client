@@ -13,6 +13,9 @@ export { API_BASE };
 export class ApiError extends Error {
   status: number;
   code?: string;
+  /** 发布五道门那种「哪一道没过」的回包字段（422 GATE）；其它端点没有 */
+  gate?: string;
+  details?: unknown;
   constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
@@ -28,13 +31,19 @@ function authHeaders(extra: Record<string, string> = {}): Record<string, string>
 async function throwHttp(res: Response): Promise<never> {
   let message = `HTTP ${res.status}`;
   let code: string | undefined;
+  let gate: string | undefined;
+  let details: unknown;
   try {
-    const j = (await res.json()) as { message?: string; code?: string };
+    const j = (await res.json()) as { message?: string; code?: string; gate?: string; details?: unknown };
     if (j.message) message = j.message;
     if (j.code) code = j.code;
+    if (j.gate) gate = j.gate;
+    details = j.details;
   } catch { /* 非 JSON */ }
   if (res.status === 401 && getToken()) notifyAuthExpired(code || "UNAUTHORIZED"); // 与 apiFetch 同一条：带着 token 还 401 = 掉登录，弹登录框
-  throw new ApiError(message, res.status, code);
+  const err = new ApiError(message, res.status, code);
+  err.gate = gate; err.details = details;
+  throw err;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -183,6 +192,10 @@ export type CourseSummary = CourseInput & {
   id: string; createdAt: string; updatedAt?: string; materials: number; unsure: number;
   persona: { id: string; name: string; version: number; stages: number; format: string; generatedAt?: string; method?: string } | null;
   publishable: boolean; run: { status: "active" | "done"; currentStage: string | null; dueReviews?: number; pendingReview?: number } | null;
+  /** 发布状态（M2）：null = 没发布过；shared:false = 取消了分享；takenDown = 被平台下架（带原因） */
+  published?: PublishState | null;
+  /** 从市场「开始学」开出来的课指向那位老师（教材不随老师分发） */
+  source?: { personaId: string; version: number } | null;
 };
 export type MaterialEntry = Material & { bytes?: number; addedAt?: string; license: { source: LicenseSource }; parsed: { status: "ok" | "failed" | "pending"; chars?: number; sections?: number; warnings?: string[] }; inDoc: boolean };
 export type Quote = { lines: { kind: string; n: number; why: string; each: number; tokens: number }[]; total: number; demo: boolean; suggested: boolean };
@@ -213,3 +226,26 @@ export const startGenerate = (courseId: string, questionnaire: Questionnaire) =>
 export const getJob = (id: string) => request<{ ok: true; job: Job }>(`/api/tutor/jobs/${enc(id)}`);
 export const scanCourse = (id: string) => request<{ ok: true; patchId: string | null; proposals: ScanProposal[]; materials: { sha: string; name: string }[]; failures?: string[]; message?: string }>(`/api/tutor/personas/${enc(id)}/scan`, POST({}));
 export const acceptScan = (id: string, patchId: string, indices: number[]) => request<{ ok: true; added: string[]; version: number; stages: number }>(`/api/tutor/personas/${enc(id)}/patches/${enc(patchId)}/accept`, POST({ indices }));
+
+// ── 市场 / 发布 / 举报（tutor 仓 docs/02 §6 §7，M2）
+export type MarketCard = { id: string; name: string; description: string; coverEmoji: string; coverImageUrl: string; tags: string[]; subject: string; author: { _id: string; username: string }; price: number; version: number; shared: boolean; takenDown: boolean; stats: { downloadCount: number; likeCount: number; ratingAvg: number; ratingCount: number }; installed: boolean; isOwner: boolean; publishedAt?: string; createdAt?: string; updatedAt?: string };
+export type MarketSort = "new" | "hot" | "rating";
+export type MarketScope = "all" | "installed" | "mine";
+export type MarketQuery = { q?: string; tag?: string; subject?: string; sort?: MarketSort; scope?: MarketScope; page?: number; limit?: number; author?: string };
+export type MarketPreview = { card: { who: string; teaching_style: string; catchphrases: string[]; hard_rules: { text: string; locked: boolean }[] }; stages: { stage_id: string; title: string; summary: string; steps: number; memo: number; checks: number }[]; guide: string; subject?: string; language?: string; policy?: unknown; license?: { source?: string } | null };
+export type MarketRelease = { version: number; sha256: string; checksum: string; produceId: string; publishedAt: string; note: string; stages: number };
+export type MarketDetail = { persona: MarketCard; release: MarketRelease | null; preview: MarketPreview | null; others: MarketCard[]; relation: { isOwner: boolean; installed: boolean; learning: { courseId: string; version: number } | null; ownCourse: string | null }; takedown?: { at: string | null; reason: string } };
+export type PublishGate = "persona" | "license" | "cleanCheck" | "adult" | "aigc" | "name" | "tags" | "doc";
+export type PublishState = { personaId: string; name: string; description: string; tags: string[]; coverEmoji: string; subject: string; shared: boolean; takenDown: boolean; takenDownReason?: string; version: number; sha256?: string; checksum?: string; produceId?: string; publishedAt?: string; aigcDeclaredAt: string | null; marketPath: string };
+/** 举报理由（与 server Report.REASONS 逐字相等，服务端先上；顺序按老师人格最常见的排：教授认领在最前） */
+export const REPORT_REASONS = ["instructorClaim", "infringe", "abuse", "spam", "porn", "violence", "csae", "other"] as const;
+const qs = (o: Record<string, string | number | undefined>) => { const u = new URLSearchParams(); for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== "" && v !== null) u.set(k, String(v)); return u.toString(); };
+export const listMarket = (q: MarketQuery) => request<{ ok: true; items: MarketCard[]; page: number; limit: number; total: number; totalPages: number; sort: string; scope: string }>(`/api/tutor/market?${qs(q)}`);
+export const getMarketDetail = (id: string) => request<{ ok: true } & MarketDetail>(`/api/tutor/market/${enc(id)}`);
+/** 发布：五道门在服务端（tutor 仓 src/publish），任一不过 422 GATE + gate 指明哪一道 —— 这里只发身份 / 简介 / 标签 / 主动声明 */
+export const publishPersona = (courseId: string, body: { name?: string; description?: string; tags?: string[]; coverEmoji?: string; aigcDeclared: boolean; note?: string }) => request<{ ok: true; persona: PublishState; warnings: string[] }>(`/api/tutor/personas/${enc(courseId)}/publish`, POST(body));
+export const unpublishPersona = (courseId: string) => request<{ ok: true; persona: PublishState }>(`/api/tutor/personas/${enc(courseId)}/publish`, { method: "DELETE" });
+/** 「开始跟这位老师学」：从发布版复制出自己的一门课（教材不复制、进度全 pending）；同一人再点回同一门 */
+export const startLearning = (persona: string) => request<{ ok: true; courseId: string; created: boolean; own?: boolean; version?: number; latest?: number; downloadCount?: number }>("/api/tutor/runs", POST({ persona }));
+/** 举报（server 的 POST /api/reports；targetType persona 是 2026-09-28 加的）；同一人对同一位老师只能一次（409） */
+export const reportPersona = (targetId: string, reason: string, detail: string) => request<{ ok: true; report: { id?: string; _id?: string; status?: string } }>("/api/reports", POST({ targetType: "persona", targetId, reason, detail }));
