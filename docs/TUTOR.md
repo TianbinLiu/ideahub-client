@@ -48,13 +48,13 @@ cd ../ideahub-tutor && TUTOR_E2E_WEB=../ideahub-client/dist npm run e2e:client
 
 参考实现（tutor 仓 `src/server/devServer.mjs`）同一个进程托管 dist 与 `/api/tutor`，带假登录（`--fake-auth`）。
 ⚠ 它**不鉴权、不连 Cloudinary**，所以两处只能在真服务器上验：`reader/pdf.ts` 给 pdf.js 塞 Bearer 去取
-`GET /materials/:sha/file` 的 302 签名地址；`tutorUpload.ts` 的真 Cloudinary 分块直传。
+`GET /materials/:sha/file`（服务端把 Cloudinary 签名下载流式转发过来、不 302）；`tutorUpload.ts` 的真 Cloudinary 分块直传。一键跑法在 tutor 仓：`npm run e2e:real`（本机起 server + client，走 建课 → 直传 → 取回字节 → 生成 → 阅读面画出第 1 页）。
 
 ## 踩过的坑
 
 | 坑 | 症状 | 怎么办 |
 |---|---|---|
-| pdf.js 只给 `url` 装文档，而服务器那条路在 `requireAuth` 后面 | 真服务器上阅读面永远 401、退化成「老师面板念」，e2e 却全绿（参考实现不鉴权） | `loadPdf` 经 `httpHeaders` 带 Bearer；跨源 302 时浏览器按 Fetch 规范剥掉 Authorization，token 不会跟到 Cloudinary |
+| pdf.js 只给 `url` 装文档，而服务器那条路在 `requireAuth` 后面 | 真服务器上阅读面永远 401、退化成「老师面板念」，e2e 却全绿（参考实现不鉴权） | `loadPdf` 经 `httpHeaders` 带 Bearer；服务端那头改成流式转发、不 302（302 之后那一跳过不过 Cloudinary 的 CORS 没量过）。tutor 仓 `npm run e2e:client` 下参考实现的这条路同样要 Bearer，阅读面画得出第 1 页就是这一行在起作用 |
 | `pdfjs-dist` 6 没有 `isEvalSupported` | tutor 仓那份传了它，这里 tsc 直接红 | 删掉即可：5.x 起整个包一处 eval 都没有，CSP 不用放 `'unsafe-eval'` |
 | 在渲染里读 ref map 给子组件当 prop（`reader/CardPageView`） | 首帧恒 null，老师钉子要等别的原因触发的重渲染才出现 | 一页一个 `CardPage` 组件、元素走 callback ref 进 state |
 | 页面文件顺手导出非组件（成人声明判定、`LICENSES`） | eslint `react-refresh/only-export-components` 红，HMR 整页重载 | 判定单独成 `adultGate.ts`，常量放 `api/tutor.ts` |

@@ -12,9 +12,10 @@ export type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 export const { TextLayer } = pdfjs;
 
 export function loadPdf(url: string, signal?: AbortSignal): Promise<PDFDocumentProxy> {
-  // ★ 官网的 GET /api/tutor/materials/:sha/file 在 requireAuth 后面（302 到 5 分钟的签名地址）：pdf.js 自己发的 fetch 不带我们的 Bearer，
-  //   得经 httpHeaders 塞进去，否则真服务器上阅读面永远是 401、退化成老师面板念。跨源 302 时浏览器按 Fetch 规范剥掉 Authorization，
-  //   token 不会跟到文件存储那头；范围请求每一发都先过这一跳再跳转。tutor 仓的参考实现不鉴权，e2e 验不到这一行 —— 改它之前先在真服务器上开一份 PDF。
+  // ★ 官网的 GET /api/tutor/materials/:sha/file 在 requireAuth 后面（服务端把签名下载的字节流式转发过来，不 302 —— 理由在
+  //   server tutorFile.service 头部）：pdf.js 自己发的 fetch 不带我们的 Bearer，得经 httpHeaders 塞进去，否则真服务器上阅读面
+  //   永远是 401、退化成老师面板念；范围请求每一发都带同一份头。tutor 仓的参考实现开 --fake-auth 时这条路同样要 Bearer，
+  //   e2e:client 的阅读面能画出第 1 页就是这一行在起作用；真 Cloudinary 那半（服务端取回）要在真服务器上验（tutor 仓 npm run e2e:real）。
   const token = getToken();
   const task = pdfjs.getDocument({ url, withCredentials: false, ...(token ? { httpHeaders: { Authorization: `Bearer ${token}` } } : {}) });
   signal?.addEventListener("abort", () => { void task.destroy(); });
