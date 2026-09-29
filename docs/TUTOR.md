@@ -14,11 +14,14 @@
 | `src/pages/tutor/new/*` | 五步向导（建课 → 教材 → 教学风格 → 生成 → 试教），表单在 `wizardStore`（localStorage，刷新回到同一步） |
 | `src/pages/tutor/materials/*` | 拖入教材 + 来源勾选 + 上传状态机（`useUploadEngine`） |
 | `src/pages/tutor/TutorCoursePage.tsx` | 课程页：教材 / 扫描目录 / 授权来源下拉 / 发布卡（`PublishCard.tsx`）/ 导出导入卡（`ExportCard.tsx`）；从市场开的课多一行「来自 …」指回详情页，作者出了新版时顶上一条「合并新版」横幅（`source.updateAvailable`，2026-09-29）—— 合并只换课程地图与蒸馏内容、进度与学生画像保留，规则在服务端 `core/publish/merge`，这里只摆按钮与回执（`merge-report`） |
-| `src/pages/tutor/PublishCard.tsx` | 「发布到市场」卡（M2）：从市场开出来的课上是「另存为我的人格」（`data-fork=1`，血缘提示：① ② 沿用来源那一版）；五道门清单只是把服务端 422 回包里的 `gate` 画出来（**不自己判**，判定只在 server `core/publish.checkGates` 一处）；表单 = 名字 / 简介 / 标签 ≤6 / 版本备注 / **主动声明含 AI 生成内容**（显式勾选，《标识办法》第十条）；已发布态显示版本、sha256、市场链接、取消分享；被下架态显示原因且不能再发布 |
+| `src/pages/tutor/PublishCard.tsx` | 「发布到市场」卡（M2）：从市场开出来的课上是「另存为我的人格」（`data-fork=1`，血缘提示：① ② 沿用来源那一版）；五道门清单只是把服务端 422 回包里的 `gate` 画出来（**不自己判**，判定只在 server `core/publish.checkGates` 一处）；表单 = 名字 / 简介 / 标签 ≤6 / 版本备注 / **主动声明含 AI 生成内容**（显式勾选，《标识办法》第十条）；已发布态显示版本、sha256、市场链接、取消分享；被下架态显示原因且不能再发布。**M3（2026-09-29）**多一个勾选「同时发布为启梦人格（可装进看板娘）」（`publish-companion`，**默认不勾**、每次发布重新表态、初值取上一版的表态；勾了服务端才由教学面生成 `Persona.style`），已发布态多一枚「可装进看板娘」角标（`publish-companion-state`） |
 | `src/pages/tutor/TutorMarketPage.tsx` | 市场列表 `/tutor/market`：scope / sort / q / tag / subject / page 全在 URL 参数里（深链可还原、返回键好使），卡片上的标签点了即筛；游客可逛 |
 | `src/pages/tutor/TutorDetailPage.tsx` | 市场详情 `/tutor/market/:id`：教学面 + 课程地图（只读预览，② ④ 正文不给）+ 发布版信息；「开始跟这位老师学」（已在学 → 继续）、举报对话框（`POST /api/reports`，理由含「教授认领 / 要求下架」）、评论（主站 `CommentThread targetType="persona"` 原样）、作者的其它老师；游客可看，动作才跳 `/login?next=`；评分块 `RatingBlock`（2026-09-29）：均分 / 分布 / 我的一票（可改可删）/ 大家怎么说，能不能评只画服务端 `canRate` 的答案（灰着时把原因说出来：先学过一段、作者不能评自己、拉黑） |
 | `src/pages/tutor/TutorProfileTabs.tsx` + `src/pages/UserProfilePage.tsx`（主站） | 个人页 `/users/:id` 的两个页签（2026-09-29）：「老师人格」= `GET /api/tutor/market?author=`（谁都能看，卡片复用市场页的 `MarketCardItem`），「在学」= 自己带 `source` 的课（只有本人，行上带可合并 / 来源已不在的角标）。深链 `?tab=tutors` / `?tab=learning` |
 | `src/pages/tutor/TutorClaimsAdminPage.tsx`（`/admin/tutor-claims`，`AdminRoute`） | 教授认领（instructorClaim）的人工核实队列（2026-09-29）：四栏（待核实 / 等待补证 / 成立已下架 / 不成立已驳回），先来先处理；「联系举报人要证据」发平台通知、「核实成立 → 下架」/「不成立 → 驳回」；规则都在服务端（阶段派生、409 已处理、老师已不存在），这里只画状态与三颗键。Navbar 管理员那排多一颗 🎓 |
+| `src/pages/tutor/TutorMetricsAdminPage.tsx`（`/admin/tutor-metrics`，`AdminRoute`） | M3 三条度量（2026-09-29，tutor 仓 docs/06 §5.1「度量」）：跨产品激活 / 反哺 / 开始学 → 7 天内通过一段 + 引流位表；数字全在服务端算（`GET /api/tutor/admin/metrics`），这里只画。Navbar 管理员那排多一颗 📊 |
+| `src/pages/tutor/referral.ts` | `useTutorReferral`（M3）：入口带的 `?from=` 落到 /tutor、/tutor/new 时 `POST /api/tutor/referral` 一发（同一来源一个会话一次；服务端另按天去重、白名单外不记、**只记不奖励**）再把参数从地址栏抹掉；两页都挂它，别各写一份 |
+| 主站的入口（M3，tutor 仓 docs/06 §5.1，每处 `?from=` 不同） | `Navbar` 🎓 `/tutor?from=nav`（`sm` 以上显示，`data-tour="nav-tutor"`）；`DownloadPage` 第三张卡「启梦老师（网页版）」`?from=download`（不塞进 `apps[]`：AppCard 整个围着 APK 清单长）；`SettingsPage`「页面」区一行 `?from=settings`；`OnboardingTour` homeFeed 多一步（卡上一颗「去看看」`?from=tour`；目标不可见时那一步自动跳过 —— `getTarget` 现在认 0×0 为没有）；`PersonaDetailPage`「拿去当老师」→ `/tutor/new?from=persona&persona=<id>`（`wizardStore.prefill`：名字 / 口头禅 / 称呼预填、风格三选一按 `presetFromStyle` 字面猜，同一 id 只预填一次）与 `PersonaGalleryPage` 顶部一行 `?from=gallery`（卡片整体是 Link，里面不能再套）；`VideoPreviewPage` 播完弹层一行 `?from=preview`。来源白名单在服务端核心包 `core/publish/referral`，加入口两边一起加 |
 | `src/pages/NotificationsPage.tsx`（主站） | 老师人格四类通知的文案与落点（`TUTOR_RATING / TUTOR_COMMENT` → `/tutor/market/:id`，`TUTOR_REVIEW_DUE` → `/tutor/run/:id`，`TUTOR_DOC_UPDATED` → `/tutor/courses/:id`；id 都在 payload 里，不是顶层字段）；平台通知 `ADMIN_NOTICE` 的正文从 `payload.text` 读（人工核实队列发给举报人 / 作者的就是它）；未知类型仍走 `typeFallback` |
 | `src/pages/tutor/TutorRunPage.tsx` + `reader/*` + `teacher/*` | 学习页：pdf.js 阅读面（`reader/pdf.ts` 是唯一 import pdfjs 的地方）、文字卡、导学漫游、圈选动作条、老师钉子、老师面板 / 手机抽屉、自检、复习卡、蒸馏卡、到期回访横幅 |
 | `src/pages/tutor/TutorRevisionsPage.tsx` | 修订审阅页 `/tutor/personas/:id/review` |
@@ -35,6 +38,7 @@
 `/tutor`、`/tutor/new`、`/tutor/courses/:id`、`/tutor/run/:id`、`/tutor/personas/:id/review`，全部套 `ProtectedRoute`
 （课程与学习过程都是本人的）。Navbar 上一颗 🎓 入口（`sm` 以上显示）。市场两页 `/tutor/market`、`/tutor/market/:id`（2026-09-28 M2）
 **不套** `ProtectedRoute`：游客可逛、可看详情，开始学 / 举报 / 评论这些动作才跳 `/login?next=` —— 与主站模型 / 声音市场同一个先例。
+管理页 `/admin/tutor-claims`、`/admin/tutor-metrics`（2026-09-29 M3）套 `AdminRoute`。
 
 ## 环境与部署
 
@@ -47,8 +51,8 @@
 
 ## 验收
 
-tutor 仓的 28 条 Playwright 直接打本仓的 dist（18 条 M1 一条不改 —— 这就是 tutor 仓 docs/04 C11 说的「e2e 改 baseURL 后照跑」；
-10 条市场 `web/e2e/zz-market.spec.ts` **只在这个模式跑**：发布 → 市场可见 → 详情 → 开始学 → 评分 → 回访到期通知 → 作者发 v2 / 通知页 / 合并新版 → 另存为我的人格（复刻件、血缘）→ 个人页两个页签 → 举报 → 人工核实队列（联系 → 裁定成立下架）→ 下架，tutor 仓自己的 web 没有市场页）：
+tutor 仓的 31 条 Playwright 直接打本仓的 dist（18 条 M1 一条不改 —— 这就是 tutor 仓 docs/04 C11 说的「e2e 改 baseURL 后照跑」；
+13 条市场 `web/e2e/zz-market.spec.ts` **只在这个模式跑**：发布 → 市场可见 → 详情 → 开始学 → 评分 → 回访到期通知 → 作者发 v2 / 通知页 / 合并新版 → 另存为我的人格（复刻件、血缘）→ 个人页两个页签 → M3 三条（入口 `?from=` 各不同、落地记一行并抹掉参数、同来源当天一条、管理页出数 / 反向勾选默认关、勾了才有 `GET /api/personas/:id` 且口头禅逐字来自教学面 / 「拿去当老师」预填第 3 步）→ 举报 → 人工核实队列（联系 → 裁定成立下架）→ 下架，tutor 仓自己的 web 没有市场页）：
 
 ```bash
 npm run build                                   # 本仓，VITE_API_BASE 留空 = 同源

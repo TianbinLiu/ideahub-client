@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
-import { Plus } from "lucide-react";
+import { GraduationCap, Plus } from "lucide-react";
 import { listPersonas, type Persona } from "../api";
 import { humanizeError } from "../utils/humanizeError";
 import { useAuth } from "../authContext";
@@ -223,6 +223,10 @@ export default function PersonaGalleryPage() {
           <p className="mt-1 text-sm text-gray-400">
             {t("arena.persona.galleryDescription")}
           </p>
+          {/* 拿人格去当老师（tutor 仓 docs/06 §5.1）：卡片整体是 <Link>，里面不能再套链接，所以入口放在广场顶部这一行；具体哪个人格到详情页再选 */}
+          <Link to="/tutor?from=gallery" data-testid="gallery-tutor" className="mt-2 inline-flex items-center gap-1.5 text-sm text-violet-300 underline underline-offset-2 hover:text-violet-200">
+            <GraduationCap className="h-4 w-4" /> {t("arena.persona.galleryToTutor")}
+          </Link>
         </div>
         <button
           type="button"

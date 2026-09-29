@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { GraduationCap, Plus, Languages, FileUp, Store } from "lucide-react";
 import { API_BASE, declareAdult, importPersona, listCourses, type CourseSummary } from "../../api/tutor";
 import { adultDeclared, assertAdultDeclared, cacheAdult } from "./adultGate";
+import { useTutorReferral } from "./referral";
 
 export function TutorHomePage() {
   const { t, i18n } = useTranslation(undefined, { keyPrefix: "tutor" });
+  useTutorReferral(); // 入口带的 ?from= 记一行再抹掉（tutor 仓 docs/06 §5.1）
   const [courses, setCourses] = useState<CourseSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);

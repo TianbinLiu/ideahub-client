@@ -6,7 +6,9 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight, Check, Lock, RefreshCw, Send, Sparkles } from "lucide-react";
 import { realNameHint, STYLE_PRESETS } from "../../../tutor/shared/generate/demo.js";
 import { ApiError, createCourse, getCourse, getJob, getQuote, getRules, patchCourse, startGenerate, streamPreview, type CourseInput, type HardRule, type KeyDate, type Quote } from "../../../api/tutor";
-import { addWizardFiles, pendingFiles, randomAlias, removeWizardFile, resetWizard, setWizard, updateWizardFile, useWizard, type WizardState } from "./wizardStore";
+import { addWizardFiles, pendingFiles, presetFromStyle, randomAlias, removeWizardFile, resetWizard, setWizard, updateWizardFile, useWizard, type WizardState } from "./wizardStore";
+import { getPersona } from "../../../api";
+import { useTutorReferral } from "../referral";
 import { MaterialUploader } from "../materials/MaterialUploader";
 import { useUploadEngine } from "../materials/useUploadEngine";
 import { assertAdultDeclared } from "../adultGate";
@@ -18,6 +20,7 @@ export function TutorNewPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const w = useWizard();
+  useTutorReferral(); // 入口带的 ?from= 记一行再抹掉（tutor 仓 docs/06 §5.1）
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { void assertAdultDeclared().then((ok) => { if (!ok) nav("/tutor", { replace: true }); }); }, [nav]);
@@ -29,6 +32,19 @@ export function TutorNewPage() {
       setWizard({ courseId: course.id, course: { title: course.title, subject: course.subject, code: course.code || "", term: course.term || "", policy: course.policy, key_dates: course.key_dates }, files: [], job: null, step: course.materials > 0 ? 3 : 2 });
     }).catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, [params, w.courseId]);
+  // 「把这个人格拿去当老师」（tutor 仓 docs/06 §5.1；?persona=<id> 从官网人格详情页 / 广场来）：用它的 style 预填第 3 步 —— 名字、口头禅、称呼；
+  // 教学风格三选一按 summary / tone 的字面猜（presetFromStyle）。同一个 id 只预填一次（prefill 记着），不盖掉作者之后改过的
+  useEffect(() => {
+    const pid = params.get("persona");
+    if (!pid || w.prefill?.personaId === pid) return;
+    getPersona(pid).then(({ persona }) => {
+      const st = (persona.style || {}) as { summary?: string; catchphrases?: string[]; tone?: string; addressUser?: string };
+      setWizard((s) => ({
+        prefill: { personaId: pid, name: persona.name },
+        questionnaire: { ...s.questionnaire, name: persona.name.slice(0, 40), catchphrase: st.catchphrases?.[0] || s.questionnaire.catchphrase, address: st.addressUser || s.questionnaire.address, style: presetFromStyle(`${st.summary || ""} ${st.tone || ""}`) },
+      }));
+    }).catch((e: unknown) => setErr(t("wiz.style.prefillFailed", { message: e instanceof Error ? e.message : String(e) })));
+  }, [params, w.prefill, t]);
 
   const go = (step: WizardState["step"]) => { setErr(null); setWizard({ step }); window.scrollTo({ top: 0 }); };
   const steps = t("wiz.steps", { returnObjects: true }) as string[];
@@ -48,6 +64,7 @@ export function TutorNewPage() {
         ); })}
       </ol>
       <main className="mx-auto max-w-3xl px-4 pb-16">
+        {w.prefill && <p className="mb-3 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900" data-testid="wiz-prefilled">{t("wiz.style.prefilled", { name: w.prefill.name })}</p>}
         {err && <p className="mb-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800" data-testid="wiz-error">{err}</p>}
         {w.step === 1 && <StepCourse w={w} busy={busy} onNext={async () => {
           setErr(null);

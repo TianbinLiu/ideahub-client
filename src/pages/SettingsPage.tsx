@@ -86,6 +86,14 @@ export default function SettingsPage() {
           >
             {t("workshop.title")}
           </Link>
+          {/* 启梦老师（tutor 仓 docs/06 §5.1）：?from=settings 只用来记引流（服务端只记不奖励、落地后抹掉） */}
+          <Link
+            to="/tutor?from=settings"
+            data-testid="settings-tutor"
+            className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-100 hover:bg-gray-800"
+          >
+            {t("settings.tutorPageAction")}
+          </Link>
           <Link
             to="/blacklist"
             className="rounded-xl border border-red-700 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-900/20"

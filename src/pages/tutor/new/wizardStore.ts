@@ -6,7 +6,9 @@ import type { CourseInput, LicenseSource, Questionnaire, Job } from "../../../ap
 export type WizardFileStatus = "queued" | "extracting" | "extracted" | "uploading" | "done" | "duplicate" | "failed";
 export type WizardFile = { key: string; name: string; bytes: number; ext: string; sha?: string; license: LicenseSource | ""; status: WizardFileStatus; progress: number; page?: number; pages?: number; chars?: number; warnings: string[]; error?: string };
 export type WizardJob = { id: string; status: Job["status"]; progress: Job["progress"]; result?: Job["result"]; error?: string | null; failures: string[] };
-export type WizardState = { step: 1 | 2 | 3 | 4 | 5; course: CourseInput; courseId: string | null; files: WizardFile[]; questionnaire: Questionnaire; job: WizardJob | null; updatedAt: number };
+/** 「把这个人格拿去当老师」（tutor 仓 docs/06 §5.1）：第 3 步是按哪个启梦人格预填的；同一个 id 只预填一次，不盖掉作者改过的 */
+export type WizardPrefill = { personaId: string; name: string };
+export type WizardState = { step: 1 | 2 | 3 | 4 | 5; course: CourseInput; courseId: string | null; files: WizardFile[]; questionnaire: Questionnaire; job: WizardJob | null; prefill: WizardPrefill | null; updatedAt: number };
 
 const KEY = "tutor.wizard.v1";
 /** 化名池：首字都不是常见姓氏（原型三位老师「老包 / 阿黛 / 哨兵」的路子），不会撞上 realNameHint */
@@ -20,6 +22,7 @@ const initial = (): WizardState => ({
   files: [],
   questionnaire: { name: randomAlias(), style: "calc_first", strictness: "firm" },
   job: null,
+  prefill: null,
   updatedAt: Date.now(),
 });
 function load(): WizardState {
@@ -50,6 +53,12 @@ export function addWizardFiles(list: File[]) {
     added.push({ key, name: file.name, bytes: file.size, ext: (/\.[a-z0-9]+$/i.exec(file.name)?.[0] || "").toLowerCase(), license: "", status: "queued", progress: 0, warnings: [] });
   }
   setWizard((s) => ({ files: [...s.files, ...added] }));
+}
+/** 启梦人格的 style 文字 → 三选一教学风格：按字面猜（苏格拉底 / 失败案例），猜不着退「先算再说」；作者到第 3 步还能改，所以宁可猜错也不留空 */
+export function presetFromStyle(text: string): Questionnaire["style"] {
+  if (/苏格拉底|反问|追问|只问不答|socratic|question/i.test(text)) return "socratic";
+  if (/失败|错法|事故|反例|翻车|failure|mistake|pitfall/i.test(text)) return "failure_first";
+  return "calc_first";
 }
 export function resetWizard() { state = initial(); pendingFiles.clear(); emit(); }
 export function useWizard(): WizardState {

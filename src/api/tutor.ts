@@ -236,14 +236,14 @@ export type MarketPreview = { card: { who: string; teaching_style: string; catch
 export type MarketRelease = { version: number; sha256: string; checksum: string; produceId: string; publishedAt: string; note: string; stages: number };
 export type MarketDetail = { persona: MarketCard; release: MarketRelease | null; preview: MarketPreview | null; others: MarketCard[]; relation: { isOwner: boolean; installed: boolean; learning: { courseId: string; version: number } | null; ownCourse: string | null }; takedown?: { at: string | null; reason: string } };
 export type PublishGate = "persona" | "license" | "cleanCheck" | "adult" | "aigc" | "name" | "tags" | "doc";
-export type PublishState = { personaId: string; name: string; description: string; tags: string[]; coverEmoji: string; subject: string; shared: boolean; takenDown: boolean; takenDownReason?: string; version: number; sha256?: string; checksum?: string; produceId?: string; publishedAt?: string; aigcDeclaredAt: string | null; marketPath: string; remixOf?: { id: string; name: string } | null };
+export type PublishState = { personaId: string; name: string; description: string; tags: string[]; coverEmoji: string; subject: string; shared: boolean; takenDown: boolean; takenDownReason?: string; version: number; sha256?: string; checksum?: string; produceId?: string; publishedAt?: string; aigcDeclaredAt: string | null; marketPath: string; remixOf?: { id: string; name: string } | null; companion?: { enabled: boolean; at?: string | null } | null };
 /** 举报理由（与 server Report.REASONS 逐字相等，服务端先上；顺序按老师人格最常见的排：教授认领在最前） */
 export const REPORT_REASONS = ["instructorClaim", "infringe", "abuse", "spam", "porn", "violence", "csae", "other"] as const;
 const qs = (o: Record<string, string | number | undefined>) => { const u = new URLSearchParams(); for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== "" && v !== null) u.set(k, String(v)); return u.toString(); };
 export const listMarket = (q: MarketQuery) => request<{ ok: true; items: MarketCard[]; page: number; limit: number; total: number; totalPages: number; sort: string; scope: string }>(`/api/tutor/market?${qs(q)}`);
 export const getMarketDetail = (id: string) => request<{ ok: true } & MarketDetail>(`/api/tutor/market/${enc(id)}`);
 /** 发布：五道门在服务端（tutor 仓 src/publish），任一不过 422 GATE + gate 指明哪一道 —— 这里只发身份 / 简介 / 标签 / 主动声明 */
-export const publishPersona = (courseId: string, body: { name?: string; description?: string; tags?: string[]; coverEmoji?: string; aigcDeclared: boolean; note?: string }) => request<{ ok: true; persona: PublishState; warnings: string[] }>(`/api/tutor/personas/${enc(courseId)}/publish`, POST(body));
+export const publishPersona = (courseId: string, body: { name?: string; description?: string; tags?: string[]; coverEmoji?: string; aigcDeclared: boolean; note?: string; alsoCompanion?: boolean }) => request<{ ok: true; persona: PublishState; warnings: string[] }>(`/api/tutor/personas/${enc(courseId)}/publish`, POST(body));
 export const unpublishPersona = (courseId: string) => request<{ ok: true; persona: PublishState }>(`/api/tutor/personas/${enc(courseId)}/publish`, { method: "DELETE" });
 /** 「开始跟这位老师学」：从发布版复制出自己的一门课（教材不复制、进度全 pending）；同一人再点回同一门 */
 export const startLearning = (persona: string) => request<{ ok: true; courseId: string; created: boolean; own?: boolean; version?: number; latest?: number; downloadCount?: number }>("/api/tutor/runs", POST({ persona }));
@@ -276,3 +276,8 @@ export type ClaimsReply = { ok: true; items: ClaimItem[]; total: number; page: n
 export const listClaims = (stage: ClaimStage, page = 1) => request<ClaimsReply>(`/api/tutor/admin/claims?stage=${stage}&page=${page}`);
 export const contactClaim = (id: string, message: string) => request<{ ok: true; notified: boolean; claim: ClaimItem }>(`/api/tutor/admin/claims/${encodeURIComponent(id)}/contact`, { method: "POST", body: JSON.stringify({ message }) });
 export const verdictClaim = (id: string, verdict: "upheld" | "rejected", note?: string) => request<{ ok: true; verdict: string; applied: boolean; alsoResolved: number; claim: ClaimItem }>(`/api/tutor/admin/claims/${encodeURIComponent(id)}/verdict`, { method: "POST", body: JSON.stringify({ verdict, ...(note ? { note } : {}) }) });
+
+// ---- M3 与启梦互通（tutor 仓 docs/06 §5.1）：引流位 ?from= 记一行（只记不奖励；白名单与按天去重都在服务端）+ 管理员的三条度量（数字全在服务端算）
+export const postReferral = (from: string, path: string) => request<{ ok: true; recorded: boolean; from?: string; reason?: string }>("/api/tutor/referral", POST({ from, path }));
+export type TutorMetrics = { ok: true; days: number; since: string; referrals: { from: string; count: number; users: number }[]; activation: { tutorUsers: number; crossUsers: number; ratio: number; note?: string }; companion: { personas: number; accounts: number }; fork7d: { days?: number; forks: number; activated: number; ratio: number } };
+export const getTutorMetrics = () => request<TutorMetrics>("/api/tutor/admin/metrics");

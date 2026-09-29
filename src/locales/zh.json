@@ -18,6 +18,7 @@
   },
   "nav": {
     "tutorClaims": "教授认领核实",
+    "tutorMetrics": "老师人格度量",
     "home": "首页",
     "groups": "群组",
     "tagRank": "标签排行",
@@ -1135,6 +1136,7 @@
     "pagesDescription": "打开你最常用的两个独立管理页面。",
     "componentsPageAction": "组件",
     "blacklistPageAction": "已屏蔽用户",
+    "tutorPageAction": "启梦老师 · 用自己的教材做 AI 老师",
     "dangerTitle": "危险操作",
     "deleteAccountDescription": "永久删除你的账号，此操作不可撤销。"
   },
@@ -1291,6 +1293,7 @@
       "backToArena": "返回绷绷炸弹 💣",
       "galleryTitle": "人格广场",
       "galleryDescription": "下载并装备他人分享的发言人格，或把自己的发言风格发布出去，随场合更换你的嘴替。",
+      "galleryToTutor": "想让一个人格按你的教材教课？拿去当老师 →",
       "publishPersona": "发布人格",
       "searchPlaceholder": "搜索人格名 / 标签",
       "search": "搜索",
@@ -1478,6 +1481,7 @@
       "voiceTitle": "音频",
       "voiceHint": "这个人格自带的嗓子：把它设为数字人人格后，首页的数字人会用这把嗓子说话。",
       "useForCompanion": "设为我的数字人人格",
+      "useAsTutor": "拿去当老师",
       "stopUsingForCompanion": "取消使用",
       "companionInUse": "首页数字人正在使用这个人格",
       "companionBusy": "处理中…",
@@ -2488,6 +2492,10 @@
     "appQimengTagline": "有想法，就是梦想启程的第一步",
     "appShihuiName": "诗绘",
     "appShihuiTagline": "一句诗一段水墨动画，念出这一句，走进下一句",
+    "appTutorName": "启梦老师（网页版）",
+    "appTutorTagline": "把自己的课件交给 AI，铸一位按你的材料讲课的老师，在网页里上课",
+    "appTutorWebOnly": "不用安装：用启梦账号登录就能用，token 钱包与 App 同一份。",
+    "appTutorOpen": "打开启梦老师",
     "qrCaptionApp": "扫码在手机上打开这一页下载「{{app}}」"
   },
   "privacy": {
@@ -2549,6 +2557,7 @@
     "doneSub": "在启梦 App 里，你也可以写一句创意，让 AI 帮你拍成短片。",
     "plays": "{{count}} 次播放",
     "replay": "再看一遍",
+    "tryTutor": "也可以用自己的教材做一位 AI 老师 →",
     "stickyNote": "看完整版 · 一句话做同款"
   },
   "voiceMixer": {
@@ -2777,6 +2786,27 @@
     "changesBody": "产品能力变化时我们会更新本页，上方的「最近更新」日期即为当前版本。"
   },
   "tutor": {
+    "metrics": {
+      "title": "与启梦互通 · 三条度量",
+      "subtitle": "引流只记不奖励；比率按账号去重。数字全在服务端算，这里只画。",
+      "refresh": "刷新",
+      "loading": "读取中…",
+      "activation": "跨产品激活",
+      "activationHint": "学过老师的账号里，同时发过作品或装过数字人人格的占比（同一 user._id 既有 TutorRun 又有 BranchVideo / CompanionSetting）。",
+      "activationSub": "{{cross}} / {{all}} 个账号",
+      "companion": "反哺：装成数字人的账号",
+      "companionHint": "把某位勾了「同时发布为启梦人格」的老师装成看板娘 / 客服数字人的账号数。",
+      "companionSub": "可装的老师 {{personas}} 位",
+      "fork": "开始学 → {{days}} 天内通过一段",
+      "forkHint": "从市场「开始跟这位老师学」开出来的课里，{{days}} 天内至少通过一个阶段的占比（没记通过时间的不算）。",
+      "forkSub": "{{activated}} / {{forks}} 门课",
+      "referrals": "引流位（最近 {{days}} 天）",
+      "referralsHint": "各入口带 ?from=，落到 /tutor 时记一行：同一账号（游客按 IP 指纹）同一来源每天只记一条，白名单外不记。",
+      "empty": "还没有一条引流记录",
+      "colFrom": "来源",
+      "colCount": "次数",
+      "colUsers": "账号数"
+    },
     "claims": {
       "title": "教授认领 · 人工核实队列",
       "intro": "「教授认领 / 要求下架」这一类举报不批处理：先核实身份，再裁定。与通用举报队列是同一张表、同一份处置逻辑，这里只是单独一条车道，先来先处理。",
@@ -3063,6 +3093,8 @@
         "strict": "严格",
         "address": "怎么称呼你（可选）",
         "catchphrase": "一句口头禅（可选）",
+        "prefilled": "已按人格「{{name}}」预填了第 3 步：名字、口头禅、称呼与教学风格，都还能改。",
+        "prefillFailed": "没读到那个人格，问卷按默认值：{{message}}",
         "examples": "例子优先来自（可选，如「宿舍网络」）",
         "extraRules": "作者档硬规则（可选，一行一条）",
         "lockedRules": "从课程政策派生的硬规则（只读，生成后带 🔒）"
@@ -3101,7 +3133,7 @@
       "forkTitle": "另存为我的人格",
       "forkHint": "这门课是从「{{name}}」v{{v}} 开出来的：发布出去的是复刻件，会标注血缘；教材授权与泄漏核查沿用来源那一版（这门课没有自己的教材）。",
       "forkReady": "学过一段、改过讲法之后，可以把它发布成你自己的老师。",
-      "forkOpen": "另存为我的人格", "title": "发布到市场", "open": "发布到市场", "newVersion": "发布新版本", "badgeLive": "已发布", "badgeUnshared": "已取消分享", "live": "已发布 v{{v}}", "unshared": "已取消分享（最近 v{{v}}）", "viewInMarket": "在市场里看", "unpublish": "取消分享", "unpublished": "已取消分享", "takenDown": "这位老师已被平台下架：{{reason}}。不能再发布；要申诉请联系客服。", "ready": "五道门都过了就能发；发布件是裁剪过的：学生问答不带、你的学习记录不带。", "notPublishableHint": "还不能发布：{{why}}", "gatesTitle": "发布前五道门（服务端逐道核，任一不过会告诉你是哪一道）", "g_license": "① 参与的每一份教材，授权来源都不是「不确定」", "g_cleanCheck": "② 教材泄漏核查：老师身上没有整段讲义原文", "g_adult": "③ 已做成人声明", "g_aigc": "④ 主动声明含 AI 生成内容", "g_name": "⑤ 老师用化名，不是真实教授姓名；标签不超过 6 个", "name": "老师名字（化名）", "description": "一句话简介", "tags": "标签（逗号分隔，最多 6 个）", "note": "版本说明（可选）", "aigcLabel": "我声明：这位老师含 AI 生成内容（由教材与对话经 AI 提炼、我审定），发布后会一直标示。", "submit": "发布", "submitting": "正在核五道门…", "cancel": "取消", "done": "发布成功：v{{v}} 已在市场里。", "failedAt": "第 {{gate}} 道没过：{{message}}" },
+      "forkOpen": "另存为我的人格", "title": "发布到市场", "open": "发布到市场", "newVersion": "发布新版本", "badgeLive": "已发布", "badgeUnshared": "已取消分享", "live": "已发布 v{{v}}", "unshared": "已取消分享（最近 v{{v}}）", "viewInMarket": "在市场里看", "unpublish": "取消分享", "unpublished": "已取消分享", "takenDown": "这位老师已被平台下架：{{reason}}。不能再发布；要申诉请联系客服。", "ready": "五道门都过了就能发；发布件是裁剪过的：学生问答不带、你的学习记录不带。", "notPublishableHint": "还不能发布：{{why}}", "gatesTitle": "发布前五道门（服务端逐道核，任一不过会告诉你是哪一道）", "g_license": "① 参与的每一份教材，授权来源都不是「不确定」", "g_cleanCheck": "② 教材泄漏核查：老师身上没有整段讲义原文", "g_adult": "③ 已做成人声明", "g_aigc": "④ 主动声明含 AI 生成内容", "g_name": "⑤ 老师用化名，不是真实教授姓名；标签不超过 6 个", "name": "老师名字（化名）", "description": "一句话简介", "tags": "标签（逗号分隔，最多 6 个）", "note": "版本说明（可选）", "aigcLabel": "我声明：这位老师含 AI 生成内容（由教材与对话经 AI 提炼、我审定），发布后会一直标示。", "companionLabel": "同时发布为启梦人格（可装进看板娘 / 客服页的数字人）", "companionHint": "默认不勾。勾了只把说话风格（口头禅、语气、开场白、边界）交给数字人，课件内容不会带过去；不勾的老师不会出现在人格市场里。每次发布重新表态。", "companionOn": "可装进看板娘", "submit": "发布", "submitting": "正在核五道门…", "cancel": "取消", "done": "发布成功：v{{v}} 已在市场里。", "failedAt": "第 {{gate}} 道没过：{{message}}" },
     "course": {
       "source": "这门课是从市场复刻来的（老师 v{{v}}）·",
       "sourceLink": "看原作者的老师",

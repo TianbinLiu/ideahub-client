@@ -1,6 +1,8 @@
 // 课程页的「发布到市场」卡（tutor 仓 docs/02 §6）：五道门在服务端一处（tutor 仓 src/publish），任一不过 422 + gate —— 这里把它的答案画出来：
 // 表单上先列出五道门让作者心里有数，被拒时高亮是哪一道；「主动声明含 AI 生成内容」是显式勾选（《标识办法》第十条），不是脚注。
 // 已发布：版本 / sha256 前 12 位 / 市场链接 / 取消分享 / 发布新版本；被平台下架：说明原因、不再给发布键。
+// M3（tutor 仓 docs/06 §5.1 反向勾选）：「同时发布为启梦人格（可装进看板娘）」是显式勾选、**默认不勾**、每次发布重新表态；勾了服务端才由教学面生成 Persona.style。
+//   初值取当前已发布态（作者上一版勾了，发新版时默认还勾着，不用记着再勾一次）。
 import { useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -20,6 +22,7 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
   const [tags, setTags] = useState((pub?.tags || []).join(", "));
   const [note, setNote] = useState("");
   const [aigc, setAigc] = useState(false);
+  const [companion, setCompanion] = useState(!!pub?.companion?.enabled);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ gate?: string; message: string } | null>(null);
   const [result, setResult] = useState<PublishState | null>(null);
@@ -28,7 +31,7 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
   const submit = async () => {
     setBusy(true); setErr(null);
     try {
-      const r = await publishPersona(courseId, { name: name.trim(), description: description.trim(), tags: tags.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean).slice(0, 6), aigcDeclared: aigc, note: note.trim() || undefined });
+      const r = await publishPersona(courseId, { name: name.trim(), description: description.trim(), tags: tags.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean).slice(0, 6), aigcDeclared: aigc, note: note.trim() || undefined, alsoCompanion: companion });
       setResult(r.persona); setOpen(false); setAigc(false); onChanged();
     } catch (e) { setErr({ gate: e instanceof ApiError ? e.gate : undefined, message: msg(e) }); }
     finally { setBusy(false); }
@@ -46,6 +49,7 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
         <div data-testid="publish-state" data-version={pub.version} className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-700">
           <span>{pub.shared ? t("publish.live", { v: pub.version }) : t("publish.unshared", { v: pub.version })}</span>
           {pub.sha256 && <span className="font-mono text-[10px] text-zinc-500">sha256 {pub.sha256.slice(0, 12)}…</span>}
+          {pub.companion?.enabled && <span data-testid="publish-companion-state" className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-800">{t("publish.companionOn")}</span>}
           <Link to={pub.marketPath} data-testid="publish-market-link" className="underline underline-offset-2">{t("publish.viewInMarket")}</Link>
           {pub.shared && <button type="button" data-testid="publish-unpublish" disabled={busy} onClick={() => void unpublish()} className="rounded-full border border-zinc-300 px-2 py-0.5 text-[11px] disabled:opacity-40">{t("publish.unpublish")}</button>}
         </div>
@@ -68,6 +72,7 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
           <label className="block text-xs"><span className="font-semibold text-zinc-600">{t("publish.tags")}</span><input data-testid="publish-tags" value={tags} onChange={(e) => setTags(e.target.value)} className="mt-1 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm" /></label>
           <label className="block text-xs"><span className="font-semibold text-zinc-600">{t("publish.note")}</span><input data-testid="publish-note" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} className="mt-1 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm" /></label>
           <label className="flex items-start gap-2 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-xs text-cyan-900"><input data-testid="publish-aigc" type="checkbox" checked={aigc} onChange={(e) => setAigc(e.target.checked)} className="mt-0.5" /><span>{t("publish.aigcLabel")}</span></label>
+          <label className="flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900"><input data-testid="publish-companion" type="checkbox" checked={companion} onChange={(e) => setCompanion(e.target.checked)} className="mt-0.5" /><span>{t("publish.companionLabel")}<span className="mt-1 block text-[11px] text-violet-700">{t("publish.companionHint")}</span></span></label>
           {err && <p data-testid="publish-error" data-gate={err.gate || ""} className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">{err.gate ? t("publish.failedAt", { gate: GATE_NO[err.gate] || "?", message: err.message }) : err.message}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" data-testid="publish-cancel" onClick={() => { setOpen(false); setErr(null); }} className="rounded-full border border-zinc-300 px-3 py-1 text-xs">{t("publish.cancel")}</button>

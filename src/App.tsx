@@ -49,6 +49,7 @@ const FeedbackAdminPage = lazy(() => import("./pages/FeedbackAdminPage"));
 const DocsAdminPage = lazy(() => import("./pages/DocsAdminPage"));
 const AdminScraperPage = lazy(() => import("./pages/AdminScraperPage"));
 const TutorClaimsAdminPage = lazy(() => import("./pages/tutor/TutorClaimsAdminPage"));
+const TutorMetricsAdminPage = lazy(() => import("./pages/tutor/TutorMetricsAdminPage"));
 const EditIdeaPage = lazy(() => import("./pages/EditIdeaPage"));
 const PhoneLoginPage = lazy(() => import("./pages/PhoneLoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
@@ -688,6 +689,15 @@ export default function App() {
             element={
               <AdminRoute>
                 <TutorClaimsAdminPage />
+              </AdminRoute>
+            }
+          />
+          {/* 老师人格：与启梦互通的三条度量（tutor 仓 docs/06 §5.1，M3） */}
+          <Route
+            path="/admin/tutor-metrics"
+            element={
+              <AdminRoute>
+                <TutorMetricsAdminPage />
               </AdminRoute>
             }
           />

@@ -18,6 +18,7 @@
   },
   "nav": {
     "tutorClaims": "Instructor claims",
+    "tutorMetrics": "Tutor metrics",
     "home": "Home",
     "groups": "Groups",
     "tagRank": "Tag Rank",
@@ -1135,6 +1136,7 @@
     "pagesDescription": "Open the dedicated management pages you use most often.",
     "componentsPageAction": "Components",
     "blacklistPageAction": "Blocked Users",
+    "tutorPageAction": "QiMeng Tutor · make an AI teacher from your own materials",
     "dangerTitle": "Danger Zone",
     "deleteAccountDescription": "Delete your account permanently. This action cannot be undone."
   },
@@ -1291,6 +1293,7 @@
       "backToArena": "Back to BengBeng Bomb 💣",
       "galleryTitle": "Persona Gallery",
       "galleryDescription": "Download and equip speaking personas shared by others, or publish your own style and switch your voice to fit any occasion.",
+      "galleryToTutor": "Want a persona to teach from your materials? Use it as a tutor →",
       "publishPersona": "Publish Persona",
       "searchPlaceholder": "Search persona name / tag",
       "search": "Search",
@@ -1478,6 +1481,7 @@
       "voiceTitle": "Voice",
       "voiceHint": "This persona's own voice: once set as your companion persona, the homepage companion speaks with it.",
       "useForCompanion": "Use as my companion persona",
+      "useAsTutor": "Use as a tutor",
       "stopUsingForCompanion": "Stop using",
       "companionInUse": "Your homepage companion is using this persona",
       "companionBusy": "Working…",
@@ -2488,6 +2492,10 @@
     "appQimengTagline": "An idea is the first step of a dream",
     "appShihuiName": "ShiHui",
     "appShihuiTagline": "One line of poetry, one ink animation — recite it to move on",
+    "appTutorName": "QiMeng Tutor (web)",
+    "appTutorTagline": "Hand your course materials to AI and get a teacher who teaches from them, right in the browser",
+    "appTutorWebOnly": "Nothing to install: sign in with your QiMeng account; the token wallet is shared with the app.",
+    "appTutorOpen": "Open QiMeng Tutor",
     "qrCaptionApp": "Scan to open this page on your phone and download {{app}}"
   },
   "privacy": {
@@ -2549,6 +2557,7 @@
     "doneSub": "In QiMeng, one written idea becomes a short film — scene by scene.",
     "plays": "{{count}} plays",
     "replay": "Watch again",
+    "tryTutor": "Or make an AI teacher from your own course materials →",
     "stickyNote": "Full video · make your own"
   },
   "voiceMixer": {
@@ -2777,6 +2786,27 @@
     "changesBody": "We update this page as the product changes; the last-updated date above identifies the current version."
   },
   "tutor": {
+    "metrics": {
+      "title": "Cross-product · three metrics",
+      "subtitle": "Referrals are recorded, never rewarded; ratios are deduplicated by account. Everything is computed server-side; this page only draws it.",
+      "refresh": "Refresh",
+      "loading": "Loading…",
+      "activation": "Cross-product activation",
+      "activationHint": "Among accounts that have learned with a tutor, the share that also published a video or installed a companion persona (same user id with a TutorRun and a BranchVideo / CompanionSetting).",
+      "activationSub": "{{cross}} / {{all}} accounts",
+      "companion": "Feedback: accounts using a tutor as companion",
+      "companionHint": "Accounts whose companion / support mascot uses a tutor that opted into “also publish as a QiMeng persona”.",
+      "companionSub": "{{personas}} companion-ready tutors",
+      "fork": "Started learning → passed a stage within {{days}} days",
+      "forkHint": "Among courses started from the market (“learn with this tutor”), the share that passed at least one stage within {{days}} days (passes without a timestamp don't count).",
+      "forkSub": "{{activated}} / {{forks}} courses",
+      "referrals": "Entry points (last {{days}} days)",
+      "referralsHint": "Each entry point carries ?from=; landing on /tutor records one row: one per account (guests by IP fingerprint) per source per day, unknown sources are dropped.",
+      "empty": "No referral recorded yet",
+      "colFrom": "Source",
+      "colCount": "Hits",
+      "colUsers": "Accounts"
+    },
     "claims": {
       "title": "Instructor claims · manual review",
       "intro": "\"Instructor claim / takedown request\" reports are not batch-processed: verify identity first, then rule. Same table and same resolution logic as the general report queue; this is just a dedicated lane, first come first served.",
@@ -3063,6 +3093,8 @@
         "strict": "Strict",
         "address": "How to address you (optional)",
         "catchphrase": "A catchphrase (optional)",
+        "prefilled": "Step 3 was prefilled from persona “{{name}}”: name, catchphrase, form of address and teaching style — all editable.",
+        "prefillFailed": "Couldn't load that persona; the questionnaire keeps its defaults: {{message}}",
         "examples": "Prefer examples from (optional)",
         "extraRules": "Author rules (optional, one per line)",
         "lockedRules": "Hard rules derived from the course policy (read-only, 🔒 after generation)"
@@ -3101,7 +3133,7 @@
       "forkTitle": "Save as my own teacher",
       "forkHint": "This course was started from \"{{name}}\" v{{v}}: publishing creates a remix with its lineage shown; material licensing and the leak check are inherited from that version (this course has no materials of its own).",
       "forkReady": "After studying a while and adjusting the teaching, you can publish it as your own teacher.",
-      "forkOpen": "Save as my own teacher", "title": "Publish to market", "open": "Publish to market", "newVersion": "Publish a new version", "badgeLive": "Live", "badgeUnshared": "Unshared", "live": "Published v{{v}}", "unshared": "Unshared (latest v{{v}})", "viewInMarket": "View in market", "unpublish": "Unshare", "unpublished": "Unshared", "takenDown": "This tutor was taken down by the platform: {{reason}}. It can't be published again; contact support to appeal.", "ready": "Passes all five gates and it's live. The release is trimmed: no student Q&A, none of your learning records.", "notPublishableHint": "Not publishable yet: {{why}}", "gatesTitle": "Five gates before publishing (checked server-side one by one; you'll be told which one failed)", "g_license": "① Every material involved has a definite license source (not “unsure”)", "g_cleanCheck": "② Leak check: no verbatim passages of the materials in the tutor", "g_adult": "③ Adult declaration done", "g_aigc": "④ Explicit declaration that it contains AI-generated content", "g_name": "⑤ A pseudonym, not a real professor's name; at most 6 tags", "name": "Tutor name (pseudonym)", "description": "One-line description", "tags": "Tags (comma-separated, up to 6)", "note": "Release note (optional)", "aigcLabel": "I declare that this tutor contains AI-generated content (distilled by AI from materials and dialogue, reviewed by me) and will be labelled as such.", "submit": "Publish", "submitting": "Checking the five gates…", "cancel": "Cancel", "done": "Published: v{{v}} is now in the market.", "failedAt": "Gate {{gate}} failed: {{message}}" },
+      "forkOpen": "Save as my own teacher", "title": "Publish to market", "open": "Publish to market", "newVersion": "Publish a new version", "badgeLive": "Live", "badgeUnshared": "Unshared", "live": "Published v{{v}}", "unshared": "Unshared (latest v{{v}})", "viewInMarket": "View in market", "unpublish": "Unshare", "unpublished": "Unshared", "takenDown": "This tutor was taken down by the platform: {{reason}}. It can't be published again; contact support to appeal.", "ready": "Passes all five gates and it's live. The release is trimmed: no student Q&A, none of your learning records.", "notPublishableHint": "Not publishable yet: {{why}}", "gatesTitle": "Five gates before publishing (checked server-side one by one; you'll be told which one failed)", "g_license": "① Every material involved has a definite license source (not “unsure”)", "g_cleanCheck": "② Leak check: no verbatim passages of the materials in the tutor", "g_adult": "③ Adult declaration done", "g_aigc": "④ Explicit declaration that it contains AI-generated content", "g_name": "⑤ A pseudonym, not a real professor's name; at most 6 tags", "name": "Tutor name (pseudonym)", "description": "One-line description", "tags": "Tags (comma-separated, up to 6)", "note": "Release note (optional)", "aigcLabel": "I declare that this tutor contains AI-generated content (distilled by AI from materials and dialogue, reviewed by me) and will be labelled as such.", "companionLabel": "Also publish as a QiMeng persona (usable by the homepage companion / the app's support mascot)", "companionHint": "Off by default. When on, only the way of speaking (catchphrases, tone, greeting, boundaries) goes to the companion — never the course content; unticked tutors don't appear in the persona market. Restated on every publish.", "companionOn": "Companion-ready", "submit": "Publish", "submitting": "Checking the five gates…", "cancel": "Cancel", "done": "Published: v{{v}} is now in the market.", "failedAt": "Gate {{gate}} failed: {{message}}" },
     "course": {
       "source": "This course was remixed from the market (tutor v{{v}}) ·",
       "sourceLink": "see the original tutor",
