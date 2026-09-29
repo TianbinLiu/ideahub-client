@@ -520,6 +520,8 @@
     "markInterested": "标记为感兴趣"
   },
   "profile": {
+    "tutors": "老师人格",
+    "learning": "在学",
     "home": "主页",
     "ideas": "想法",
     "dynamics": "动态",
@@ -2773,6 +2775,16 @@
     "changesBody": "产品能力变化时我们会更新本页，上方的「最近更新」日期即为当前版本。"
   },
   "tutor": {
+    "profileTabs": {
+      "noTeachers": "还没有发布过老师。",
+      "noLearning": "还没有从市场开过课。",
+      "goMarket": "去市场看看",
+      "updateAvailable": "有新版 v{{v}} 可合并",
+      "sourceGone": "来源已不在市场上",
+      "done": "已学完",
+      "at": "学到 {{stage}}",
+      "course": "课程页"
+    },
     "rating": {
       "title": "评分",
       "avg": "{{n}} 人评过",
@@ -3044,10 +3056,15 @@
         "waiting": "老师在备课…"
       }
     },
-    "market": { "title": "老师市场", "subtitle": "别人发布的老师：下载复刻，从第一阶段接着上；教材不随老师分发", "back": "返回", "search": "搜老师 / 学科 / 标签", "go": "搜索", "scope_all": "全部", "scope_installed": "我下载的", "scope_mine": "我发布的", "sort_new": "最新", "sort_hot": "最热", "sort_rating": "评分", "tagFilter": "标签：{{tag}}", "subjectFilter": "学科：{{subject}}", "empty": "没有找到老师：换个词，或者自己发布一位", "loading": "正在取市场…", "downloads": "{{n}} 人在学", "rating": "{{avg}}（{{n}} 票）", "noRating": "还没有评分", "version": "v{{v}}", "installed": "已下载", "mine": "我的", "by": "作者 {{name}}", "view": "看详情", "prev": "上一页", "next": "下一页", "page": "第 {{page}} / {{total}} 页", "publishHint": "想把自己的老师放上来？进课程页点「发布到市场」" },
+    "market": {
+      "remix": "复刻自 {{name}}", "title": "老师市场", "subtitle": "别人发布的老师：下载复刻，从第一阶段接着上；教材不随老师分发", "back": "返回", "search": "搜老师 / 学科 / 标签", "go": "搜索", "scope_all": "全部", "scope_installed": "我下载的", "scope_mine": "我发布的", "sort_new": "最新", "sort_hot": "最热", "sort_rating": "评分", "tagFilter": "标签：{{tag}}", "subjectFilter": "学科：{{subject}}", "empty": "没有找到老师：换个词，或者自己发布一位", "loading": "正在取市场…", "downloads": "{{n}} 人在学", "rating": "{{avg}}（{{n}} 票）", "noRating": "还没有评分", "version": "v{{v}}", "installed": "已下载", "mine": "我的", "by": "作者 {{name}}", "view": "看详情", "prev": "上一页", "next": "下一页", "page": "第 {{page}} / {{total}} 页", "publishHint": "想把自己的老师放上来？进课程页点「发布到市场」" },
     "detail": { "missing": "没有这位老师（不存在、未发布或已下架）。", "backMarket": "返回市场", "start": "开始跟这位老师学", "continue": "继续学", "starting": "正在开课…", "own": "这是我的老师 · 进课程页", "loginToStart": "登录后开始学", "card": "① 这位老师怎么教", "who": "是谁", "style": "教学风格", "catchphrases": "口头禅", "rules": "硬规则（带锁的谁都改不了）", "map": "③ 课程地图（{{n}} 个阶段）", "counts": "{{steps}} 步 · {{memo}} 条必背 · {{checks}} 道自检", "guide": "⑥ 复刻指南", "release": "发布版", "releaseLine": "v{{v}} · {{at}} · sha256 {{sha}}…", "aigc": "含 AI 生成内容：这位老师由教材与对话经 AI 提炼、作者审定发布。内容编号 {{id}}", "others": "作者的其它老师", "comments": "讨论", "report": "举报", "materialsNote": "教材不随老师分发：开始学之后可以上传你自己那份讲义，钉子与讲解步会钉回去。" },
     "report": { "title": "举报这位老师", "reason": "理由", "detail": "补充说明（可选）", "submit": "提交", "cancel": "取消", "close": "关闭", "done": "已受理：平台会人工核实。教授认领的会优先处理。", "already": "你已经举报过这位老师了，平台正在处理。", "r_instructorClaim": "我是这门课的教授 / 要求下架", "r_infringe": "侵权 / 冒用他人作品", "r_abuse": "人身攻击 / 辱骂", "r_spam": "垃圾营销 / 刷屏", "r_porn": "色情低俗", "r_violence": "血腥暴力", "r_csae": "涉及未成年人", "r_other": "其他" },
-    "publish": { "title": "发布到市场", "open": "发布到市场", "newVersion": "发布新版本", "badgeLive": "已发布", "badgeUnshared": "已取消分享", "live": "已发布 v{{v}}", "unshared": "已取消分享（最近 v{{v}}）", "viewInMarket": "在市场里看", "unpublish": "取消分享", "unpublished": "已取消分享", "takenDown": "这位老师已被平台下架：{{reason}}。不能再发布；要申诉请联系客服。", "ready": "五道门都过了就能发；发布件是裁剪过的：学生问答不带、你的学习记录不带。", "notPublishableHint": "还不能发布：{{why}}", "gatesTitle": "发布前五道门（服务端逐道核，任一不过会告诉你是哪一道）", "g_license": "① 参与的每一份教材，授权来源都不是「不确定」", "g_cleanCheck": "② 教材泄漏核查：老师身上没有整段讲义原文", "g_adult": "③ 已做成人声明", "g_aigc": "④ 主动声明含 AI 生成内容", "g_name": "⑤ 老师用化名，不是真实教授姓名；标签不超过 6 个", "name": "老师名字（化名）", "description": "一句话简介", "tags": "标签（逗号分隔，最多 6 个）", "note": "版本说明（可选）", "aigcLabel": "我声明：这位老师含 AI 生成内容（由教材与对话经 AI 提炼、我审定），发布后会一直标示。", "submit": "发布", "submitting": "正在核五道门…", "cancel": "取消", "done": "发布成功：v{{v}} 已在市场里。", "failedAt": "第 {{gate}} 道没过：{{message}}" },
+    "publish": {
+      "forkTitle": "另存为我的人格",
+      "forkHint": "这门课是从「{{name}}」v{{v}} 开出来的：发布出去的是复刻件，会标注血缘；教材授权与泄漏核查沿用来源那一版（这门课没有自己的教材）。",
+      "forkReady": "学过一段、改过讲法之后，可以把它发布成你自己的老师。",
+      "forkOpen": "另存为我的人格", "title": "发布到市场", "open": "发布到市场", "newVersion": "发布新版本", "badgeLive": "已发布", "badgeUnshared": "已取消分享", "live": "已发布 v{{v}}", "unshared": "已取消分享（最近 v{{v}}）", "viewInMarket": "在市场里看", "unpublish": "取消分享", "unpublished": "已取消分享", "takenDown": "这位老师已被平台下架：{{reason}}。不能再发布；要申诉请联系客服。", "ready": "五道门都过了就能发；发布件是裁剪过的：学生问答不带、你的学习记录不带。", "notPublishableHint": "还不能发布：{{why}}", "gatesTitle": "发布前五道门（服务端逐道核，任一不过会告诉你是哪一道）", "g_license": "① 参与的每一份教材，授权来源都不是「不确定」", "g_cleanCheck": "② 教材泄漏核查：老师身上没有整段讲义原文", "g_adult": "③ 已做成人声明", "g_aigc": "④ 主动声明含 AI 生成内容", "g_name": "⑤ 老师用化名，不是真实教授姓名；标签不超过 6 个", "name": "老师名字（化名）", "description": "一句话简介", "tags": "标签（逗号分隔，最多 6 个）", "note": "版本说明（可选）", "aigcLabel": "我声明：这位老师含 AI 生成内容（由教材与对话经 AI 提炼、我审定），发布后会一直标示。", "submit": "发布", "submitting": "正在核五道门…", "cancel": "取消", "done": "发布成功：v{{v}} 已在市场里。", "failedAt": "第 {{gate}} 道没过：{{message}}" },
     "course": {
       "source": "这门课是从市场复刻来的（老师 v{{v}}）·",
       "sourceLink": "看原作者的老师",

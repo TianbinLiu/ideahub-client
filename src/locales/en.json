@@ -520,6 +520,8 @@
     "markInterested": "Mark Interested"
   },
   "profile": {
+    "tutors": "Teachers",
+    "learning": "Learning",
     "home": "Home",
     "ideas": "Ideas",
     "dynamics": "Updates",
@@ -2773,6 +2775,16 @@
     "changesBody": "We update this page as the product changes; the last-updated date above identifies the current version."
   },
   "tutor": {
+    "profileTabs": {
+      "noTeachers": "No teachers published yet.",
+      "noLearning": "No courses started from the market yet.",
+      "goMarket": "Browse the market",
+      "updateAvailable": "v{{v}} available to merge",
+      "sourceGone": "Source no longer on the market",
+      "done": "Completed",
+      "at": "At {{stage}}",
+      "course": "Course page"
+    },
     "rating": {
       "title": "Ratings",
       "avg": "{{n}} rating(s)",
@@ -3044,10 +3056,15 @@
         "waiting": "Preparing…"
       }
     },
-    "market": { "title": "Tutor Market", "subtitle": "Tutors others have published: download, remix, and start from stage 1. Course materials never ship with a tutor.", "back": "Back", "search": "Search tutors / subjects / tags", "go": "Search", "scope_all": "All", "scope_installed": "Downloaded", "scope_mine": "Published by me", "sort_new": "Newest", "sort_hot": "Popular", "sort_rating": "Rating", "tagFilter": "Tag: {{tag}}", "subjectFilter": "Subject: {{subject}}", "empty": "No tutors found — try another word, or publish one yourself", "loading": "Loading the market…", "downloads": "{{n}} learning", "rating": "{{avg}} ({{n}} votes)", "noRating": "No ratings yet", "version": "v{{v}}", "installed": "Downloaded", "mine": "Mine", "by": "by {{name}}", "view": "Details", "prev": "Previous", "next": "Next", "page": "Page {{page}} / {{total}}", "publishHint": "Want yours here? Open the course page and tap “Publish to market”." },
+    "market": {
+      "remix": "Remixed from {{name}}", "title": "Tutor Market", "subtitle": "Tutors others have published: download, remix, and start from stage 1. Course materials never ship with a tutor.", "back": "Back", "search": "Search tutors / subjects / tags", "go": "Search", "scope_all": "All", "scope_installed": "Downloaded", "scope_mine": "Published by me", "sort_new": "Newest", "sort_hot": "Popular", "sort_rating": "Rating", "tagFilter": "Tag: {{tag}}", "subjectFilter": "Subject: {{subject}}", "empty": "No tutors found — try another word, or publish one yourself", "loading": "Loading the market…", "downloads": "{{n}} learning", "rating": "{{avg}} ({{n}} votes)", "noRating": "No ratings yet", "version": "v{{v}}", "installed": "Downloaded", "mine": "Mine", "by": "by {{name}}", "view": "Details", "prev": "Previous", "next": "Next", "page": "Page {{page}} / {{total}}", "publishHint": "Want yours here? Open the course page and tap “Publish to market”." },
     "detail": { "missing": "No such tutor (missing, unpublished, or taken down).", "backMarket": "Back to market", "start": "Start learning with this tutor", "continue": "Continue learning", "starting": "Setting up your course…", "own": "This is my tutor · open course", "loginToStart": "Sign in to start", "card": "① How this tutor teaches", "who": "Who", "style": "Teaching style", "catchphrases": "Catchphrases", "rules": "Hard rules (locked ones can't be changed by anyone)", "map": "③ Course map ({{n}} stages)", "counts": "{{steps}} steps · {{memo}} must-memorize · {{checks}} self-checks", "guide": "⑥ Remix guide", "release": "Release", "releaseLine": "v{{v}} · {{at}} · sha256 {{sha}}…", "aigc": "Contains AI-generated content: distilled by AI from course materials and dialogue, reviewed by the author. Content ID {{id}}", "others": "More tutors by this author", "comments": "Discussion", "report": "Report", "materialsNote": "Materials never ship with a tutor: after you start, upload your own copy of the slides and the pins and steps snap back onto it." },
     "report": { "title": "Report this tutor", "reason": "Reason", "detail": "Details (optional)", "submit": "Submit", "cancel": "Cancel", "close": "Close", "done": "Received: the platform will review it manually. Instructor claims are handled first.", "already": "You have already reported this tutor; it is being handled.", "r_instructorClaim": "I am the instructor of this course / request takedown", "r_infringe": "Infringement / impersonation", "r_abuse": "Harassment / abuse", "r_spam": "Spam", "r_porn": "Sexual content", "r_violence": "Graphic violence", "r_csae": "Involves minors", "r_other": "Other" },
-    "publish": { "title": "Publish to market", "open": "Publish to market", "newVersion": "Publish a new version", "badgeLive": "Live", "badgeUnshared": "Unshared", "live": "Published v{{v}}", "unshared": "Unshared (latest v{{v}})", "viewInMarket": "View in market", "unpublish": "Unshare", "unpublished": "Unshared", "takenDown": "This tutor was taken down by the platform: {{reason}}. It can't be published again; contact support to appeal.", "ready": "Passes all five gates and it's live. The release is trimmed: no student Q&A, none of your learning records.", "notPublishableHint": "Not publishable yet: {{why}}", "gatesTitle": "Five gates before publishing (checked server-side one by one; you'll be told which one failed)", "g_license": "① Every material involved has a definite license source (not “unsure”)", "g_cleanCheck": "② Leak check: no verbatim passages of the materials in the tutor", "g_adult": "③ Adult declaration done", "g_aigc": "④ Explicit declaration that it contains AI-generated content", "g_name": "⑤ A pseudonym, not a real professor's name; at most 6 tags", "name": "Tutor name (pseudonym)", "description": "One-line description", "tags": "Tags (comma-separated, up to 6)", "note": "Release note (optional)", "aigcLabel": "I declare that this tutor contains AI-generated content (distilled by AI from materials and dialogue, reviewed by me) and will be labelled as such.", "submit": "Publish", "submitting": "Checking the five gates…", "cancel": "Cancel", "done": "Published: v{{v}} is now in the market.", "failedAt": "Gate {{gate}} failed: {{message}}" },
+    "publish": {
+      "forkTitle": "Save as my own teacher",
+      "forkHint": "This course was started from \"{{name}}\" v{{v}}: publishing creates a remix with its lineage shown; material licensing and the leak check are inherited from that version (this course has no materials of its own).",
+      "forkReady": "After studying a while and adjusting the teaching, you can publish it as your own teacher.",
+      "forkOpen": "Save as my own teacher", "title": "Publish to market", "open": "Publish to market", "newVersion": "Publish a new version", "badgeLive": "Live", "badgeUnshared": "Unshared", "live": "Published v{{v}}", "unshared": "Unshared (latest v{{v}})", "viewInMarket": "View in market", "unpublish": "Unshare", "unpublished": "Unshared", "takenDown": "This tutor was taken down by the platform: {{reason}}. It can't be published again; contact support to appeal.", "ready": "Passes all five gates and it's live. The release is trimmed: no student Q&A, none of your learning records.", "notPublishableHint": "Not publishable yet: {{why}}", "gatesTitle": "Five gates before publishing (checked server-side one by one; you'll be told which one failed)", "g_license": "① Every material involved has a definite license source (not “unsure”)", "g_cleanCheck": "② Leak check: no verbatim passages of the materials in the tutor", "g_adult": "③ Adult declaration done", "g_aigc": "④ Explicit declaration that it contains AI-generated content", "g_name": "⑤ A pseudonym, not a real professor's name; at most 6 tags", "name": "Tutor name (pseudonym)", "description": "One-line description", "tags": "Tags (comma-separated, up to 6)", "note": "Release note (optional)", "aigcLabel": "I declare that this tutor contains AI-generated content (distilled by AI from materials and dialogue, reviewed by me) and will be labelled as such.", "submit": "Publish", "submitting": "Checking the five gates…", "cancel": "Cancel", "done": "Published: v{{v}} is now in the market.", "failedAt": "Gate {{gate}} failed: {{message}}" },
     "course": {
       "source": "This course was remixed from the market (tutor v{{v}}) ·",
       "sourceLink": "see the original tutor",

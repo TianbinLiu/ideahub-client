@@ -165,6 +165,7 @@ export function TutorDetailPage() {
             <div className="min-w-0 flex-1">
               <h1 data-testid="detail-name" className="text-lg font-bold">{p.name}</h1>
               <div className="text-xs text-zinc-500">{p.subject} · {t("market.by", { name: p.author.username || "—" })}{release && <> · <span data-testid="detail-version">{t("market.version", { v: release.version })}</span></>}</div>
+              {p.remixOf && <div className="mt-1 text-xs"><Link to={`/tutor/market/${encodeURIComponent(p.remixOf.id)}`} data-testid="detail-remix" className="rounded-full bg-violet-50 px-2 py-0.5 text-violet-800 underline-offset-2 hover:underline">{t("market.remix", { name: p.remixOf.name || "—" })}</Link></div>}
               {p.description && <p className="mt-1 text-sm text-zinc-700">{p.description}</p>}
               {p.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{p.tags.map((x) => <Link key={x} to={`/tutor/market?tag=${encodeURIComponent(x)}`} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-700">#{x}</Link>)}</div>}
             </div>

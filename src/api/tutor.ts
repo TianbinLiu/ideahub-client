@@ -228,7 +228,7 @@ export const scanCourse = (id: string) => request<{ ok: true; patchId: string | 
 export const acceptScan = (id: string, patchId: string, indices: number[]) => request<{ ok: true; added: string[]; version: number; stages: number }>(`/api/tutor/personas/${enc(id)}/patches/${enc(patchId)}/accept`, POST({ indices }));
 
 // ── 市场 / 发布 / 举报（tutor 仓 docs/02 §6 §7，M2）
-export type MarketCard = { id: string; name: string; description: string; coverEmoji: string; coverImageUrl: string; tags: string[]; subject: string; author: { _id: string; username: string }; price: number; version: number; shared: boolean; takenDown: boolean; stats: { downloadCount: number; likeCount: number; ratingAvg: number; ratingCount: number }; installed: boolean; isOwner: boolean; publishedAt?: string; createdAt?: string; updatedAt?: string };
+export type MarketCard = { id: string; name: string; description: string; coverEmoji: string; coverImageUrl: string; tags: string[]; subject: string; author: { _id: string; username: string }; price: number; version: number; shared: boolean; takenDown: boolean; stats: { downloadCount: number; likeCount: number; ratingAvg: number; ratingCount: number }; installed: boolean; isOwner: boolean; publishedAt?: string; createdAt?: string; updatedAt?: string; remixOf?: { id: string; name: string } | null };
 export type MarketSort = "new" | "hot" | "rating";
 export type MarketScope = "all" | "installed" | "mine";
 export type MarketQuery = { q?: string; tag?: string; subject?: string; sort?: MarketSort; scope?: MarketScope; page?: number; limit?: number; author?: string };
@@ -236,7 +236,7 @@ export type MarketPreview = { card: { who: string; teaching_style: string; catch
 export type MarketRelease = { version: number; sha256: string; checksum: string; produceId: string; publishedAt: string; note: string; stages: number };
 export type MarketDetail = { persona: MarketCard; release: MarketRelease | null; preview: MarketPreview | null; others: MarketCard[]; relation: { isOwner: boolean; installed: boolean; learning: { courseId: string; version: number } | null; ownCourse: string | null }; takedown?: { at: string | null; reason: string } };
 export type PublishGate = "persona" | "license" | "cleanCheck" | "adult" | "aigc" | "name" | "tags" | "doc";
-export type PublishState = { personaId: string; name: string; description: string; tags: string[]; coverEmoji: string; subject: string; shared: boolean; takenDown: boolean; takenDownReason?: string; version: number; sha256?: string; checksum?: string; produceId?: string; publishedAt?: string; aigcDeclaredAt: string | null; marketPath: string };
+export type PublishState = { personaId: string; name: string; description: string; tags: string[]; coverEmoji: string; subject: string; shared: boolean; takenDown: boolean; takenDownReason?: string; version: number; sha256?: string; checksum?: string; produceId?: string; publishedAt?: string; aigcDeclaredAt: string | null; marketPath: string; remixOf?: { id: string; name: string } | null };
 /** 举报理由（与 server Report.REASONS 逐字相等，服务端先上；顺序按老师人格最常见的排：教授认领在最前） */
 export const REPORT_REASONS = ["instructorClaim", "infringe", "abuse", "spam", "porn", "violence", "csae", "other"] as const;
 const qs = (o: Record<string, string | number | undefined>) => { const u = new URLSearchParams(); for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== "" && v !== null) u.set(k, String(v)); return u.toString(); };
@@ -264,6 +264,6 @@ export const deleteRating = (personaId: string) => request<{ ok: true; summary: 
 // ---- 合并新版（tutor 仓 docs/03 §6.3）：只换 ③ 结构与 ④ 内容，② 与进度保留；报告的形状 = core/publish/merge 的 report
 export type MergeReport = { fromVersion: number; releaseVersion: number; baseKnown: boolean; added: string[]; removed: string[]; renamed: { from: string; to: string; split: boolean }[]; changed: string[]; kept: number; learnerKept: number; studentQaKept: number; truncated: { stage_id: string; kind: string; dropped: number }[] };
 /** 课程 summary 的 source 格（从市场开出来的课）：钉的版本 + 最新版 + 有没有可合的；gone = 那位老师已不在市场上 */
-export type CourseSource = { personaId: string; personaName?: string; version: number; latest?: number | null; updateAvailable?: boolean; mergedAt?: string | null; gone?: boolean };
+export type CourseSource = { personaId: string; personaName?: string; version: number; latest?: number | null; updateAvailable?: boolean; mergedAt?: string | null; gone?: boolean; orphaned?: boolean };
 export const mergeRelease = (courseId: string) =>
   request<{ ok: true; version: number; note: string; report: MergeReport; source: CourseSource }>(`/api/tutor/courses/${encodeURIComponent(courseId)}/merge-release`, { method: "POST", body: "{}" });

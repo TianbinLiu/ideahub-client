@@ -23,6 +23,7 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ gate?: string; message: string } | null>(null);
   const [result, setResult] = useState<PublishState | null>(null);
+  const fork = course.source ? course.source : null; // 从市场开出来的课：发布 = 「另存为我的人格」（复刻件，① ② 沿用来源；tutor 仓 docs/02 5.10）
   if (!course.persona) return null;
   const submit = async () => {
     setBusy(true); setErr(null);
@@ -34,11 +35,12 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
   };
   const unpublish = async () => { setBusy(true); setErr(null); try { await unpublishPersona(courseId); setResult(null); onChanged(); } catch (e) { setErr({ message: msg(e) }); } finally { setBusy(false); } };
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4" data-testid="publish-card">
+    <section className="rounded-xl border border-zinc-200 bg-white p-4" data-testid="publish-card" data-fork={fork ? "1" : "0"}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-xs font-semibold text-zinc-600"><Store size={12} />{t("publish.title")}</div>
+        <div className="flex items-center gap-1 text-xs font-semibold text-zinc-600"><Store size={12} />{fork ? t("publish.forkTitle") : t("publish.title")}</div>
         {pub && !pub.takenDown && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${pub.shared ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-600"}`}>{pub.shared ? t("publish.badgeLive") : t("publish.badgeUnshared")}</span>}
       </div>
+      {fork && <p data-testid="publish-fork-hint" className="mt-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] text-violet-900">{t("publish.forkHint", { name: fork.personaName || t("course.sourceLink"), v: fork.version })}</p>}
       {pub?.takenDown && <p data-testid="publish-takedown" className="mt-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">{t("publish.takenDown", { reason: pub.takenDownReason || "—" })}</p>}
       {pub && !pub.takenDown && (
         <div data-testid="publish-state" data-version={pub.version} className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-700">
@@ -51,8 +53,8 @@ export function PublishCard({ courseId, course, onChanged }: { courseId: string;
       {result && <p data-testid="publish-result" className="mt-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{t("publish.done", { v: result.version })}</p>}
       {!pub?.takenDown && !open && (
         <div className="mt-3 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-zinc-500">{course.publishable ? t("publish.ready") : t("publish.notPublishableHint", { why: t("course.unsureBanner", { n: course.unsure }) })}</p>
-          <button type="button" data-testid="publish-open" onClick={() => setOpen(true)} className="rounded-full bg-cyan-600 px-3 py-1 text-xs font-semibold text-white">{pub ? t("publish.newVersion") : t("publish.open")}</button>
+          <p className="text-[11px] text-zinc-500">{fork ? t("publish.forkReady") : course.publishable ? t("publish.ready") : t("publish.notPublishableHint", { why: t("course.unsureBanner", { n: course.unsure }) })}</p>
+          <button type="button" data-testid="publish-open" onClick={() => setOpen(true)} className="rounded-full bg-cyan-600 px-3 py-1 text-xs font-semibold text-white">{pub ? t("publish.newVersion") : fork ? t("publish.forkOpen") : t("publish.open")}</button>
         </div>
       )}
       {open && (

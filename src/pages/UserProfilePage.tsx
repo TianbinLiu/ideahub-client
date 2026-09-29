@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { humanizeError } from "../utils/humanizeError";
 import { CharCount } from "../components/CharCount";
 import { listLocalIdeas } from "../utils/localIdeas";
+import { TutorLearningTab, TutorTeachersTab } from "./tutor/TutorProfileTabs";
 
 const LIMITS = {
   DISPLAY_NAME: 50,
@@ -64,10 +65,11 @@ type Interest = {
   companyUser?: { username: string; email: string };
 };
 
-type TabType = "home" | "ideas" | "dynamics" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests" | "groupReferrals";
+// tutors / learning：老师人格（tutor 仓 docs/06 §4.1「个人主页」）—— 「老师人格」谁都能看（market?author=），「在学」只有本人
+type TabType = "home" | "ideas" | "dynamics" | "bookmarks" | "likes" | "leaderboards" | "followers" | "following" | "interests" | "groupReferrals" | "tutors" | "learning";
 
-const OWN_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "likes", "leaderboards", "followers", "following", "interests", "groupReferrals"];
-const PUBLIC_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "leaderboards", "followers", "following"];
+const OWN_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "likes", "leaderboards", "followers", "following", "interests", "groupReferrals", "tutors", "learning"];
+const PUBLIC_PROFILE_TABS: TabType[] = ["home", "ideas", "dynamics", "bookmarks", "leaderboards", "followers", "following", "tutors"];
 
 function resolveInitialTab(tab: string | null, isOwnProfile: boolean): TabType {
   const allowedTabs = isOwnProfile ? OWN_PROFILE_TABS : PUBLIC_PROFILE_TABS;
@@ -566,6 +568,8 @@ export default function UserProfilePage() {
         { key: "likes", label: t('profile.likes') },
         { key: "interests", label: t('profile.receivedInterests') },
         { key: "groupReferrals", label: t('userProfile.circleInvitations') },
+        { key: "tutors", label: t('profile.tutors') },
+        { key: "learning", label: t('profile.learning') },
         { key: "followers", label: t('profile.followers') },
         { key: "following", label: t('profile.following') },
       ]
@@ -575,6 +579,7 @@ export default function UserProfilePage() {
         { key: "dynamics", label: t('profile.dynamics') },
         { key: "bookmarks", label: t('profile.bookmarks') },
         { key: "leaderboards", label: t('profile.leaderboards') },
+        { key: "tutors", label: t('profile.tutors') },
         { key: "followers", label: t('profile.followers') },
         { key: "following", label: t('profile.following') },
       ];
@@ -887,6 +892,7 @@ export default function UserProfilePage() {
         {availableTabs.map((tab) => (
           <button
             key={tab.key}
+            data-testid={`profile-tab-${tab.key}`}
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 font-semibold whitespace-nowrap ${
               activeTab === tab.key
@@ -967,6 +973,10 @@ export default function UserProfilePage() {
         return renderReceivedInterests();
       case "groupReferrals":
         return renderGroupReferrals();
+      case "tutors":
+        return id ? <TutorTeachersTab authorId={id} /> : null;
+      case "learning":
+        return isOwnProfile ? <TutorLearningTab /> : null;
       default:
         return null;
     }

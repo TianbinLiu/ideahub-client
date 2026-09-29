@@ -11,7 +11,8 @@ const SORTS: MarketSort[] = ["new", "hot", "rating"];
 const SCOPES: { key: MarketScope; auth?: boolean }[] = [{ key: "all" }, { key: "installed", auth: true }, { key: "mine", auth: true }];
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-function Card({ p, onTag }: { p: MarketCard; onTag: (tag: string) => void }) {
+/** 市场卡片（个人页「老师人格」页签也用它，所以导出） */
+export function MarketCardItem({ p, onTag }: { p: MarketCard; onTag: (tag: string) => void }) {
   const { t } = useTranslation(undefined, { keyPrefix: "tutor" });
   const href = `/tutor/market/${encodeURIComponent(p.id)}`;
   return (
@@ -21,6 +22,7 @@ function Card({ p, onTag }: { p: MarketCard; onTag: (tag: string) => void }) {
         <div className="min-w-0 flex-1">
           <Link to={href} data-testid="market-open" className="line-clamp-1 font-semibold hover:underline">{p.name}</Link>
           <div className="text-xs text-zinc-500">{p.subject}{p.version ? ` · ${t("market.version", { v: p.version })}` : ""} · {t("market.by", { name: p.author.username || "—" })}</div>
+          {p.remixOf && <Link to={`/tutor/market/${encodeURIComponent(p.remixOf.id)}`} data-testid="market-remix" className="mt-0.5 inline-block rounded-full bg-violet-50 px-2 py-0.5 text-[10px] text-violet-800 hover:underline">{t("market.remix", { name: p.remixOf.name || "—" })}</Link>}
         </div>
         <div className="flex flex-col items-end gap-1 text-[10px] font-semibold">
           {p.installed && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">{t("market.installed")}</span>}
@@ -92,7 +94,7 @@ export function TutorMarketPage() {
         {!view && !error && <p className="text-sm text-zinc-500">{t("market.loading")}</p>}
         {view && view.items.length === 0 && <p data-testid="market-empty" className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">{t("market.empty")}</p>}
         <ul data-testid="market-list" data-loaded={view ? "1" : "0"} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(view?.items || []).map((p) => <Card key={p.id} p={p} onTag={(x) => set({ tag: x })} />)}
+          {(view?.items || []).map((p) => <MarketCardItem key={p.id} p={p} onTag={(x) => set({ tag: x })} />)}
         </ul>
         {view && view.totalPages > 1 && (
           <div className="mt-4 flex items-center justify-center gap-3 text-xs">
