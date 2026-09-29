@@ -144,6 +144,8 @@ export default function NotificationsPage() {
         return t("notifications.messageRequestAccepted", { actor });
       case "MESSAGE_REQUEST_REJECTED":
         return t("notifications.messageRequestRejected", { actor });
+      case "ADMIN_NOTICE": // 平台通知（管理员 / 人工核实队列发的），正文在 payload.text；没有 actorId 是刻意的（server Notification.js）
+        return t("notifications.adminNotice", { text: String(n.payload?.text || "") });
       // 老师人格四类（/tutor）：正文从 payload 取，链接见 tutorLinkOf
       case "TUTOR_RATING":
         return t("notifications.tutorRating", { actor, name: String(n.payload?.personaName || ""), stars: Number(n.payload?.stars || 0) });

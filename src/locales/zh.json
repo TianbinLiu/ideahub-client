@@ -17,6 +17,7 @@
     "brand": "启梦创作"
   },
   "nav": {
+    "tutorClaims": "教授认领核实",
     "home": "首页",
     "groups": "群组",
     "tagRank": "标签排行",
@@ -417,6 +418,7 @@
     "enterTag": "请至少输入一个标签"
   },
   "notifications": {
+    "adminNotice": "平台通知：{{text}}",
     "title": "通知",
     "refresh": "刷新",
     "markAllRead": "全部标为已读",
@@ -2775,6 +2777,41 @@
     "changesBody": "产品能力变化时我们会更新本页，上方的「最近更新」日期即为当前版本。"
   },
   "tutor": {
+    "claims": {
+      "title": "教授认领 · 人工核实队列",
+      "intro": "「教授认领 / 要求下架」这一类举报不批处理：先核实身份，再裁定。与通用举报队列是同一张表、同一份处置逻辑，这里只是单独一条车道，先来先处理。",
+      "stage_new": "待核实",
+      "stage_awaiting": "等待补证",
+      "stage_upheld": "成立 · 已下架",
+      "stage_rejected": "不成立 · 已驳回",
+      "stage_closed": "已关闭",
+      "personaGone": "（老师已不存在）",
+      "by": "作者 {{name}}",
+      "downloads": "{{n}} 人在学",
+      "takenDown": "已下架",
+      "claimant": "举报人 {{name}}：",
+      "noDetail": "（没有补充说明）",
+      "log_contact": "联系了举报人",
+      "log_upheld": "裁定成立，已下架",
+      "log_rejected": "裁定不成立，已驳回",
+      "handledLine": "{{at}} 由 {{by}} 处理",
+      "contactOpen": "联系举报人要证据",
+      "contactAgain": "再联系一次（已联系 {{n}} 次）",
+      "contactHint": "以平台口径发一条站内通知给举报人（不透露处理人），请对方提供能证明身份与课程归属的材料。",
+      "contactPlaceholder": "例如：请提供教务系统里这门课的页面截图，或用学校邮箱给客服发一封邮件。",
+      "contactSend": "发送",
+      "cancel": "取消",
+      "contacted": "已通知举报人，这条移到「等待补证」。",
+      "notePlaceholder": "裁定备注（会随通知发给两头，最多 500 字）",
+      "uphold": "核实成立 → 下架",
+      "reject": "不成立 → 驳回",
+      "verdictHint": "成立：这位老师从市场下架、同一位老师上其余待处理举报一起收尾、作者与举报人各收一条平台通知；不成立：只通知举报人。",
+      "upheldDone": "已裁定成立并下架。",
+      "rejectedDone": "已驳回。",
+      "empty": "这一栏没有。",
+      "loading": "加载中…",
+      "error": "读取失败：{{message}}"
+    },
     "profileTabs": {
       "noTeachers": "还没有发布过老师。",
       "noLearning": "还没有从市场开过课。",

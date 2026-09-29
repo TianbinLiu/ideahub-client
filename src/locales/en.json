@@ -17,6 +17,7 @@
     "brand": "QiMeng"
   },
   "nav": {
+    "tutorClaims": "Instructor claims",
     "home": "Home",
     "groups": "Groups",
     "tagRank": "Tag Rank",
@@ -417,6 +418,7 @@
     "enterTag": "Please enter at least one tag"
   },
   "notifications": {
+    "adminNotice": "Platform notice: {{text}}",
     "title": "Notifications",
     "refresh": "Refresh",
     "markAllRead": "Mark all read",
@@ -2775,6 +2777,41 @@
     "changesBody": "We update this page as the product changes; the last-updated date above identifies the current version."
   },
   "tutor": {
+    "claims": {
+      "title": "Instructor claims · manual review",
+      "intro": "\"Instructor claim / takedown request\" reports are not batch-processed: verify identity first, then rule. Same table and same resolution logic as the general report queue; this is just a dedicated lane, first come first served.",
+      "stage_new": "To verify",
+      "stage_awaiting": "Awaiting evidence",
+      "stage_upheld": "Upheld · taken down",
+      "stage_rejected": "Rejected",
+      "stage_closed": "Closed",
+      "personaGone": "(teacher no longer exists)",
+      "by": "by {{name}}",
+      "downloads": "{{n}} learning",
+      "takenDown": "taken down",
+      "claimant": "Claimant {{name}}:",
+      "noDetail": "(no details)",
+      "log_contact": "Contacted the claimant",
+      "log_upheld": "Upheld, taken down",
+      "log_rejected": "Rejected",
+      "handledLine": "Handled {{at}} by {{by}}",
+      "contactOpen": "Ask the claimant for evidence",
+      "contactAgain": "Contact again (contacted {{n}} time(s))",
+      "contactHint": "Sends an in-app platform notice to the claimant (the reviewer is not revealed) asking for proof of identity and course ownership.",
+      "contactPlaceholder": "e.g. Please provide a screenshot of this course in your institution's system, or email support from your institutional address.",
+      "contactSend": "Send",
+      "cancel": "Cancel",
+      "contacted": "Claimant notified; moved to \"Awaiting evidence\".",
+      "notePlaceholder": "Ruling note (sent to both parties, up to 500 characters)",
+      "uphold": "Upheld → take down",
+      "reject": "Rejected → dismiss",
+      "verdictHint": "Upheld: the teacher is taken off the market, other pending reports on it are closed, and both the author and the claimant get a platform notice. Rejected: only the claimant is notified.",
+      "upheldDone": "Upheld and taken down.",
+      "rejectedDone": "Dismissed.",
+      "empty": "Nothing here.",
+      "loading": "Loading…",
+      "error": "Failed to load: {{message}}"
+    },
     "profileTabs": {
       "noTeachers": "No teachers published yet.",
       "noLearning": "No courses started from the market yet.",

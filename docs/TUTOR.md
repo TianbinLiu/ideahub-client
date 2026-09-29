@@ -18,7 +18,8 @@
 | `src/pages/tutor/TutorMarketPage.tsx` | 市场列表 `/tutor/market`：scope / sort / q / tag / subject / page 全在 URL 参数里（深链可还原、返回键好使），卡片上的标签点了即筛；游客可逛 |
 | `src/pages/tutor/TutorDetailPage.tsx` | 市场详情 `/tutor/market/:id`：教学面 + 课程地图（只读预览，② ④ 正文不给）+ 发布版信息；「开始跟这位老师学」（已在学 → 继续）、举报对话框（`POST /api/reports`，理由含「教授认领 / 要求下架」）、评论（主站 `CommentThread targetType="persona"` 原样）、作者的其它老师；游客可看，动作才跳 `/login?next=`；评分块 `RatingBlock`（2026-09-29）：均分 / 分布 / 我的一票（可改可删）/ 大家怎么说，能不能评只画服务端 `canRate` 的答案（灰着时把原因说出来：先学过一段、作者不能评自己、拉黑） |
 | `src/pages/tutor/TutorProfileTabs.tsx` + `src/pages/UserProfilePage.tsx`（主站） | 个人页 `/users/:id` 的两个页签（2026-09-29）：「老师人格」= `GET /api/tutor/market?author=`（谁都能看，卡片复用市场页的 `MarketCardItem`），「在学」= 自己带 `source` 的课（只有本人，行上带可合并 / 来源已不在的角标）。深链 `?tab=tutors` / `?tab=learning` |
-| `src/pages/NotificationsPage.tsx`（主站） | 老师人格四类通知的文案与落点（`TUTOR_RATING / TUTOR_COMMENT` → `/tutor/market/:id`，`TUTOR_REVIEW_DUE` → `/tutor/run/:id`，`TUTOR_DOC_UPDATED` → `/tutor/courses/:id`；id 都在 payload 里，不是顶层字段）；未知类型仍走 `typeFallback` |
+| `src/pages/tutor/TutorClaimsAdminPage.tsx`（`/admin/tutor-claims`，`AdminRoute`） | 教授认领（instructorClaim）的人工核实队列（2026-09-29）：四栏（待核实 / 等待补证 / 成立已下架 / 不成立已驳回），先来先处理；「联系举报人要证据」发平台通知、「核实成立 → 下架」/「不成立 → 驳回」；规则都在服务端（阶段派生、409 已处理、老师已不存在），这里只画状态与三颗键。Navbar 管理员那排多一颗 🎓 |
+| `src/pages/NotificationsPage.tsx`（主站） | 老师人格四类通知的文案与落点（`TUTOR_RATING / TUTOR_COMMENT` → `/tutor/market/:id`，`TUTOR_REVIEW_DUE` → `/tutor/run/:id`，`TUTOR_DOC_UPDATED` → `/tutor/courses/:id`；id 都在 payload 里，不是顶层字段）；平台通知 `ADMIN_NOTICE` 的正文从 `payload.text` 读（人工核实队列发给举报人 / 作者的就是它）；未知类型仍走 `typeFallback` |
 | `src/pages/tutor/TutorRunPage.tsx` + `reader/*` + `teacher/*` | 学习页：pdf.js 阅读面（`reader/pdf.ts` 是唯一 import pdfjs 的地方）、文字卡、导学漫游、圈选动作条、老师钉子、老师面板 / 手机抽屉、自检、复习卡、蒸馏卡、到期回访横幅 |
 | `src/pages/tutor/TutorRevisionsPage.tsx` | 修订审阅页 `/tutor/personas/:id/review` |
 | `src/pages/tutor/types.ts` | 与 server 契约同形的类型（TutorDoc / Run / Turn / Revision …） |
@@ -46,8 +47,8 @@
 
 ## 验收
 
-tutor 仓的 27 条 Playwright 直接打本仓的 dist（18 条 M1 一条不改 —— 这就是 tutor 仓 docs/04 C11 说的「e2e 改 baseURL 后照跑」；
-9 条市场 `web/e2e/zz-market.spec.ts` **只在这个模式跑**：发布 → 市场可见 → 详情 → 开始学 → 评分 → 回访到期通知 → 作者发 v2 / 通知页 / 合并新版 → 另存为我的人格（复刻件、血缘）→ 个人页两个页签 → 举报 → 下架，tutor 仓自己的 web 没有市场页）：
+tutor 仓的 28 条 Playwright 直接打本仓的 dist（18 条 M1 一条不改 —— 这就是 tutor 仓 docs/04 C11 说的「e2e 改 baseURL 后照跑」；
+10 条市场 `web/e2e/zz-market.spec.ts` **只在这个模式跑**：发布 → 市场可见 → 详情 → 开始学 → 评分 → 回访到期通知 → 作者发 v2 / 通知页 / 合并新版 → 另存为我的人格（复刻件、血缘）→ 个人页两个页签 → 举报 → 人工核实队列（联系 → 裁定成立下架）→ 下架，tutor 仓自己的 web 没有市场页）：
 
 ```bash
 npm run build                                   # 本仓，VITE_API_BASE 留空 = 同源

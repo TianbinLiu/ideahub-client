@@ -458,6 +458,9 @@ export default function Navbar() {
               <NavLink to="/admin/scraper" title={t("nav.scraper")} aria-label={t("nav.scraper")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
                 <Bot className="h-5 w-5" />
               </NavLink>
+              <NavLink to="/admin/tutor-claims" title={t("nav.tutorClaims")} aria-label={t("nav.tutorClaims")} data-testid="nav-tutor-claims" className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
+                <GraduationCap className="h-5 w-5" />
+              </NavLink>
             </>
           )}
 

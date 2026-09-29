@@ -48,6 +48,7 @@ const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const FeedbackAdminPage = lazy(() => import("./pages/FeedbackAdminPage"));
 const DocsAdminPage = lazy(() => import("./pages/DocsAdminPage"));
 const AdminScraperPage = lazy(() => import("./pages/AdminScraperPage"));
+const TutorClaimsAdminPage = lazy(() => import("./pages/tutor/TutorClaimsAdminPage"));
 const EditIdeaPage = lazy(() => import("./pages/EditIdeaPage"));
 const PhoneLoginPage = lazy(() => import("./pages/PhoneLoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
@@ -678,6 +679,15 @@ export default function App() {
             element={
               <AdminRoute>
                 <AdminScraperPage />
+              </AdminRoute>
+            }
+          />
+          {/* 老师人格：教授认领的人工核实队列（tutor 仓 docs/06 §4.2） */}
+          <Route
+            path="/admin/tutor-claims"
+            element={
+              <AdminRoute>
+                <TutorClaimsAdminPage />
               </AdminRoute>
             }
           />

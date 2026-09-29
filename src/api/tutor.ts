@@ -267,3 +267,12 @@ export type MergeReport = { fromVersion: number; releaseVersion: number; baseKno
 export type CourseSource = { personaId: string; personaName?: string; version: number; latest?: number | null; updateAvailable?: boolean; mergedAt?: string | null; gone?: boolean; orphaned?: boolean };
 export const mergeRelease = (courseId: string) =>
   request<{ ok: true; version: number; note: string; report: MergeReport; source: CourseSource }>(`/api/tutor/courses/${encodeURIComponent(courseId)}/merge-release`, { method: "POST", body: "{}" });
+
+// ---- 管理后台：教授认领（instructorClaim）的人工核实队列（server tutorClaims.service；与通用举报队列同一张表、同一份处置正文，只是单独一条车道）
+export type ClaimStage = "new" | "awaiting" | "upheld" | "rejected" | "all";
+export type ClaimPersona = { exists: false } | { exists: true; id: string; name: string; subject: string; author: { _id: string; username: string }; shared: boolean; takenDown: boolean; takenDownReason: string; version: number; downloadCount: number; ratingCount: number; createdAt?: string; marketPath: string };
+export type ClaimItem = { id: string; stage: Exclude<ClaimStage, "all"> | "closed"; status: string; reason: string; detail: string; createdAt: string; reporter: { _id: string; username: string; displayName: string }; handler: { _id: string; username: string } | null; handledAt: string | null; handleNote: string; review: { contactedAt: string | null; contactCount: number; log: { at: string; by: string | null; action: string; note: string }[] }; persona: ClaimPersona };
+export type ClaimsReply = { ok: true; items: ClaimItem[]; total: number; page: number; limit: number; stage: ClaimStage; counts: Record<"new" | "awaiting" | "upheld" | "rejected", number> };
+export const listClaims = (stage: ClaimStage, page = 1) => request<ClaimsReply>(`/api/tutor/admin/claims?stage=${stage}&page=${page}`);
+export const contactClaim = (id: string, message: string) => request<{ ok: true; notified: boolean; claim: ClaimItem }>(`/api/tutor/admin/claims/${encodeURIComponent(id)}/contact`, { method: "POST", body: JSON.stringify({ message }) });
+export const verdictClaim = (id: string, verdict: "upheld" | "rejected", note?: string) => request<{ ok: true; verdict: string; applied: boolean; alsoResolved: number; claim: ClaimItem }>(`/api/tutor/admin/claims/${encodeURIComponent(id)}/verdict`, { method: "POST", body: JSON.stringify({ verdict, ...(note ? { note } : {}) }) });
