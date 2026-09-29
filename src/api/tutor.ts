@@ -195,7 +195,7 @@ export type CourseSummary = CourseInput & {
   /** 发布状态（M2）：null = 没发布过；shared:false = 取消了分享；takenDown = 被平台下架（带原因） */
   published?: PublishState | null;
   /** 从市场「开始学」开出来的课指向那位老师（教材不随老师分发） */
-  source?: { personaId: string; version: number } | null;
+  source?: CourseSource | null;
 };
 export type MaterialEntry = Material & { bytes?: number; addedAt?: string; license: { source: LicenseSource }; parsed: { status: "ok" | "failed" | "pending"; chars?: number; sections?: number; warnings?: string[] }; inDoc: boolean };
 export type Quote = { lines: { kind: string; n: number; why: string; each: number; tokens: number }[]; total: number; demo: boolean; suggested: boolean };
@@ -249,3 +249,21 @@ export const unpublishPersona = (courseId: string) => request<{ ok: true; person
 export const startLearning = (persona: string) => request<{ ok: true; courseId: string; created: boolean; own?: boolean; version?: number; latest?: number; downloadCount?: number }>("/api/tutor/runs", POST({ persona }));
 /** 举报（server 的 POST /api/reports；targetType persona 是 2026-09-28 加的）；同一人对同一位老师只能一次（409） */
 export const reportPersona = (targetId: string, reason: string, detail: string) => request<{ ok: true; report: { id?: string; _id?: string; status?: string } }>("/api/reports", POST({ targetType: "persona", targetId, reason, detail }));
+
+// ---- 评分（tutor 仓 docs/02 §9.6；规则只在 server core/publish/rating：能不能评 / 1~5 星 / ≤500 字 / 均分怎么算）
+export type RatingDist = Record<"1" | "2" | "3" | "4" | "5", number>;
+export type RatingSummary = { avg: number; count: number; dist: RatingDist };
+export type RatingItem = { id: string; user: { _id: string; username: string }; stars: number; text: string; atVersion: number; createdAt: string; updatedAt: string };
+/** 不能评的原因（服务端给 reason，message 是兜底人话）：login / owner / blocked / notStarted / noneDone */
+export type CanRate = { ok: true } | { ok: false; reason: string; message?: string };
+export type RatingsReply = { ok: true; summary: RatingSummary; items: RatingItem[]; page: number; totalPages: number; total: number; mine: RatingItem | null; canRate: CanRate };
+export const getRatings = (personaId: string, page = 1) => request<RatingsReply>(`/api/tutor/market/${encodeURIComponent(personaId)}/ratings?page=${page}`);
+export const putRating = (personaId: string, body: { stars: number; text?: string }) =>
+  request<{ ok: true; created: boolean; mine: RatingItem; summary: RatingSummary }>(`/api/tutor/market/${encodeURIComponent(personaId)}/rating`, { method: "PUT", body: JSON.stringify(body) });
+export const deleteRating = (personaId: string) => request<{ ok: true; summary: RatingSummary }>(`/api/tutor/market/${encodeURIComponent(personaId)}/rating`, { method: "DELETE" });
+// ---- 合并新版（tutor 仓 docs/03 §6.3）：只换 ③ 结构与 ④ 内容，② 与进度保留；报告的形状 = core/publish/merge 的 report
+export type MergeReport = { fromVersion: number; releaseVersion: number; baseKnown: boolean; added: string[]; removed: string[]; renamed: { from: string; to: string; split: boolean }[]; changed: string[]; kept: number; learnerKept: number; studentQaKept: number; truncated: { stage_id: string; kind: string; dropped: number }[] };
+/** 课程 summary 的 source 格（从市场开出来的课）：钉的版本 + 最新版 + 有没有可合的；gone = 那位老师已不在市场上 */
+export type CourseSource = { personaId: string; personaName?: string; version: number; latest?: number | null; updateAvailable?: boolean; mergedAt?: string | null; gone?: boolean };
+export const mergeRelease = (courseId: string) =>
+  request<{ ok: true; version: number; note: string; report: MergeReport; source: CourseSource }>(`/api/tutor/courses/${encodeURIComponent(courseId)}/merge-release`, { method: "POST", body: "{}" });

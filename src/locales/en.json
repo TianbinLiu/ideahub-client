@@ -453,6 +453,11 @@
     "messageRequestAccepted": "{{actor}} accepted your message request",
     "messageRequestRejected": "{{actor}} rejected your message request",
     "typeFallback": "{{actor}}: {{type}}",
+    "tutorRating": "{{actor}} rated your teacher \"{{name}}\" {{stars}} stars",
+    "tutorComment": "{{actor}} commented on your teacher \"{{name}}\"",
+    "tutorReviewDue": "\"{{name}}\": {{n}} stage(s) due for review ({{stage}})",
+    "tutorDocUpdated": "{{actor}} updated \"{{name}}\" to v{{v}} — you can merge the new version",
+    "openTutor": "Open",
     "categoryTruncatedHint": "Only the most recent {{limit}} notifications are loaded, so this category may not include older items."
   },
   "me": {
@@ -2768,6 +2773,42 @@
     "changesBody": "We update this page as the product changes; the last-updated date above identifies the current version."
   },
   "tutor": {
+    "rating": {
+      "title": "Ratings",
+      "avg": "{{n}} rating(s)",
+      "none": "No ratings yet",
+      "starsN": "{{n}} star(s)",
+      "mine": "My rating",
+      "gate_login": "Sign in and study with this teacher first to rate.",
+      "gate_owner": "You can't rate your own teacher.",
+      "gate_blocked": "You can't rate this teacher (blocked).",
+      "gate_notStarted": "Start learning with this teacher and pass at least one stage's self-check before rating (anti-spam).",
+      "gate_noneDone": "You haven't passed any stage's self-check yet — finish one and come back (rating requires at least one completed session).",
+      "placeholder": "One-line review (optional, up to 500 characters)",
+      "submit": "Submit rating",
+      "update": "Update rating",
+      "remove": "Delete my rating",
+      "saved": "Saved: {{n}} star(s)",
+      "removed": "Your rating was deleted",
+      "at": "rated v{{v}}"
+    },
+    "merge": {
+      "title": "\"{{name}}\" has a new version v{{v}}",
+      "explain": "You have v{{mine}}. Merging only replaces the course map and distilled content: your learner profile, progress and your own Q&A are kept; removed stages are archived, not deleted.",
+      "apply": "Merge new version",
+      "applying": "Merging…",
+      "done": "Merged to v{{v}}",
+      "added": "{{n}} stage(s) added",
+      "removed": "{{n}} stage(s) archived",
+      "renamed": "{{n}} stage(s) renamed",
+      "changed": "{{n}} stage(s) updated",
+      "learnerKept": "kept {{n}} item(s) you added",
+      "qaKept": "kept {{n}} of your Q&A",
+      "noBase": "No original to compare against: only your Q&A was kept, the rest follows the new version",
+      "truncated": "{{n}} list(s) hit the limit; some of your items were dropped",
+      "gone": "This teacher is no longer on the market (taken down or unshared); no new versions will arrive.",
+      "goLearn": "Go learn"
+    },
     "layout": { "brand": "QiMeng Tutor", "backToSite": "Back to site" },
     "app": {
       "title": "Qimeng Tutor",

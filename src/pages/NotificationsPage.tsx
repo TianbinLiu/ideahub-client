@@ -144,9 +144,28 @@ export default function NotificationsPage() {
         return t("notifications.messageRequestAccepted", { actor });
       case "MESSAGE_REQUEST_REJECTED":
         return t("notifications.messageRequestRejected", { actor });
+      // 老师人格四类（/tutor）：正文从 payload 取，链接见 tutorLinkOf
+      case "TUTOR_RATING":
+        return t("notifications.tutorRating", { actor, name: String(n.payload?.personaName || ""), stars: Number(n.payload?.stars || 0) });
+      case "TUTOR_COMMENT":
+        return t("notifications.tutorComment", { actor, name: String(n.payload?.personaName || "") });
+      case "TUTOR_REVIEW_DUE":
+        return t("notifications.tutorReviewDue", { name: String(n.payload?.personaName || ""), n: Number(n.payload?.count || 0), stage: String((n.payload?.stages as string[] | undefined)?.[0] || "") });
+      case "TUTOR_DOC_UPDATED":
+        return t("notifications.tutorDocUpdated", { actor, name: String(n.payload?.personaName || ""), v: Number(n.payload?.version || 0) });
       default:
         return t("notifications.typeFallback", { actor, type: n.type });
     }
+  }
+
+  /** 老师人格四类的落点（payload 里的 id，不是顶层字段）；其它类型 null */
+  function tutorLinkOf(n: NotificationItem): string | null {
+    const pid = typeof n.payload?.personaId === "string" ? n.payload.personaId : "";
+    const cid = typeof n.payload?.courseId === "string" ? n.payload.courseId : "";
+    if ((n.type === "TUTOR_RATING" || n.type === "TUTOR_COMMENT") && pid) return `/tutor/market/${encodeURIComponent(pid)}`;
+    if (n.type === "TUTOR_REVIEW_DUE" && cid) return `/tutor/run/${encodeURIComponent(cid)}`;
+    if (n.type === "TUTOR_DOC_UPDATED" && cid) return `/tutor/courses/${encodeURIComponent(cid)}`;
+    return null;
   }
 
   async function loadNotifications() {
@@ -499,12 +518,17 @@ export default function NotificationsPage() {
           <>
             {filteredItems.length === 0 && !loading && <p className="text-gray-400 text-sm">{t("notifications.empty")}</p>}
             {filteredItems.map((n) => (
-              <div key={n._id} className={`rounded-lg border border-gray-800 p-3 flex items-center justify-between ${n.readAt ? "bg-gray-950" : "bg-gray-900"}`}>
+              <div key={n._id} data-testid="notif-item" data-type={n.type} className={`rounded-lg border border-gray-800 p-3 flex items-center justify-between ${n.readAt ? "bg-gray-950" : "bg-gray-900"}`}>
                 <div className="pr-4">
                   <div className="text-sm text-gray-100">{renderText(n)}</div>
                   {n.ideaId?._id && (
                     <Link to={`/ideas/${n.ideaId._id}`} className="text-xs text-blue-400 hover:underline">
                       {t("notifications.openIdea")}
+                    </Link>
+                  )}
+                  {tutorLinkOf(n) && (
+                    <Link to={tutorLinkOf(n)!} data-testid="notif-tutor-link" className="text-xs text-blue-400 hover:underline">
+                      {t("notifications.openTutor")}
                     </Link>
                   )}
                 </div>

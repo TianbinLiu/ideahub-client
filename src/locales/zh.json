@@ -453,6 +453,11 @@
     "messageRequestAccepted": "{{actor}} 接受了你的私信申请",
     "messageRequestRejected": "{{actor}} 拒绝了你的私信申请",
     "typeFallback": "{{actor}}：{{type}}",
+    "tutorRating": "{{actor}} 给你的老师「{{name}}」打了 {{stars}} 星",
+    "tutorComment": "{{actor}} 在你的老师「{{name}}」下留了言",
+    "tutorReviewDue": "「{{name}}」有 {{n}} 个阶段到了回访时间（{{stage}}）",
+    "tutorDocUpdated": "{{actor}} 把「{{name}}」更新到了 v{{v}}，可以合并新版",
+    "openTutor": "去看看",
     "categoryTruncatedHint": "仅加载最近 {{limit}} 条通知，此分类可能未包含更早的记录。"
   },
   "me": {
@@ -2768,6 +2773,42 @@
     "changesBody": "产品能力变化时我们会更新本页，上方的「最近更新」日期即为当前版本。"
   },
   "tutor": {
+    "rating": {
+      "title": "评分",
+      "avg": "{{n}} 人评过",
+      "none": "还没有人评分",
+      "starsN": "{{n}} 星",
+      "mine": "我的评分",
+      "gate_login": "登录并跟这位老师学过一段后才能评分。",
+      "gate_owner": "自己的老师不能评。",
+      "gate_blocked": "你们之间有拉黑，不能评。",
+      "gate_notStarted": "先「开始跟这位老师学」，通过至少一个阶段的自检后才能评分（防刷分）。",
+      "gate_noneDone": "还没有通过任何一个阶段的自检 —— 学完一段再来评（评分前置：完成过至少一个 session）。",
+      "placeholder": "一句话评语（可选，最多 500 字）",
+      "submit": "提交评分",
+      "update": "改评分",
+      "remove": "删除我的评分",
+      "saved": "已记下：{{n}} 星",
+      "removed": "已删除你的评分",
+      "at": "评的是 v{{v}}"
+    },
+    "merge": {
+      "title": "「{{name}}」出了 v{{v}}",
+      "explain": "你手里是 v{{mine}}。合并只换课程地图与蒸馏内容：你的学生画像、进度与自己加的问答都保留，消失的阶段归档不删。",
+      "apply": "合并新版",
+      "applying": "合并中…",
+      "done": "已合到 v{{v}}",
+      "added": "新增 {{n}} 段",
+      "removed": "归档 {{n}} 段",
+      "renamed": "改名 {{n}} 段",
+      "changed": "更新 {{n}} 段内容",
+      "learnerKept": "保留你加的 {{n}} 条",
+      "qaKept": "保留你的 {{n}} 条问答",
+      "noBase": "没有原版可比对：只保住了你的问答，其余按新版",
+      "truncated": "有 {{n}} 处超过上限，砍掉了你加的几条",
+      "gone": "这位老师已不在市场上（下架或取消分享），收不到新版了。",
+      "goLearn": "去上课"
+    },
     "layout": { "brand": "启梦老师", "backToSite": "返回主站" },
     "app": {
       "title": "启梦老师",

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Download, Flag, Lock, Star } from "lucide-react";
-import { ApiError, getMarketDetail, reportPersona, startLearning, REPORT_REASONS, type MarketDetail } from "../../api/tutor";
+import { ApiError, deleteRating, getMarketDetail, getRatings, putRating, reportPersona, startLearning, REPORT_REASONS, type MarketDetail, type RatingsReply } from "../../api/tutor";
 import { useAuth } from "../../authContext";
 import CommentThread from "../../components/CommentThread";
 
@@ -47,6 +47,75 @@ function ReportDialog({ targetId, onClose }: { targetId: string; onClose: () => 
         </div>
       </div>
     </div>
+  );
+}
+
+/** 评分块（tutor 仓 docs/02 §9.6）：均分 + 分布 + 我的一票（可改 / 可删）+ 大家怎么说。能不能评只画服务端 canRate 的答案（前置：跟这位老师学过、通过至少一个阶段的自检；作者不能评自己） */
+function RatingBlock({ personaId, onChanged }: { personaId: string; onChanged: () => void }) {
+  const { t } = useTranslation(undefined, { keyPrefix: "tutor" });
+  const { user } = useAuth();
+  const nav = useNavigate();
+  const loc = useLocation();
+  const [data, setData] = useState<RatingsReply | null>(null);
+  const [stars, setStars] = useState(0);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const load = useCallback(() => getRatings(personaId).then((r) => { setData(r); setStars((s) => s || r.mine?.stars || 0); setText((x) => x || r.mine?.text || ""); }).catch((e: unknown) => setErr(msg(e))), [personaId]);
+  useEffect(() => { void load(); }, [load]);
+  const submit = async () => {
+    if (!user) { nav(`/login?next=${encodeURIComponent(loc.pathname)}`); return; }
+    if (!stars) return;
+    setBusy(true); setErr(null); setOk(null);
+    try { await putRating(personaId, { stars, text: text.trim() }); setOk(t("rating.saved", { n: stars })); await load(); onChanged(); }
+    catch (e) { setErr(msg(e)); }
+    finally { setBusy(false); }
+  };
+  const remove = async () => {
+    setBusy(true); setErr(null); setOk(null);
+    try { await deleteRating(personaId); setStars(0); setText(""); setOk(t("rating.removed")); await load(); onChanged(); }
+    catch (e) { setErr(msg(e)); }
+    finally { setBusy(false); }
+  };
+  if (!data) return null;
+  const { summary, mine, canRate } = data;
+  const gate = !user ? "login" : canRate.ok ? null : canRate.reason;
+  const gateText = gate ? (gate === "login" || gate === "owner" || gate === "blocked" || gate === "notStarted" || gate === "noneDone" ? t(`rating.gate_${gate}`) : (!canRate.ok && canRate.message) || gate) : null;
+  const max = Math.max(1, ...Object.values(summary.dist));
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4" data-testid="rating-block">
+      <div className="mb-2 text-xs font-semibold text-zinc-600">{t("rating.title")}</div>
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="min-w-[7rem]">
+          <div data-testid="rating-avg" className="text-3xl font-bold leading-none">{summary.count ? summary.avg.toFixed(1) : "—"}</div>
+          <div data-testid="rating-count" className="mt-1 text-[11px] text-zinc-500">{summary.count ? t("rating.avg", { n: summary.count }) : t("rating.none")}</div>
+        </div>
+        <ul className="flex-1 space-y-0.5 text-[11px] text-zinc-600">
+          {([5, 4, 3, 2, 1] as const).map((n) => <li key={n} className="flex items-center gap-2" data-testid={`rating-dist-${n}`} data-n={summary.dist[String(n) as keyof typeof summary.dist]}><span className="w-8 text-right">{t("rating.starsN", { n })}</span><span className="h-1.5 flex-1 rounded-full bg-zinc-100"><span className="block h-1.5 rounded-full bg-amber-400" style={{ width: `${(summary.dist[String(n) as keyof typeof summary.dist] / max) * 100}%` }} /></span><span className="w-5">{summary.dist[String(n) as keyof typeof summary.dist]}</span></li>)}
+        </ul>
+      </div>
+      {gate && !mine ? (
+        <p data-testid="rating-gate" data-reason={gate} className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">{gateText}{gate === "login" && <> <Link to={`/login?next=${encodeURIComponent(loc.pathname)}`} className="underline underline-offset-2">{t("detail.loginToStart")}</Link></>}</p>
+      ) : (
+        <div className="mt-3 rounded-md border border-zinc-200 p-3" data-testid="rating-form">
+          <div className="text-[11px] font-semibold text-zinc-600">{t("rating.mine")}{mine && <span className="ml-2 font-normal text-zinc-400">{t("rating.at", { v: mine.atVersion })}</span>}</div>
+          <div className="mt-1 flex gap-1">{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" data-testid={`rating-star-${n}`} aria-pressed={n <= stars} aria-label={t("rating.starsN", { n })} onClick={() => setStars(n)} className={`rounded p-0.5 ${n <= stars ? "text-amber-500" : "text-zinc-300"}`}><Star size={20} fill={n <= stars ? "currentColor" : "none"} /></button>)}</div>
+          <textarea data-testid="rating-text" value={text} maxLength={500} rows={2} placeholder={t("rating.placeholder")} onChange={(e) => setText(e.target.value)} className="mt-2 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-xs" />
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {mine && <button type="button" data-testid="rating-delete" disabled={busy} onClick={() => void remove()} className="rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-600 disabled:opacity-40">{t("rating.remove")}</button>}
+            <button type="button" data-testid="rating-submit" disabled={busy || !stars} onClick={() => void submit()} className="rounded-full bg-amber-500 px-4 py-1 text-xs font-semibold text-white disabled:opacity-40">{mine ? t("rating.update") : t("rating.submit")}</button>
+          </div>
+        </div>
+      )}
+      {err && <p data-testid="rating-error" className="mt-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">{err}</p>}
+      {ok && <p data-testid="rating-ok" className="mt-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{ok}</p>}
+      {data.items.length > 0 && (
+        <ul className="mt-3 divide-y divide-zinc-100" data-testid="rating-list">
+          {data.items.map((r) => <li key={r.id} data-testid="rating-item" className="py-2 text-xs"><div className="flex items-center gap-2"><span className="font-semibold">{r.user.username || "—"}</span><span className="text-amber-500">{"★".repeat(r.stars)}<span className="text-zinc-300">{"★".repeat(5 - r.stars)}</span></span><span className="text-zinc-400">{new Date(r.updatedAt).toLocaleDateString()}</span></div>{r.text && <p className="mt-0.5 text-zinc-700">{r.text}</p>}</li>)}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -143,6 +212,7 @@ export function TutorDetailPage() {
             <ul className="flex flex-wrap gap-2">{d.others.map((o) => <li key={o.id}><Link to={`/tutor/market/${encodeURIComponent(o.id)}`} className="flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1 text-xs">{o.coverEmoji} {o.name}<span className="text-zinc-400">· {o.subject}</span></Link></li>)}</ul>
           </section>
         )}
+        <RatingBlock personaId={p.id} onChanged={() => void load()} />
         <section className="rounded-xl border border-zinc-200 bg-white p-4">
           <div className="mb-2 text-xs font-semibold text-zinc-600">{t("detail.comments")}</div>
           <CommentThread targetType="persona" targetId={p.id} canModerate={d.relation.isOwner} />

@@ -142,7 +142,9 @@ export async function apiUploadMedia(file: File) {
   };
 }
 
-export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "DISLIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED";
+export type NotificationType = "LIKE" | "COMMENT" | "BOOKMARK" | "INTEREST" | "MENTION" | "INVITE" | "LIKE_COMMENT" | "DISLIKE_COMMENT" | "LIKE_POST" | "MESSAGE_REQUEST_ACCEPTED" | "MESSAGE_REQUEST_REJECTED"
+  // 老师人格四类（server Notification.js；deeplink 在 payload 里：personaId → /tutor/market/:id，courseId → /tutor/courses/:id 或 /tutor/run/:id）
+  | "TUTOR_RATING" | "TUTOR_COMMENT" | "TUTOR_REVIEW_DUE" | "TUTOR_DOC_UPDATED";
 
 export type NotificationItem = {
   _id: string;

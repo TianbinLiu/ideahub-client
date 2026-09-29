@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Lock, ScanSearch } from "lucide-react";
-import { acceptScan, getCourse, scanCourse, type CourseSummary, type MaterialEntry, type ScanProposal, setMaterialLicense, type LicenseSource } from "../../api/tutor";
+import { acceptScan, getCourse, mergeRelease, scanCourse, type CourseSummary, type MaterialEntry, type MergeReport, type ScanProposal, setMaterialLicense, type LicenseSource } from "../../api/tutor";
 import { MaterialUploader } from "./materials/MaterialUploader";
 import { ExportCard } from "./ExportCard";
 import { PublishCard } from "./PublishCard";
@@ -21,6 +21,10 @@ export function TutorCoursePage() {
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [merged, setMerged] = useState<{ version: number; note: string; report: MergeReport } | null>(null);
+  // 合并新版（tutor 仓 docs/03 §6.3）：只换 ③ 结构与 ④ 内容，② 与进度保留 —— 规则在服务端 core/publish/merge，这里只摆按钮与回执
+  const doMerge = async () => { setMerging(true); setNotice(null); try { const r = await mergeRelease(id); setMerged({ version: r.version, note: r.note, report: r.report }); await load(); } catch (e) { setNotice(e instanceof Error ? e.message : String(e)); } finally { setMerging(false); } };
   // 授权来源的四档与向导那一步同一份文案（wiz.files.lic_*）；改完整位老师按最差的那一档重算，回包里带着，当面说出来
   const LICENSE_SOURCES: LicenseSource[] = ["self", "instructor_public", "instructor_consent", "unsure"];
   const changeLicense = async (sha: string, source: LicenseSource) => { setBusy(true); setError(null); try { const r = await setMaterialLicense(id, sha, source); setNotice(t("course.licenseSaved", { doc: t(`wiz.files.lic_${r.docLicense ?? source}`) })); await load(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } };
@@ -46,6 +50,26 @@ export function TutorCoursePage() {
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-5">
         {course.unsure > 0 && <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-testid="unsure-banner">{t("course.unsureBanner", { n: course.unsure })}</p>}
         {notice && <p className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-700" data-testid="course-notice">{notice}</p>}
+        {course.source?.updateAvailable && course.source.latest && (
+          <section data-testid="merge-banner" data-latest={course.source.latest} className="rounded-xl border border-cyan-300 bg-cyan-50 p-4 text-cyan-900">
+            <div className="text-sm font-semibold">{t("merge.title", { name: course.source.personaName || t("course.sourceLink"), v: course.source.latest })}</div>
+            <p className="mt-1 text-xs leading-5">{t("merge.explain", { mine: course.source.version })}</p>
+            <div className="mt-2 flex justify-end"><button type="button" data-testid="merge-apply" disabled={merging} onClick={() => void doMerge()} className="rounded-full bg-cyan-600 px-4 py-1 text-xs font-semibold text-white disabled:opacity-40">{merging ? t("merge.applying") : t("merge.apply")}</button></div>
+          </section>
+        )}
+        {course.source?.gone && <p data-testid="merge-gone" className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600">{t("merge.gone")}</p>}
+        {merged && (
+          <section data-testid="merge-report" data-version={merged.version} className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-xs text-emerald-900">
+            <div className="text-sm font-semibold">{t("merge.done", { v: merged.version })}</div>
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              <li>{t("merge.added", { n: merged.report.added.length })}</li><li>{t("merge.removed", { n: merged.report.removed.length })}</li><li>{t("merge.renamed", { n: merged.report.renamed.length })}</li><li>{t("merge.changed", { n: merged.report.changed.length })}</li>
+              <li>{t("merge.learnerKept", { n: merged.report.learnerKept })}</li><li>{t("merge.qaKept", { n: merged.report.studentQaKept })}</li>
+              {!merged.report.baseKnown && <li className="text-amber-800">{t("merge.noBase")}</li>}
+              {merged.report.truncated.length > 0 && <li className="text-amber-800">{t("merge.truncated", { n: merged.report.truncated.length })}</li>}
+            </ul>
+            <div className="mt-2 flex justify-end"><Link to={`/tutor/run/${encodeURIComponent(id)}`} className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">{t("merge.goLearn")}</Link></div>
+          </section>
+        )}
         <section className="rounded-xl border border-zinc-200 bg-white p-4">
           <div className="text-xs text-zinc-500">{course.subject}{course.code ? ` · ${course.code}` : ""}{course.term ? ` · ${course.term}` : ""}</div>
           {course.source && <div className="mt-1 text-[11px] text-zinc-500" data-testid="course-source">{t("course.source", { v: course.source.version })} <Link to={`/tutor/market/${encodeURIComponent(course.source.personaId)}`} className="underline underline-offset-2">{t("course.sourceLink")}</Link></div>}
