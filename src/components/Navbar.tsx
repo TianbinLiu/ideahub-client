@@ -57,6 +57,7 @@ import NotificationsDropdown from "./NotificationsDropdown";
 import AuthDialog from "./AuthDialog";
 import { useUnreadCount } from "../hooks/useUnreadCount";
 import {
+  BarChart3,
   Bomb,
   Bot,
   Building2,
@@ -64,6 +65,7 @@ import {
   CircleUserRound,
   FileText,
   Flame,
+  GraduationCap,
   Home,
   LogIn,
   LogOut,
@@ -297,6 +299,11 @@ export default function Navbar() {
           <NavLink to="/arena" title={t("nav.arena")} aria-label={t("nav.arena")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
             <Bomb className="h-5 w-5" />
           </NavLink>
+          {/* 老师人格入口（tutor 仓 docs/04 C6）：手机行宽一颗图标就是 48px，小屏先藏起来，落地页仍可直达 /tutor。
+              ?from=nav 只用来记引流（M3，服务端只记不奖励、落地后抹掉）；data-tour 给新手引导那一步 */}
+          <NavLink to="/tutor?from=nav" title={t("nav.tutor")} aria-label={t("nav.tutor")} data-testid="nav-tutor" data-tour="nav-tutor" className={({ isActive }) => `${cls(isActive)} hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
+            <GraduationCap className="h-5 w-5" />
+          </NavLink>
           {user && (
             <NavLink to="/groups" title={t("nav.groups")} aria-label={t("nav.groups")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
               <UsersRound className="h-5 w-5" />
@@ -452,6 +459,12 @@ export default function Navbar() {
               </NavLink>
               <NavLink to="/admin/scraper" title={t("nav.scraper")} aria-label={t("nav.scraper")} className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
                 <Bot className="h-5 w-5" />
+              </NavLink>
+              <NavLink to="/admin/tutor-claims" title={t("nav.tutorClaims")} aria-label={t("nav.tutorClaims")} data-testid="nav-tutor-claims" className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
+                <GraduationCap className="h-5 w-5" />
+              </NavLink>
+              <NavLink to="/admin/tutor-metrics" title={t("nav.tutorMetrics")} aria-label={t("nav.tutorMetrics")} data-testid="nav-tutor-metrics" className={({ isActive }) => `${cls(isActive)} inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-900`}>
+                <BarChart3 className="h-5 w-5" />
               </NavLink>
             </>
           )}

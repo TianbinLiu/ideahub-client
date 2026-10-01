@@ -1,3 +1,6 @@
+/* pdf.js 文字层用官方 pdf_viewer.css（老师人格的阅读面，tutor 仓 docs/05 §5.6）：6.x 的字号与横向缩放全靠 --total-scale-factor / --font-height / --scale-x
+   这组变量在 CSS 里算出来，手抄子集缺了它们 → 文字层按默认字号排、与画布上的字对不上。@import 必须排在其它规则之前。 */
+@import "pdfjs-dist/web/pdf_viewer.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,3 +38,10 @@ body.workshop-template-active .ws-button {
 body.workshop-template-active .ws-card {
 	border-radius: var(--ws-card-radius);
 }
+/* ── 老师人格（/tutor）的阅读面：文字层选择色、老师这一步高亮（Custom Highlight API；不支持的浏览器退化成覆盖块 .hl-rect）── */
+.textLayer ::selection { background: rgba(14, 116, 144, 0.35); }
+.textLayer br::selection { background: transparent; }
+::highlight(tutor-step) { background-color: rgba(250, 204, 21, 0.55); }
+::highlight(tutor-pin) { background-color: rgba(34, 211, 238, 0.28); }
+.hl-rect { position: absolute; background: rgba(250, 204, 21, 0.45); pointer-events: none; border-radius: 2px; }
+.cardpage ::selection { background: rgba(14, 116, 144, 0.25); }

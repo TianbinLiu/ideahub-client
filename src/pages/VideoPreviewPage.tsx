@@ -223,6 +223,10 @@ export default function VideoPreviewPage() {
                 <button onClick={start} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200">
                   <RotateCcw className="h-3.5 w-3.5" /> {t("videoPreview.replay")}
                 </button>
+                {/* 转化位（tutor 仓 docs/06 §5.1）：访客是陌生人，看完一条再给一条路 —— 启梦老师是网页功能、不用装 App；?from=preview 只用来记引流 */}
+                <Link to="/tutor?from=preview" data-testid="preview-tutor" className="text-xs text-violet-300 underline underline-offset-2 hover:text-violet-200">
+                  {t("videoPreview.tryTutor")}
+                </Link>
               </div>
             )}
           </div>

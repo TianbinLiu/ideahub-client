@@ -11,6 +11,7 @@
  */
 
 import { Link, Navigate, Outlet, Route, Routes, useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState, lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import ArenaLayout from "./components/ArenaLayout";
@@ -47,6 +48,8 @@ const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const FeedbackAdminPage = lazy(() => import("./pages/FeedbackAdminPage"));
 const DocsAdminPage = lazy(() => import("./pages/DocsAdminPage"));
 const AdminScraperPage = lazy(() => import("./pages/AdminScraperPage"));
+const TutorClaimsAdminPage = lazy(() => import("./pages/tutor/TutorClaimsAdminPage"));
+const TutorMetricsAdminPage = lazy(() => import("./pages/tutor/TutorMetricsAdminPage"));
 const EditIdeaPage = lazy(() => import("./pages/EditIdeaPage"));
 const PhoneLoginPage = lazy(() => import("./pages/PhoneLoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
@@ -86,6 +89,16 @@ const Live2dModelEditorPage = lazy(() => import("./pages/Live2dModelEditorPage")
 const VoiceMarketPage = lazy(() => import("./pages/VoiceMarketPage"));
 const VoiceTemplateDetailPage = lazy(() => import("./pages/VoiceTemplateDetailPage"));
 const VoiceTemplateEditorPage = lazy(() => import("./pages/VoiceTemplateEditorPage"));
+// 老师人格（/tutor，tutor 仓 docs/05 §2.3）：落地 / 向导 / 课程 / 学习页 / 修订审阅。学习页（pdf.js 阅读面）与向导（浏览器端抽文本）各自懒加载，
+// 两页都带着自己那份大依赖，落地页与课程页只该下载壳。
+const TutorHomePage = lazy(() => import("./pages/tutor/TutorHomePage").then((m) => ({ default: m.TutorHomePage })));
+const TutorNewPage = lazy(() => import("./pages/tutor/new/TutorNewPage").then((m) => ({ default: m.TutorNewPage })));
+const TutorCoursePage = lazy(() => import("./pages/tutor/TutorCoursePage").then((m) => ({ default: m.TutorCoursePage })));
+const TutorRunPage = lazy(() => import("./pages/tutor/TutorRunPage").then((m) => ({ default: m.TutorRunPage })));
+const TutorRevisionsPage = lazy(() => import("./pages/tutor/TutorRevisionsPage").then((m) => ({ default: m.TutorRevisionsPage })));
+// 市场两页游客可逛（分享链落地不被登录墙挡），动作（开始学 / 举报）在页内判登录
+const TutorMarketPage = lazy(() => import("./pages/tutor/TutorMarketPage").then((m) => ({ default: m.TutorMarketPage })));
+const TutorDetailPage = lazy(() => import("./pages/tutor/TutorDetailPage").then((m) => ({ default: m.TutorDetailPage })));
 import { getActiveWorkshopTemplate, type WorkshopTemplate, type WorkshopTheme } from "./api";
 import { applyWorkshopTemplateToDocument, readActiveWorkshopTemplate, saveActiveWorkshopTemplate } from "./utils/workshopTheme";
 import SiteTemplateEditOverlay from "./components/SiteTemplateEditOverlay";
@@ -132,6 +145,37 @@ function LandingLayout() {
           下载 App
         </Link>
       </div>
+      <Suspense fallback={<PageLoading />}>
+        <Outlet />
+      </Suspense>
+    </>
+  );
+}
+
+/**
+ * 老师人格的外壳（tutor 仓 docs/04 §5 C8）：学生天天泡的是手机 —— 桌面照摆主站导航栏，手机（<768px）只留一条小条
+ * （主站导航最窄 660px，理由同上面的 LandingLayout；小条链接回 /tutor 而不是下载页：来这里的人已经登录、要的是回课程列表）。
+ * bare = 学习页 /tutor/run/:id：它自带顶栏（返回课程 / 语言 / 老师抽屉）且根是 h-dvh，上面再压一条导航栏，底部输入条就被顶出屏幕。
+ */
+function TutorLayout({ bare = false }: { bare?: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {!bare && (
+        <>
+          <div className="hidden md:block">
+            <Navbar />
+          </div>
+          <div className="flex items-center justify-between border-b border-gray-800 bg-gray-950/88 px-4 py-2.5 md:hidden">
+            <Link to="/tutor" className="text-base font-bold text-white">
+              {t("tutor.layout.brand")}
+            </Link>
+            <Link to="/" className="text-xs text-gray-300 underline underline-offset-2">
+              {t("tutor.layout.backToSite")}
+            </Link>
+          </div>
+        </>
+      )}
       <Suspense fallback={<PageLoading />}>
         <Outlet />
       </Suspense>
@@ -331,6 +375,21 @@ export default function App() {
         {/* ===== 落地页：给**手机上点开链接的陌生人**看的四页（App 分享链、下载、隐私、儿童安全）。
             ★ 手机上不摆桌面导航栏（LandingLayout）：那条栏最窄也要 660px，会把整页撑宽、
               浏览器缩小到看不清（2026-09-05 从 App 分享链点进来实测）。桌面上照旧。 ===== */}
+        {/* ===== 老师人格（/tutor，tutor 仓 docs/04 §5 C1 / C8）：全部要登录（课程与学习过程都是本人的；
+            成人声明在落地页上，进向导前再核一次）。外壳是 TutorLayout 不是 MainLayout：学生天天泡的是手机，
+            主站导航栏最窄 660px 会把整页撑宽（同下面 LandingLayout 的理由）；学习页更是 bare —— 它自带顶栏、根是 h-dvh。 ===== */}
+        <Route element={<TutorLayout />}>
+          <Route path="/tutor" element={<ProtectedRoute><TutorHomePage /></ProtectedRoute>} />
+          <Route path="/tutor/new" element={<ProtectedRoute><TutorNewPage /></ProtectedRoute>} />
+          <Route path="/tutor/courses/:id" element={<ProtectedRoute><TutorCoursePage /></ProtectedRoute>} />
+          <Route path="/tutor/personas/:id/review" element={<ProtectedRoute><TutorRevisionsPage /></ProtectedRoute>} />
+          <Route path="/tutor/market" element={<TutorMarketPage />} />
+          <Route path="/tutor/market/:id" element={<TutorDetailPage />} />
+        </Route>
+        <Route element={<TutorLayout bare />}>
+          <Route path="/tutor/run/:id" element={<ProtectedRoute><TutorRunPage /></ProtectedRoute>} />
+        </Route>
+
         <Route element={<LandingLayout />}>
           {/* App 安装包下载页。★必须**不登录**可访问：这个地址会被分享/印成二维码给
               还没有账号的人，挂在 ProtectedRoute 后面等于扫了码只看到登录页 */}
@@ -621,6 +680,24 @@ export default function App() {
             element={
               <AdminRoute>
                 <AdminScraperPage />
+              </AdminRoute>
+            }
+          />
+          {/* 老师人格：教授认领的人工核实队列（tutor 仓 docs/06 §4.2） */}
+          <Route
+            path="/admin/tutor-claims"
+            element={
+              <AdminRoute>
+                <TutorClaimsAdminPage />
+              </AdminRoute>
+            }
+          />
+          {/* 老师人格：与启梦互通的三条度量（tutor 仓 docs/06 §5.1，M3） */}
+          <Route
+            path="/admin/tutor-metrics"
+            element={
+              <AdminRoute>
+                <TutorMetricsAdminPage />
               </AdminRoute>
             }
           />

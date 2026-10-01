@@ -37,6 +37,9 @@ cp .env.example .env
 ⚠️ 本仓所有 `VITE_` 变量**都会被打进产物**（也就是发给每一个访问者）。
 所以 `.env` 里只能放接口地址、外链这类非敏感配置，**任何密钥都不属于这里**。
 
+可选：`VITE_TUTOR_MATERIAL_MAX_MB`（老师人格 `/tutor` 向导里单份教材的体积提示，默认 100；
+真上限在 server 的 `TUTOR_MATERIAL_MAX_BYTES`，见 [`docs/TUTOR.md`](TUTOR.md)）。
+
 ## 4. 跑起来
 
 ```bash

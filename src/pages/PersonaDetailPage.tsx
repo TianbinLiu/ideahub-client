@@ -23,7 +23,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { Bot, Download, Heart, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Bot, Download, GraduationCap, Heart, Pencil, Sparkles, Trash2 } from "lucide-react";
 import {
   companionForbiddenReason,
   deletePersona,
@@ -391,6 +391,15 @@ export default function PersonaDetailPage() {
                   ? t("arena.personaDetail.stopUsingForCompanion")
                   : t("arena.personaDetail.useForCompanion")}
             </button>
+            {/* 把这个人格拿去当老师（tutor 仓 docs/06 §5.1）：去 /tutor/new 用它的 style 预填第 3 步问卷（名字 / 口头禅 / 称呼 / 风格三选一按字面猜）；
+                ?from=persona 只用来记引流。游客也能点：/tutor/new 套着 ProtectedRoute，会先去登录再回来 */}
+            <Link
+              to={`/tutor/new?from=persona&persona=${persona._id}`}
+              data-testid="persona-as-tutor"
+              className="inline-flex items-center gap-2 rounded-xl border border-violet-600 px-4 py-2 text-sm font-semibold text-violet-200 hover:bg-violet-950/30"
+            >
+              <GraduationCap className="h-4 w-4" /> {t("arena.personaDetail.useAsTutor")}
+            </Link>
             <button
               type="button"
               onClick={handleInstall}

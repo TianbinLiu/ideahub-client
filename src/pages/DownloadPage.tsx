@@ -15,7 +15,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Download, ShieldCheck, Smartphone } from "lucide-react";
+import { Link } from "react-router";
+import { AlertTriangle, Download, GraduationCap, ShieldCheck, Smartphone } from "lucide-react";
 import { appDownloadUrl, getAppLatest, type AppId, type AppRelease } from "../api";
 import SiteFooter from "../components/SiteFooter";
 import { encodeQr, qrSvgPath } from "../utils/qrcode";
@@ -213,6 +214,22 @@ export default function DownloadPage() {
           <AppCard key={app.id} app={app} platform={platform} pageUrl={pageUrl} />
         ))}
       </div>
+
+      {/* 第三张卡：启梦老师（网页版，tutor 仓 docs/06 §5.1）—— 不是安装包，是官网 /tutor。这一页已列启梦 + 诗绘，天然是产品系列页；
+          不塞进 apps[]：AppCard 整个是围着 APK 清单 / 校验和 / 二维码长的。?from=download 只用来记引流（服务端只记不奖励、落地后抹掉） */}
+      <section className="mt-4 rounded-2xl border border-gray-800 bg-gray-900 p-5" data-testid="download-tutor-card">
+        <div className="flex items-start gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-gray-800 bg-gray-950 text-3xl" aria-hidden>🎓</div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-bold text-white">{t("download.appTutorName")}</h2>
+            <p className="mt-0.5 text-sm text-gray-400">{t("download.appTutorTagline")}</p>
+            <p className="mt-2 text-sm text-gray-400">{t("download.appTutorWebOnly")}</p>
+          </div>
+        </div>
+        <Link to="/tutor?from=download" data-testid="download-tutor-open" className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3 font-semibold text-gray-950 hover:bg-violet-400">
+          <GraduationCap className="h-5 w-5" /> {t("download.appTutorOpen")}
+        </Link>
+      </section>
 
       {/* 装法两个 App 完全一样，只讲一遍 */}
       <section className="mt-4 rounded-2xl border border-gray-800 bg-gray-900 p-5">

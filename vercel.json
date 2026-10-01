@@ -8,7 +8,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' blob: https://cubism.live2d.com https://fastly.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: https:; connect-src 'self' blob: data: https://api.ideahubs.org https://res.cloudinary.com https://cubism.live2d.com https://fastly.jsdelivr.net https://v1.hitokoto.cn; worker-src 'self' blob:; frame-src https:; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'wasm-unsafe-eval' blob: https://cubism.live2d.com https://fastly.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: https:; connect-src 'self' blob: data: https://api.ideahubs.org https://res.cloudinary.com https://api.cloudinary.com https://cubism.live2d.com https://fastly.jsdelivr.net https://v1.hitokoto.cn; worker-src 'self' blob:; frame-src https:; upgrade-insecure-requests"
         },
         {
           "key": "Strict-Transport-Security",

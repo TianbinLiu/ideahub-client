@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 
 type TourStep = {
   target: string;
@@ -8,6 +8,8 @@ type TourStep = {
   titleEn: string;
   bodyZh: string;
   bodyEn: string;
+  /** 卡上一颗可点的「去看看」（点了引导就算走完）：只有真能落到某一页的步骤才配，别拿它当装饰 */
+  cta?: { to: string; zh: string; en: string };
 };
 
 type RectState = {
@@ -25,6 +27,15 @@ const TOUR_DEFINITIONS: Record<string, TourStep[]> = {
       titleEn: "Top Navigation",
       bodyZh: "在这里切换首页、圈子和通知，也可以随时重播指引。",
       bodyEn: "Switch between Home, Groups, and Notifications here. You can replay this guide anytime.",
+    },
+    {
+      // 启梦老师（tutor 仓 docs/06 §5.1）：目标是顶栏那颗 🎓；小屏它 display:none，getTarget 认不可见为「没有」，这一步就自动跳过，不会把聚光灯打在 0×0 上
+      target: "nav-tutor",
+      titleZh: "启梦老师",
+      titleEn: "QiMeng Tutor",
+      bodyZh: "把自己的课件交给 AI，铸一位按你的材料讲课的老师，在网页里上课；老师还能发布到市场给别人学。",
+      bodyEn: "Hand your course materials to AI and get a teacher who teaches from them, right here in the browser. Tutors can also be published to the market for others.",
+      cta: { to: "/tutor?from=tour", zh: "去看看 →", en: "Take a look →" },
     },
     {
       target: "home-filters",
@@ -247,7 +258,11 @@ function getViewportSize() {
 
 function getTarget(step?: TourStep) {
   if (!step) return null;
-  return document.querySelector(`[data-tour="${step.target}"]`) as HTMLElement | null;
+  const el = document.querySelector(`[data-tour="${step.target}"]`) as HTMLElement | null;
+  if (!el) return null;
+  // 在 DOM 里但不可见（小屏 display:none 的顶栏图标）= 没有这个目标：否则聚光灯会打在一个 0×0 的框上、卡片贴到左上角
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 ? el : null;
 }
 
 function findAvailableStep(steps: TourStep[], startIndex = 0) {
@@ -443,6 +458,11 @@ export default function OnboardingTour() {
         </div>
         <h2 id="onboarding-tour-title" className="mt-2 text-lg font-semibold text-white">{title}</h2>
         <p id="onboarding-tour-body" className="mt-3 text-sm leading-6 text-gray-200">{body}</p>
+        {step.cta && (
+          <Link to={step.cta.to} onClick={finishTour} data-testid="tour-cta" className="mt-3 inline-flex items-center rounded-xl border border-cyan-500/60 px-3 py-1.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-950/40">
+            {isZh ? step.cta.zh : step.cta.en}
+          </Link>
+        )}
         <div className="mt-4 flex items-center justify-between gap-3">
           <button
             type="button"
