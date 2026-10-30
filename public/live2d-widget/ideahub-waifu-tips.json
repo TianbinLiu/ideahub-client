@@ -116,25 +116,9 @@
   },
   "models": [
     {
-      "name": "Hiyori",
-      "paths": [
-        "https://fastly.jsdelivr.net/gh/Live2D/CubismWebSamples/Samples/Resources/Hiyori/Hiyori.model3.json"
-      ],
-      "message": "Hiyori 来值班了。"
-    },
-    {
-      "name": "Potion-Maker/Pio",
-      "paths": [
-        "https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/model/Potion-Maker/Pio/index.json"
-      ],
-      "message": "Pio 已上线，准备陪你继续看点子。"
-    },
-    {
-      "name": "Potion-Maker/Tia",
-      "paths": [
-        "https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/model/Potion-Maker/Tia/index.json"
-      ],
-      "message": "Tia 已就位。"
+      "name": "小梦",
+      "paths": ["/live2d/mascot/mascot.model3.json"],
+      "message": "小梦来值班了。"
     }
   ]
 }
