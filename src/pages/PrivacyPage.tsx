@@ -65,6 +65,8 @@ export default function PrivacyPage() {
 
       <Section title={t("privacy.useTitle")}>
         <p>{t("privacy.useBody")}</p>
+        {/* AI 客服读本人流水（2026-10-30，PIPL 第 21 条委托处理 + 显著提示；服务端 support.service.billingDigest 只在问到钱时读、只给摘要） */}
+        <p>{t("privacy.useSupport")}</p>
       </Section>
 
       <Section title={t("privacy.shareTitle")}>
