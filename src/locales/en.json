@@ -2511,7 +2511,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "updated": "Last updated: 24 August 2026",
+    "updated": "Last updated: 30 October 2026",
     "whoTitle": "Who runs this",
     "whoBody": "The QiMeng app and the QiMeng website (ideahubs.org) are operated by Tianbin Liu, an individual developer. For anything concerning your personal data, write to support@ideahubs.org.",
     "collectTitle": "What we collect",
@@ -2522,6 +2522,7 @@
     "collectAuto": "What is generated automatically: your IP address and browser type. We do not store IP addresses in the clear. They are used for three things only — determining your country per request (which decides the sign-in methods shown), counting requests for rate limiting, and de-duplicating view counts after hashing the address with a random salt.",
     "useTitle": "What we use it for",
     "useBody": "Running accounts and sign-in, storing and displaying your work, generating footage and video when you ask for it, settling your token balance and orders, sending you notifications about your own activity, and abuse prevention. We do not use your personal data for advertising.",
+    "useSupport": "AI support reading your own account: when you ask the in-app AI support about charges, balance or refunds, the server reads your own recent token ledger and balance and hands the AI model (Volcengine Ark) a summary containing only times, items and amounts. It contains no task IDs and nobody else’s data, is read only when you ask, and the model provider may not retain it or train on it under contract.",
     "shareTitle": "Who else sees it",
     "shareIntro": "These providers receive the data their part of the product needs. Beyond this we do not sell or rent your personal data:",
     "shareArk": "Volcengine Ark (ByteDance): your prompts, reference images and start/end frames. Generating footage requires sending them.",
